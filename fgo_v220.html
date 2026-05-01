@@ -1,0 +1,4713 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FGOダメージ計算機</title>
+  <style>
+    :root{
+      --bg:#f3f3f3;
+      --panel:#ffffff;
+      --line:#bdbdbd;
+      --line-dark:#8b8b8b;
+      --head:#ebebeb;
+      --head2:#f7f7f7;
+      --text:#222;
+      --muted:#666;
+      --blue:#4e79d9;
+      --shadow:0 1px 2px rgba(0,0,0,.08);
+      --input-h:22px;
+      --radius:2px;
+      --font:"Meiryo","Yu Gothic UI","Hiragino Kaku Gothic ProN",sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:11px/1.3 var(--font)}
+    .app{width:100%;margin:0}
+    .topbar{
+      display:flex;align-items:center;gap:6px;padding:3px 4px;background:linear-gradient(#fafafa,#ececec);
+      border-bottom:1px solid var(--line-dark);position:sticky;top:0;z-index:20
+    }
+    .title{font-weight:700;font-size:12px;margin-right:6px;white-space:nowrap}
+    .menu{position:relative}
+    .menu-btn{
+      height:22px;padding:0 6px;border:1px solid var(--line-dark);background:linear-gradient(#f4f4f4,#dcdcdc);
+      border-radius:var(--radius);cursor:pointer;box-shadow:var(--shadow);font-size:10px
+    }
+    .menu-btn:hover{background:linear-gradient(#fff,#dfdfdf)}
+    .menu-btn.active{background:linear-gradient(#e7eefc,#d5e0fb);border-color:#90a9dc}
+    .dropdown{position:absolute;top:24px;left:0;min-width:180px;background:#fff;border:1px solid var(--line-dark);box-shadow:0 4px 14px rgba(0,0,0,.15);display:none;z-index:30}
+    .dropdown.open{display:block}
+    .drop-item,.drop-sep{padding:8px 10px;white-space:nowrap}
+    .drop-item{cursor:pointer}.drop-item:hover{background:#f3f6fd}
+    .drop-sep{padding:0;height:1px;background:#ddd}
+    .toolbar{display:flex;align-items:center;gap:3px;padding:3px 4px;border-bottom:1px solid var(--line);background:var(--head2);flex-wrap:wrap}
+    .tool-btn,.tool-chip{height:19px;border:1px solid var(--line-dark);background:linear-gradient(#fafafa,#e7e7e7);border-radius:var(--radius);padding:0 5px;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:4px;box-shadow:var(--shadow)}
+    .tool-chip.blue{background:linear-gradient(#eef4ff,#d9e7ff)}
+    .tool-chip.green{background:linear-gradient(#f2faea,#dff0c8)}
+    .tool-chip.yellow{background:linear-gradient(#fff9dd,#f2e7ad)}
+    .toolbar .spacer{width:1px;height:16px;background:#cfcfcf;margin:0 3px}
+    .main{padding:4px 4px 6px 0}
+    .table-wrap{border:1px solid var(--line-dark);background:var(--panel);overflow:auto;box-shadow:var(--shadow);margin-left:0}
+    table{width:max-content;border-collapse:collapse;table-layout:fixed;background:#fff}
+    thead th{background:linear-gradient(#f5f5f5,#e5e5e5);border:1px solid var(--line);color:#222;padding:2px;text-align:center;vertical-align:middle;font-weight:700;line-height:1.15;white-space:normal;font-size:11px;overflow:hidden}
+    tbody td{border:1px solid var(--line);padding:1px;text-align:center;vertical-align:middle;background:#fff;overflow:hidden}
+    tbody tr:nth-child(even) td{background:#fcfcfc}
+    .sticky-left{position:sticky;left:0;z-index:3;background:inherit}
+    thead .sticky-left{z-index:4}
+    .sticky-left-2{position:sticky;left:34px;z-index:3;background:inherit}
+    .sticky-left-3{position:sticky;left:82px;z-index:3;background:inherit}
+    thead .sticky-left-2{z-index:4}
+    thead .sticky-left-3{z-index:4}
+    .w-target{width:56px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:52px}.w-card{width:22px}.w-csel{width:36px}.w-s{width:58px}.w-m{width:62px}.w-l{width:76px}.w-mnp{width:50px}
+    .notes-wrap{margin-top:6px}
+    input[type="text"],input[type="number"],select,textarea{width:100%;border:1px solid #a8a8a8;background:#fff;padding:0 2px;font:11px var(--font);border-radius:2px}
+    input[type="text"],input[type="number"],select{height:var(--input-h)}
+    textarea{min-height:108px;resize:vertical;padding:3px;line-height:1.25}
+    .target-btn{width:100%;height:40px;border:1px solid #a8a8a8;background:linear-gradient(#fff,#f1f1f1);border-radius:2px;cursor:pointer;padding:2px;display:flex;align-items:center;justify-content:center}
+    .target-btn:hover{background:linear-gradient(#fff,#e9eefb);border-color:#8ca7dd}
+    .target-face{width:36px;height:36px;object-fit:cover;border:1px solid #a8a8a8;border-radius:2px;background:#f2f2f2;display:block;opacity:.35}
+    .target-face.show{opacity:1}
+    .field-stack{display:grid;gap:1px}
+    .dual-stack{display:grid;grid-template-rows:repeat(2,1fr);gap:1px}
+    .tri-stack{display:grid;grid-template-rows:repeat(3,1fr);gap:1px}
+    .mini-lbl{font-size:10px;color:var(--muted);line-height:1;text-align:left;padding-left:2px}
+    .action-stack{display:grid;grid-template-rows:repeat(2,1fr);gap:1px}
+    .action-stack select{padding:0 1px;font-size:10px}
+    .ex-stack select{padding:0 1px;font-size:10px}
+    .damage-stack{display:flex;flex-direction:column;gap:0;align-items:flex-end;font-family:Consolas,monospace;line-height:1.1;padding-right:1px}
+    .damage-stack span{font-size:10px}
+    .damage-stack .mid{font-size:13px;font-weight:700}
+    .damage-stack.total .mid{font-size:14px;color:#1f5fbf}
+    .muted{color:var(--muted)}
+    .how-to-use{margin:18px 4px 12px;padding:12px 16px;border:1px solid #c8d8e8;background:#f4f8fc;border-radius:6px;font-size:12px;line-height:1.7;color:#333}
+    .how-to-title{font-weight:700;margin-bottom:6px;color:#2a4a7a;font-size:13px}
+    .how-to-list{margin:0;padding-left:20px}
+    .how-to-list li{margin-bottom:3px}
+
+
+    .row-actions{display:grid;grid-template-columns:1fr;gap:1px;align-items:start}
+    .ellipsis-btn{width:100%;height:108px;border:1px solid #a8a8a8;background:linear-gradient(#fff,#f1f1f1);border-radius:2px;cursor:pointer;font:700 11px/1 var(--font);color:#555;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0}
+    .ellipsis-btn:hover{background:linear-gradient(#fff,#e9eefb);border-color:#8ca7dd}
+    .action-menu{position:absolute;display:none;min-width:120px;background:#fff;border:1px solid var(--line-dark);box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:60}
+    .action-menu.open{display:block}
+    .action-item{padding:7px 10px;white-space:nowrap;cursor:pointer;font-size:11px}
+    .action-item:hover{background:#f3f6fd}
+
+
+    .ko-grid{display:grid;grid-template-columns:1fr;gap:6px}
+    .ko-target,.ko-line{border:1px solid var(--line);background:#fff;display:grid;align-items:stretch}
+    .ko-target{grid-template-columns:92px 1fr}
+    .ko-line{grid-template-columns:54px minmax(120px,1fr) 88px minmax(120px,1fr)}
+    .ko-line.total{grid-template-columns:54px minmax(120px,1fr) 88px minmax(120px,1fr) 54px minmax(100px,1fr)}
+    .ko-lbl,.ko-sub-lbl{display:flex;align-items:center;justify-content:center;text-align:center;background:linear-gradient(#f5f5f5,#e5e5e5);font-size:9px;line-height:1.15;padding:4px 3px}
+    .ko-lbl{border-right:1px solid var(--line)}
+    .ko-sub-lbl{border-left:1px solid var(--line);border-right:1px solid var(--line)}
+    .ko-val,.ko-result{display:flex;align-items:center;justify-content:flex-end;padding:4px 6px;font-family:Consolas,monospace;font-size:11px;min-height:30px}
+    .ko-val input{font-family:Consolas,monospace}
+    .ko-result{justify-content:center;font-size:15px;font-weight:700;color:#1f5fbf}
+    .modal.ko-modal{width:min(760px,96vw)}
+
+
+    /* 本家寄せカード色 */
+    .col-buster{background:#ffe7ea !important;}
+    .col-arts{background:#e7f3ff !important;}
+    .col-quick{background:#ebf9ea !important;}
+    .col-buster input,.col-buster select,.col-buster textarea{background:#fff7f8;}
+    .col-arts input,.col-arts select,.col-arts textarea{background:#f7fbff;}
+    .col-quick input,.col-quick select,.col-quick textarea{background:#f7fff7;}
+    thead th.col-buster{background:linear-gradient(#fff1f3,#ffdfe4) !important;}
+    thead th.col-arts{background:linear-gradient(#f1f8ff,#dcecff) !important;}
+    thead th.col-quick{background:linear-gradient(#f2fcf1,#dff2de) !important;}
+
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-start;justify-content:center;padding:40px 12px;z-index:100}
+    .modal-overlay.open{display:flex}
+    .modal{width:min(680px,100%);background:#fff;border:1px solid var(--line-dark);box-shadow:0 16px 40px rgba(0,0,0,.22);border-radius:4px;overflow:hidden}
+    .modal-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(#f9f9f9,#ececec);border-bottom:1px solid var(--line)}
+    .modal-title{font-weight:700;font-size:13px}.modal-close{margin-left:auto;border:1px solid var(--line-dark);background:linear-gradient(#fafafa,#e2e2e2);height:24px;padding:0 10px;cursor:pointer;border-radius:2px}
+    .modal-body{padding:10px 12px}
+    .modal-search{margin-bottom:8px}
+    .sv-list{display:grid;gap:4px;max-height:360px;overflow:auto}
+    .sv-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #d2d2d2;background:#fafafa;padding:8px 10px;border-radius:3px;cursor:pointer}
+    .sv-item:hover{background:#f1f6ff;border-color:#9eb6ea}
+    .sv-main{display:flex;flex-direction:column;gap:1px}.sv-sub{color:var(--muted);font-size:11px}
+    .sv-rank{font-size:10px;color:#886600}
+  
+    .active-chip{background:linear-gradient(#dce9fc,#bcd5fb) !important;border-color:#7aa7e8 !important;color:#1a3a7a;}
+    .cls-chip,.rar-chip{height:20px;padding:0 6px;font-size:11px;}
+
+  .cls-chip,.rar-chip,.np-level-chip{font-size:12px !important;height:24px !important;padding:0 8px !important;}
+  #servantModal .modal-body > div > div > span{font-size:12px !important;}
+  #servantModal label, #servantModal select, #servantModal input{font-size:12px !important;}
+  #servantModal #popLv, #servantModal #popFou, #servantModal #popCE{height:24px !important;}
+  #servantList .sv-item{padding:6px 10px !important;}
+  #servantList .sv-main > span:first-child{font-size:11px !important; line-height:1.2;}
+  #servantList .sv-rank{font-size:10px !important;}
+
+
+    .np-card-display-wrap{display:grid;gap:1px}
+    .np-card-display{font-weight:700;text-align:center;background:#f8f8f8;color:#222}
+    .np-card-display:disabled{opacity:1;color:#222;background:linear-gradient(#fafafa,#ececec);-webkit-text-fill-color:#222}
+</style>
+
+<style>
+#servantModal .modal-content{
+  height: 90vh !important;
+}
+#servantModal .modal-body{
+  max-height: calc(90vh - 120px) !important;
+  overflow-y: auto !important;
+}
+</style>
+
+
+<style>
+/* ① 対象欄の横幅調整 */
+#targetArea, .target-area {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* ② メモ欄高さ調整（7行相当） */
+textarea {
+  height: 140px !important;
+}
+
+/* ③ ATK縮小、宝具欄拡張 */
+.atk-field {
+  width: 80px !important;
+}
+.np-field, .np-type, .np-multiplier {
+  width: 140px !important;
+}
+
+/* ④ 足跡/B/A/Q 縮小 */
+.buff-field, .card-field {
+  width: 60px !important;
+}
+
+/* ⑤ 1st/2nd/3rd クリ縮小 */
+.crit-field {
+  width: 50px !important;
+}
+
+/* 全体余白調整 */
+input, select {
+  padding: 4px !important;
+}
+</style>
+
+
+<style>
+/* ① 対象＝画像と同幅 */
+#targetArea, .target-area {
+  width: auto !important;
+  display: inline-block !important;
+}
+#targetArea img, .target-area img {
+  width: 120px !important;
+}
+#targetArea, .target-area {
+  width: 120px !important;
+}
+
+/* ② メモ欄を7行に */
+textarea {
+  height: auto !important;
+  rows: 7;
+}
+textarea { height: 120px !important; }
+
+/* ③ 宝具欄拡張 */
+.np-field, .np-type, .np-multiplier {
+  width: 180px !important;
+}
+
+/* ④ クリ欄さらに縮小 */
+.crit-field {
+  width: 40px !important;
+}
+</style>
+
+
+<style>
+/* 追加微調整 */
+textarea{
+  height: 100px !important; /* さらに1段階縮小 */
+  min-height: 100px !important;
+}
+.np-field, .np-type, .np-multiplier,
+#npTypeSelect, #npRateSelect{
+  width: 150px !important; /* もう少し拡大 */
+}
+</style>
+
+
+<style>
+/* 右端ダメージ欄拡張 */
+.damage-field, .result-field {
+  width: 120px !important;
+}
+</style>
+
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">FGOダメージ計算機</div>
+      <div class="menu">
+        
+        <div class="dropdown" id="display">
+          <div class="drop-item">通常表示</div>
+          <div class="drop-item">詳細表示</div>
+          <div class="drop-item">簡易表示</div>
+        </div>
+      </div>
+      <div class="menu">
+        
+        <div class="dropdown" id="incoming"><div class="drop-item">被ダメージ計算を開く</div></div>
+      </div>
+      <div class="menu">
+        
+        <div class="dropdown" id="settings">
+          <div class="drop-item">表示</div>
+          <div class="drop-item">計算</div>
+          <div class="drop-item">入力補助</div>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="menu-btn" data-menu="data">データ管理</button>
+        <div class="dropdown" id="data">
+          <div class="drop-item" data-action="save">保存</div>
+          <div class="drop-item" data-action="load">読込</div>
+          <div class="drop-sep"></div>
+          <div class="drop-item" data-action="export">エクスポート</div>
+          <div class="drop-item" data-action="import">インポート</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CSV インポート用 隠しファイル入力 -->
+    <input type="file" id="csvImportInput" accept=".csv" style="display:none;">
+
+    <div class="toolbar">
+      
+      
+      
+      <button class="tool-btn" id="openKoBtn" style="display:none;">撃破率計算</button>
+      
+    </div>
+
+    <main class="main">
+      <div class="table-wrap">
+        <table id="calcTable">
+          <thead>
+            <tr>
+              <th class="sticky-left w-xxs" rowspan="2"></th>
+              <th class="sticky-left-2 w-target" rowspan="2">対象</th>
+              <th class="sticky-left-3 w-memo" rowspan="2">メモ</th>
+              <th class="w-m" rowspan="2">ATK</th>
+              <th class="w-mnp" rowspan="2">宝具/種類/倍率</th>
+              <th class="w-xs" rowspan="2">攻撃バフ<br>/防御</th>
+              <th class="w-xs col-buster" rowspan="2">Bバフ<br>/デバフ</th>
+              <th class="w-xs col-arts" rowspan="2">Aバフ<br>/デバフ</th>
+              <th class="w-xs col-quick" rowspan="2">Qバフ<br>/デバフ</th>
+              <th class="w-s" rowspan="2">カード威力<br>バフ<br>/B/A/Q</th>
+              <th class="w-xs" rowspan="2">クリバフ</th>
+              <th class="w-s" rowspan="2">クリバフ<br>/B/A/Q</th>
+              <th class="w-xs" rowspan="2">宝具<br>威力<br>/耐性減</th>
+              <th class="w-xs" rowspan="2">EX<br>バフ</th>
+              <th class="w-xs" rowspan="2">特攻威力<br>バフ</th>
+              <th class="w-xs" rowspan="2">宝具特攻<br>威力</th>
+              <th class="w-xs" rowspan="2">固定<br>ダメ</th>
+              <th class="w-s" rowspan="2">足跡<br>/B<br>/A<br>/Q</th>
+              <th class="w-xs" rowspan="2">特殊<br>耐性</th>
+              <th class="w-xs" rowspan="2">クラス<br>相性</th>
+              <th class="w-xs" rowspan="2">クラス<br>補正</th>
+              <th class="w-xs" rowspan="2">属性<br>相性</th>
+              <th class="w-csel" rowspan="2">1st<br>/クリ</th>
+              <th class="w-csel" rowspan="2">2nd<br>/クリ</th>
+              <th class="w-csel" rowspan="2">3rd<br>/クリ</th>
+              <th class="w-xs" rowspan="2">EX</th>
+              <th class="w-l">1stダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
+              <th class="w-l">2ndダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
+              <th class="w-l">3rdダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
+              <th class="w-l">EXダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
+              <th class="w-l">トータル<br><span class="muted">最低 / 平均 / 最大</span></th>
+              <th class="w-l" rowspan="2" style="white-space:nowrap;min-width:120px;">目標<br>ダメージ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-row-suffix="">
+              <td class="sticky-left w-xxs">
+                <div class="row-actions">
+                  <button class="ellipsis-btn" id="rowActionBtn" type="button" aria-label="行操作"><span>・</span><span>・</span><span>・</span></button>
+                </div>
+              </td>
+              <td class="sticky-left-2 w-target">
+                <button class="target-btn" id="targetOpenBtn" type="button" aria-label="対象選択">
+                  <img id="selectedServantImg" class="target-face" alt="">
+                </button>
+              </td>
+              <td class="sticky-left-3 w-memo"><textarea id="memo" placeholder="メモ"></textarea></td>
+              <td><input type="number" id="atk" value="12000" oninput="recalc()" /></td>
+              <td class="w-mnp">
+                <div class="field-stack">
+                  <select aria-label="宝具種類" id="npTypeSelect" onchange="updateNpRateOptions();recalc()">
+                    <option value="" selected>—</option>
+                  </select>
+                  <select id="npCardDisplay" class="np-card-display" aria-label="宝具カード色" onchange="onNpCardDisplayChange(this.value)">
+                    <option value="B" selected>B</option>
+                    <option value="A">A</option>
+                    <option value="Q">Q</option>
+                  </select>
+                  <input type="number" aria-label="宝具倍率" id="npRateSelect" value="300" step="any" placeholder="300" title="宝具倍率（%表記。例: 300, 450）" oninput="recalc()" />
+                </div>
+              </td>
+              <td>
+                <div class="dual-stack">
+                  <input type="number" id="atkBuf" value="0" aria-label="攻撃バフ" oninput="recalc()" onclick="openBuffDetail('atkBuf','攻撃バフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="defDebuf" value="0" aria-label="防御デバフ" oninput="recalc()" onclick="openBuffDetail('defDebuf','防御デバフ',event)" readonly style="cursor:pointer;" />
+                </div>
+              </td>
+              <td class="col-buster">
+                <div class="dual-stack">
+                  <input type="number" id="bBuf" value="0" aria-label="Bバフ" oninput="recalc()" onclick="openBuffDetail('bBuf','Bバフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="bDebuf" value="0" aria-label="Bデバフ" oninput="recalc()" onclick="openBuffDetail('bDebuf','Bデバフ',event)" readonly style="cursor:pointer;" />
+                </div>
+              </td>
+              <td class="col-arts">
+                <div class="dual-stack">
+                  <input type="number" id="aBuf" value="0" aria-label="Aバフ" oninput="recalc()" onclick="openBuffDetail('aBuf','Aバフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="aDebuf" value="0" aria-label="Aデバフ" oninput="recalc()" onclick="openBuffDetail('aDebuf','Aデバフ',event)" readonly style="cursor:pointer;" />
+                </div>
+              </td>
+              <td class="col-quick">
+                <div class="dual-stack">
+                  <input type="number" id="qBuf" value="0" aria-label="Qバフ" oninput="recalc()" onclick="openBuffDetail('qBuf','Qバフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="qDebuf" value="0" aria-label="Qデバフ" oninput="recalc()" onclick="openBuffDetail('qDebuf','Qデバフ',event)" readonly style="cursor:pointer;" />
+                </div>
+              </td>
+              <td>
+                <div class="tri-stack">
+                  <input class="col-buster" type="number" id="cardBufB" value="0" aria-label="Bカード威力バフ" oninput="recalc()" onclick="openBuffDetail('cardBufB','B カード威力バフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-arts" type="number" id="cardBufA" value="0" aria-label="Aカード威力バフ" oninput="recalc()" onclick="openBuffDetail('cardBufA','A カード威力バフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-quick" type="number" id="cardBufQ" value="0" aria-label="Qカード威力バフ" oninput="recalc()" onclick="openBuffDetail('cardBufQ','Q カード威力バフ',event)" readonly style="cursor:pointer;" />
+                </div>
+              </td>
+              <td><input type="number" id="criBuf" value="0" aria-label="クリバフ" oninput="recalc()" onclick="openBuffDetail('criBuf','クリバフ（全色共通）',event)" readonly style="cursor:pointer;" /></td>
+              <td>
+                <div class="tri-stack">
+                  <input class="col-buster" type="number" id="criBufB" value="0" aria-label="Bクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufB','B クリバフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-arts" type="number" id="criBufA" value="0" aria-label="Aクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufA','A クリバフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-quick" type="number" id="criBufQ" value="0" aria-label="Qクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufQ','Q クリバフ',event)" readonly style="cursor:pointer;" />
+                </div>
+              </td>
+              <td>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <input type="number" id="npBuf" value="0" aria-label="宝具威力バフ" oninput="recalc()" onclick="openBuffDetail('npBuf','宝具威力バフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="npResDown" value="0" aria-label="宝具耐性ダウン" oninput="recalc()" onclick="openBuffDetail('npResDown','宝具威力耐性減',event)" readonly style="cursor:pointer;" title="上限不明" />
+                </div>
+              </td>
+              <td><input type="number" id="exBuf" value="0" aria-label="EXバフ" oninput="recalc()" onclick="openBuffDetail('exBuf','EXバフ',event)" readonly style="cursor:pointer;" /></td>
+              <td><input type="number" id="spBuf" value="0" aria-label="特攻威力バフ" oninput="recalc()" onclick="openBuffDetail('spBuf','特攻威力バフ',event)" readonly style="cursor:pointer;" /></td>
+              <td><input type="number" id="npSpBuf" value="100" aria-label="宝具特攻威力" oninput="recalc()" /></td>
+              <td><input type="number" id="fixedDmg" value="0" aria-label="固定ダメージ" oninput="recalc()" /></td>
+              <td>
+                <div class="tri-stack">
+                  <input class="col-buster" type="number" id="footB" value="0" aria-label="B足跡" oninput="recalc()" />
+                  <input class="col-arts" type="number" id="footA" value="0" aria-label="A足跡" oninput="recalc()" />
+                  <input class="col-quick" type="number" id="footQ" value="0" aria-label="Q足跡" oninput="recalc()" />
+                </div>
+              </td>
+              <td><input type="number" id="specialResist" value="0" aria-label="特殊耐性" oninput="recalc()" /></td>
+              <td>
+                <div class="field-stack">
+                  <select id="clsAff" onchange="recalc()"><option value="0.5">0.5</option><option value="1.0" selected>1.0</option><option value="1.2">1.2</option><option value="1.5">1.5</option><option value="2.0">2.0</option></select>
+                </div>
+              </td>
+              <td>
+                <select id="clsMod" onchange="recalc()"><option value="0.6">0.6</option><option value="0.9">0.9</option><option value="0.95">0.95</option><option value="1.0" selected>1.0</option><option value="1.05">1.05</option><option value="1.1">1.1</option></select>
+              </td>
+              <td>
+                <select id="attrAff" onchange="recalc()"><option value="0.9">0.9</option><option value="1.0" selected>1.0</option><option value="1.1">1.1</option></select>
+              </td>
+              <td>
+                <div class="action-stack">
+                  <select id="card1" aria-label="1stカード" onchange="recalc()">
+                    <option selected>N</option>
+                    <option>B</option>
+                    <option>A</option>
+                    <option>Q</option>
+                  </select>
+                  <select id="crit1" aria-label="1stクリ" onchange="recalc()">
+                    <option selected>有</option>
+                    <option>無</option>
+                    <option>0</option>
+                  </select>
+                </div>
+              </td>
+              <td>
+                <div class="action-stack">
+                  <select id="card2" aria-label="2ndカード" onchange="recalc()">
+                    <option selected>N</option>
+                    <option>B</option>
+                    <option>A</option>
+                    <option>Q</option>
+                  </select>
+                  <select id="crit2" aria-label="2ndクリ" onchange="recalc()">
+                    <option selected>有</option>
+                    <option>無</option>
+                    <option>0</option>
+                  </select>
+                </div>
+              </td>
+              <td>
+                <div class="action-stack">
+                  <select id="card3" aria-label="3rdカード" onchange="recalc()">
+                    <option selected>N</option>
+                    <option>B</option>
+                    <option>A</option>
+                    <option>Q</option>
+                  </select>
+                  <select id="crit3" aria-label="3rdクリ" onchange="recalc()">
+                    <option selected>有</option>
+                    <option>無</option>
+                    <option>0</option>
+                  </select>
+                </div>
+              </td>
+              <td>
+                <div class="ex-stack">
+                  <select id="cardEx" aria-label="EX有無" onchange="recalc()">
+                    <option selected>有</option>
+                    <option>0</option>
+                  </select>
+                </div>
+              </td>
+              <td><div class="damage-stack"><span id="d1lo">0</span><span class="mid" id="d1av">0</span><span id="d1hi">0</span></div></td>
+              <td><div class="damage-stack"><span id="d2lo">0</span><span class="mid" id="d2av">0</span><span id="d2hi">0</span></div></td>
+              <td><div class="damage-stack"><span id="d3lo">0</span><span class="mid" id="d3av">0</span><span id="d3hi">0</span></div></td>
+              <td><div class="damage-stack"><span id="dElo">0</span><span class="mid" id="dEav">0</span><span id="dEhi">0</span></div></td>
+              <td><div class="damage-stack total"><span id="dTlo">0</span><span class="mid" id="dTav">0</span><span id="dThi">0</span></div></td>
+              <td style="vertical-align:middle;text-align:center;">
+                <input type="number" id="targetDmg" value="" placeholder="例: 500000"
+                  aria-label="目標ダメージ" oninput="recalc()"
+                  style="width:100%;min-width:110px;font-size:12px;padding:3px 4px;border:1px solid #ccc;border-radius:3px;text-align:right;background:var(--color-background-secondary);color:var(--color-text-primary);" />
+                <button class="tool-btn" onclick="openKoModalForRow('')"
+                  style="margin-top:4px;width:100%;font-size:11px;">撃破率計算</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="notes-wrap">
+      </div>
+
+      <!-- ══ 使い方 ══ -->
+      <div class="how-to-use">
+        <div class="how-to-title">使い方</div>
+        <ol class="how-to-list">
+          <li>最初に「対象」のオブジェクトをクリックし、サーヴァントを選択してください。</li>
+          <li>攻撃バフから順にバフを入力してください。対象のバフをクリックすると入力ウィンドウがポップアップされます。</li>
+          <li>クラス相性、属性相性を入力してください。なおクラス補正は自動で入力されます。</li>
+          <li>選ぶカードとクリティカルの有無を選択してください。Nは宝具です。</li>
+          <li>目標ダメージの入力は任意です。</li>
+          <li>次のターン以降の計算が必要な際は「…」オブジェクトを選択し、「↓コピー」で行を増やしてください。</li>
+          <li>「データ管理」から計算結果のエクスポートとインポートが可能です。</li>
+        </ol>
+      </div>
+
+    </main>
+  </div>
+
+
+
+  <div class="modal-overlay" id="koModal">
+    <div class="modal ko-modal" role="dialog" aria-modal="true" aria-labelledby="koModalTitle">
+      <div class="modal-head">
+        <div class="modal-title" id="koModalTitle">撃破率計算</div>
+        <button class="modal-close" type="button" id="closeKoModalBtn">閉じる</button>
+      </div>
+      <div class="modal-body">
+        <div class="ko-grid">
+          <div class="ko-target">
+            <div class="ko-lbl">目標ダメージ</div>
+            <div class="ko-val"><input type="text" id="koTargetDmg" value="" placeholder="例: 500,000" aria-label="目標ダメージ" oninput="recalcKillProb()" style="text-align:right;width:100%;"></div>
+          </div>
+          <div class="ko-line">
+            <div class="ko-lbl">1st</div>
+            <div class="ko-val" id="koD1">0</div>
+            <div class="ko-sub-lbl">固定ダメージ</div>
+            <div class="ko-val"><input type="number" value="0" aria-label="1st固定ダメージ"></div>
+          </div>
+          <div class="ko-line">
+            <div class="ko-lbl">2nd</div>
+            <div class="ko-val" id="koD2">0</div>
+            <div class="ko-sub-lbl">固定ダメージ</div>
+            <div class="ko-val"><input type="number" value="0" aria-label="2nd固定ダメージ"></div>
+          </div>
+          <div class="ko-line">
+            <div class="ko-lbl">3rd</div>
+            <div class="ko-val" id="koD3">0</div>
+            <div class="ko-sub-lbl">固定ダメージ</div>
+            <div class="ko-val"><input type="number" value="0" aria-label="3rd固定ダメージ"></div>
+          </div>
+          <div class="ko-line">
+            <div class="ko-lbl">EX</div>
+            <div class="ko-val" id="koDe">0</div>
+            <div class="ko-sub-lbl">固定ダメージ</div>
+            <div class="ko-val"><input type="number" value="0" aria-label="EX固定ダメージ"></div>
+          </div>
+          <div class="ko-line total">
+            <div class="ko-lbl">トータル</div>
+            <div class="ko-val" id="koDt">0</div>
+            <div class="ko-sub-lbl">固定ダメージ</div>
+            <div class="ko-val"><input type="number" id="koFixedTotal" value="0" aria-label="トータル固定ダメージ" oninput="recalcKillProb()"></div>
+            <div class="ko-sub-lbl">撃破率</div>
+            <div class="ko-result" id="koKillRate">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-menu" id="rowActionMenu" role="menu" aria-label="行操作メニュー">
+    <div class="action-item" data-action="copy-up">↑ コピー</div>
+    <div class="action-item" data-action="copy-down">↓ コピー</div>
+    <div class="action-item" data-action="swap-up">↑ 入れ替え</div>
+    <div class="action-item" data-action="swap-down">↓ 入れ替え</div>
+    <div class="action-item" data-action="reset">リセット</div>
+    <div class="action-item" data-action="delete" style="color:#c0392b;">行を削除</div>
+  </div>
+
+  <!-- ══ バフ詳細入力モーダル ══ -->
+  <div class="modal-overlay" id="buffDetailModal">
+    <div class="modal" role="dialog" aria-modal="true" style="width:360px;max-width:95vw;">
+      <div class="modal-head">
+        <div class="modal-title" id="buffDetailTitle">バフ詳細入力</div>
+        <button class="modal-close" type="button" id="buffDetailCloseBtn">閉じる</button>
+      </div>
+      <div class="modal-body" style="padding:12px;">
+        <div style="font-size:11px;color:#666;margin-bottom:10px;">各欄に個別のバフ値(%)を入力。合計が元フィールドに反映されます。</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;" id="buffDetailTable">
+          <colgroup><col style="width:120px"><col style="width:80px"><col style="width:20px"></colgroup>
+          <thead>
+            <tr style="border-bottom:1px solid #ddd;">
+              <th style="text-align:left;padding:3px 4px;font-weight:500;color:#555;">ラベル</th>
+              <th style="text-align:right;padding:3px 4px;font-weight:500;color:#555;">値(%)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="buffDetailRows"></tbody>
+        </table>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:2px solid #4a7fd4;">
+          <span style="font-size:12px;font-weight:600;color:#333;">合計</span>
+          <span id="buffDetailTotal" style="font-size:16px;font-weight:700;color:#4a7fd4;">0 %</span>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+          <button id="buffDetailAddRow" class="tool-btn" style="font-size:11px;">＋行追加</button>
+          <button id="buffDetailClearBtn" class="tool-btn" style="font-size:11px;">クリア</button>
+          <button id="buffDetailBoostBtn" class="tool-btn" style="font-size:11px;" title="宝具バフを2倍にするサーヴァント効果">ブースト ×1</button>
+          <button id="buffDetailOkBtn" class="tool-btn" style="font-size:11px;background:#4a7fd4;color:#fff;border-color:#3a6fc4;">適用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="servantModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="servantModalTitle">
+      <div class="modal-head">
+        <div class="modal-title" id="servantModalTitle">サーヴァント選択</div>
+        <button class="modal-close" type="button" id="closeModalBtn">閉じる</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-search">
+          <input type="text" id="servantSearch" placeholder="サーヴァント名で検索" style="margin-bottom:6px;" />
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;" id="clsFilterRow">
+            <span style="font-size:9px;color:#666;align-self:center;">クラス:</span>
+            <button class="tool-btn cls-chip active-chip" data-cls="" onclick="setClsFilter(this)">全</button>
+            <button class="tool-btn cls-chip" data-cls="Saber"       onclick="setClsFilter(this)">剣</button>
+            <button class="tool-btn cls-chip" data-cls="Archer"      onclick="setClsFilter(this)">弓</button>
+            <button class="tool-btn cls-chip" data-cls="Lancer"      onclick="setClsFilter(this)">槍</button>
+            <button class="tool-btn cls-chip" data-cls="Rider"       onclick="setClsFilter(this)">騎</button>
+            <button class="tool-btn cls-chip" data-cls="Caster"      onclick="setClsFilter(this)">術</button>
+            <button class="tool-btn cls-chip" data-cls="Assassin"    onclick="setClsFilter(this)">殺</button>
+            <button class="tool-btn cls-chip" data-cls="Berserker"   onclick="setClsFilter(this)">狂</button>
+            <button class="tool-btn cls-chip" data-cls="Shielder"    onclick="setClsFilter(this)">楯</button>
+            <button class="tool-btn cls-chip" data-cls="Ruler"       onclick="setClsFilter(this)">裁</button>
+            <button class="tool-btn cls-chip" data-cls="Avenger"     onclick="setClsFilter(this)">讐</button>
+            <button class="tool-btn cls-chip" data-cls="MoonCancer"  onclick="setClsFilter(this)">月</button>
+            <button class="tool-btn cls-chip" data-cls="AlterEgo"    onclick="setClsFilter(this)">分</button>
+            <button class="tool-btn cls-chip" data-cls="Foreigner"   onclick="setClsFilter(this)">降</button>
+            <button class="tool-btn cls-chip" data-cls="Pretender"   onclick="setClsFilter(this)">詐</button>
+            <button class="tool-btn cls-chip" data-cls="Beast"       onclick="setClsFilter(this)">獣</button>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">
+            <span style="font-size:9px;color:#666;align-self:center;">レアリティ:</span>
+            <button class="tool-btn rar-chip active-chip" data-rar="" onclick="setRarFilter(this)">全</button>
+            <button class="tool-btn rar-chip" data-rar="5" onclick="setRarFilter(this)">★5</button>
+            <button class="tool-btn rar-chip" data-rar="4" onclick="setRarFilter(this)">★4</button>
+            <button class="tool-btn rar-chip" data-rar="3" onclick="setRarFilter(this)">★3</button>
+            <button class="tool-btn rar-chip" data-rar="2" onclick="setRarFilter(this)">★2</button>
+            <button class="tool-btn rar-chip" data-rar="1" onclick="setRarFilter(this)">★1</button>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;" id="npLevelRow">
+            <span style="font-size:9px;color:#666;align-self:center;">宝具Lv:</span>
+            <button class="tool-btn rar-chip active-chip np-level-chip" data-np-level="1" onclick="setNpLevel(this)">1</button>
+            <button class="tool-btn rar-chip np-level-chip" data-np-level="2" onclick="setNpLevel(this)">2</button>
+            <button class="tool-btn rar-chip np-level-chip" data-np-level="3" onclick="setNpLevel(this)">3</button>
+            <button class="tool-btn rar-chip np-level-chip" data-np-level="4" onclick="setNpLevel(this)">4</button>
+            <button class="tool-btn rar-chip np-level-chip" data-np-level="5" onclick="setNpLevel(this)">5</button>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px;font-size:10px;">
+            <label>Lv: <select id="popLv" style="height:18px;font-size:10px;border:1px solid #aaa;border-radius:2px;padding:0 2px;">
+              <option value="120">120</option><option value="100">100</option>
+              <option value="90" selected>90</option><option value="80">80</option>
+              <option value="70">70</option><option value="60">60</option><option value="1">1</option>
+            </select></label>
+            <label>フォウATK: <select id="popFou" style="height:18px;font-size:10px;border:1px solid #aaa;border-radius:2px;padding:0 2px;">
+              <option value="2000">+2000</option><option value="1000">+1000</option><option value="0" selected>±0</option>
+            </select></label>
+            <label>礼装ATK: <input type="number" id="popCE" value="0" style="width:64px;height:18px;font-size:10px;border:1px solid #aaa;border-radius:2px;padding:0 2px;"></label>
+            <label><input type="checkbox" id="popGrand"> グランド(+1000)</label><label style="margin-left:10px;"><input type="checkbox" id="classScore"> クラススコア</label>
+<label style="margin-left:10px;"><input type="checkbox" id="append1"> アペンド1</label>
+<label style="margin-left:10px;"><input type="checkbox" id="append4"> アペンド4</label>
+<label style="margin-left:10px;"><input type="checkbox" id="footprintMax"> 足跡MAX</label>
+          </div>
+        </div>
+        <div class="sv-list" id="servantList">
+          <button class="sv-item" type="button" data-name="アルトリア・ペンドラゴン"><span class="sv-main"><span>アルトリア・ペンドラゴン</span></span><span class="sv-rank">★★★★★</span></button>
+          <button class="sv-item" type="button" data-name="モルガン"><span class="sv-main"><span>モルガン</span></span><span class="sv-rank">★★★★★</span></button>
+          <button class="sv-item" type="button" data-name="千子村正"><span class="sv-main"><span>千子村正</span></span><span class="sv-rank">★★★★★</span></button>
+          <button class="sv-item" type="button" data-name="アルクェイド"><span class="sv-main"><span>アルクェイド</span></span><span class="sv-rank">★★★★★</span></button>
+          <button class="sv-item" type="button" data-name="スペース・イシュタル"><span class="sv-main"><span>スペース・イシュタル</span></span><span class="sv-rank">★★★★★</span></button>
+          <button class="sv-item" type="button" data-name="ククルカン"><span class="sv-main"><span>ククルカン</span></span><span class="sv-rank">★★★★★</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+const APP = {
+  allSv: [],
+  servant: null,        // nice API data for selected servant
+  npMults: null,        // [Lv1..5] from API
+  npOptions: [],        // current servant NP option list
+  selectedNpLevel: 1,   // selected NP level in modal / applied to NP rate
+  filterCls: '',
+  filterRar: '',
+  npCardUserOverride: false, // true = ユーザーが手動でカード色を変更した
+};
+
+// ── FGO damage constants ──
+const CARD_BASE  = {B:1.5, A:1.0, Q:0.8};
+const FIRST_BON  = {B:0.5, A:0.0, Q:0.2};  // first-card bonus (applied to ALL cards)
+const BUSTER_CHAIN_BONUS = 0.2;
+
+// Class ATK modifier (corrected per FGO mechanics)
+const CLS_MOD_MAP = {
+  Saber:1.0, Archer:0.95, Lancer:1.05, Rider:1.0,
+  Caster:0.9, Assassin:0.9,
+  Berserker:1.1, Shielder:1.0, Ruler:1.1, Avenger:1.1,
+  MoonCancer:1.0, AlterEgo:1.0, Foreigner:1.0, Pretender:1.0, Beast:1.0
+};
+const CLS_MOD_VAL_MAP = {
+  0.6:'0.6',0.9:'0.9',0.95:'0.95',1.0:'1.0',1.05:'1.05',1.1:'1.1'
+};
+
+// Atlas Academy nice servant API が返す実際の buff.type → 入力フィールドID マッピング
+// ※ Atlas は "upCommandall" を B/A/Q 全カードに使い、ckSelfIndv で絞り込む
+//   カード種別バフは passiveFieldFromBuff() で個別判定する
+const BUFF_FIELD = {
+  // 攻撃バフ
+  'upAtk':              'atkBuf',
+  'upAttack':           'atkBuf',
+  'atkUp':              'atkBuf',   // fallback
+  'attackUp':           'atkBuf',
+  'damageUp':           'atkBuf',
+
+  // クリティカル威力（威力=damage, 発生率=rate は除外リストへ）
+  'upCriticaldamage':   'criBuf',   // Atlas 実際の型名（カード色限定なし）
+  'criticalDamageUp':   'criBuf',   // 旧互換
+  'criticalUp':         'criBuf',
+  // カード色別クリティカル威力（ckSelfIndv で色を限定したタイプ）
+  'upCriticaldamageIndividuality': '__card_specific_crit__', // 動的解析で色別判定
+
+  // 宝具威力
+  'upNpdamage':         'npBuf',
+  'npDamageUp':         'npBuf',
+  'noblePhantasmUp':    'npBuf',
+  'treasureDeviceUp':   'npBuf',
+
+  // 固定ダメージ
+  'addDamage':          'fixedDmg',
+  'damagePlus':         'fixedDmg',
+  'fixedDamage':        'fixedDmg',
+
+  // EXバフ
+  'upExtraAttack':      'exBuf',
+  'extraAttackUp':      'exBuf',
+  'exAttackUp':         'exBuf',
+
+  // 特攻
+  'upSpecialdefence':   'spBuf',
+  'specialAttack':      'spBuf',
+  'powerUp':            'spBuf',
+
+  // 宝具特攻
+  'npSpecialAttack':    'npSpBuf',
+  'upNpspecialresist':  'npSpBuf',
+};
+
+// ダメージ計算に影響しないバフタイプ（Atlas 実際の型名）
+const NON_DAMAGE_BUFF_TYPES = new Set([
+  // スター・クリティカル発生系（威力ではなく確率）
+  'upCriticalpoint',     // スター発生率アップ（Atlas実名）
+  'upCriticalrate',      // クリティカル発生率アップ（Atlas実名）
+  'criticalRateUp',
+  'criticalStarGenerate',
+  'starGenerate',
+  'starAbsorb',
+  'starWeight',
+  'criticalPoint',
+  'addStar',
+
+  // NP獲得・チャージ
+  'upDropnp',            // NP獲得量アップ（Atlas実名）
+  'npCharge',
+  'npGain',
+  'chargeNp',
+  'chargeNpAtk',
+
+  // 防御・ダメージカット
+  'subSelfdamage',       // ダメージカット（Atlas実名）
+  'defenceUp',
+  'defUp',
+  'upDefence',
+  'upDefenceCommandall',
+
+  // 回復・HP
+  'healUp',
+  'maxHpUp',
+  'hp',
+
+  // 無敵・回避
+  'invincible',
+  'avoidance',
+  'pierceInvincible',
+  'guts',
+  'gutsFunction',
+  'preventDeathFunction',
+
+  // 状態異常
+  'upTolerance',         // 弱体耐性アップ（Atlas実名）
+  'buffRate',
+  'debuffSuccess',
+  'resistanceUp',
+  'debuffResist',
+
+  // その他
+  'skillRct',
+  'donotSkip',
+  'donotAct',
+  'overcharge',
+  'multiattack',
+  'reduceHp',
+  'masterSkillReset',
+  'shortenSkill',
+]);
+
+// ══════════════════════════════════════════════════════════════
+// PASSIVE_BUFF_MAP — スキャン済みパッシブバフ確定値
+// スキャナーv3で全サーヴァントを走査し、ダメージ系バフのみ抽出した結果。
+// collectionNo → {フィールドID: 値(%)} のマッピング。
+// applyClassPassive でこのMapを優先使用し、動的解析をフォールバックにする。
+// ══════════════════════════════════════════════════════════════
+const PASSIVE_BUFF_MAP = {
+  1: {}, // マシュ・キリエライト（防御特化のため攻撃関連パッシブなし）
+  4: { qBuf:6 }, // アルトリア・ペンドラゴン〔リリィ〕
+  8: { qBuf:10, fixedDmg:175 }, // アルテラ
+  9: { qBuf:8, bBuf:12 }, // ジル・ド・レェ
+  10: { qBuf:8 }, // シュヴァリエ・デオン
+  11: { criBuf:8 }, // エミヤ
+  12: { criBuf:11, fixedDmg:175 }, // ギルガメッシュ
+  13: { criBuf:10 }, // ロビンフッド
+  15: { criBuf:11, fixedDmg:300 }, // エウリュアレ
+  16: { criBuf:6 }, // アーラシュ
+  17: { fixedDmg:175 }, // クー・フーリン
+  18: { aBuf:8 }, // エリザベート・バートリー
+  20: { fixedDmg:175 }, // クー・フーリン〔プロトタイプ〕
+  23: { qBuf:11, criBuf:6, fixedDmg:95 }, // メドゥーサ
+  24: { qBuf:8 }, // ゲオルギウス
+  26: { qBuf:10 }, // ブーディカ
+  27: { qBuf:11 }, // 牛若丸
+  28: { qBuf:11, fixedDmg:100 }, // アレキサンダー
+  29: { qBuf:11 }, // マリー・アントワネット
+  30: { qBuf:11.5, fixedDmg:150 }, // マルタ
+  31: { aBuf:10 }, // メディア
+  32: { aBuf:8 }, // ジル・ド・レェ
+  33: { aBuf:4 }, // ハンス・クリスチャン・アンデルセン
+  34: { aBuf:6 }, // ウィリアム・シェイクスピア
+  35: { aBuf:7 }, // メフィストフェレス
+  36: { aBuf:8 }, // ヴォルフガング・アマデウス・モーツァルト
+  37: { aBuf:10 }, // 諸葛孔明〔エルメロイⅡ世〕
+  38: { aBuf:8, fixedDmg:175 }, // クー・フーリン
+  41: { fixedDmg:300 }, // ステンノ
+  47: { bBuf:8, fixedDmg:200 }, // ヘラクレス
+  48: { bBuf:6 }, // ランスロット
+  49: { bBuf:10 }, // 呂布奉先
+  50: { bBuf:12 }, // スパルタクス
+  51: { bBuf:2, fixedDmg:125 }, // 坂田金時
+  52: { bBuf:12 }, // ヴラド三世
+  53: { bBuf:8 }, // アステリオス
+  54: { bBuf:11 }, // カリギュラ
+  55: { bBuf:8 }, // ダレイオス三世
+  56: { bBuf:12 }, // 清姫
+  57: { bBuf:8 }, // エイリーク・ブラッドアクス
+  58: { bBuf:6 }, // タマモキャット
+  60: { criBuf:11 }, // オリオン
+  61: { aBuf:8 }, // エリザベート・バートリー〔ハロウィン〕
+  62: { aBuf:6, fixedDmg:200 }, // 玉藻の前
+  63: { criBuf:10 }, // ダビデ
+  64: { qBuf:8 }, // ヘクトール
+  65: { qBuf:8 }, // フランシス・ドレイク
+  67: { aBuf:8 }, // メディア〔リリィ〕
+  68: { qBuf:2 }, // 沖田総司
+  69: { criBuf:8 }, // 織田信長
+  72: { qBuf:8 }, // フェルグス・マック・ロイ
+  73: { qBuf:10 }, // アルトリア・ペンドラゴン〔サンタオルタ〕
+  74: { aBuf:10 }, // ナーサリー・ライム
+  76: { qBuf:8 }, // モードレッド
+  77: { criBuf:8 }, // ニコラ・テスラ
+  78: { qBuf:10 }, // アルトリア・ペンドラゴン〔オルタ〕
+  79: { aBuf:10 }, // ヴァン・ホーエンハイム・パラケルスス
+  82: { bBuf:4 }, // フランケンシュタイン
+  84: { criBuf:10, fixedDmg:175 }, // アルジュナ
+  85: { qBuf:10, fixedDmg:200 }, // カルナ
+  86: { qBuf:12 }, // 謎のヒロインX
+  87: { fixedDmg:125 }, // フィン・マックール
+  88: { qBuf:10, fixedDmg:100 }, // ブリュンヒルデ
+  89: { bBuf:1 }, // ベオウルフ
+  90: { qBuf:8 }, // ネロ・クラウディウス〔ブライド〕
+  91: { criBuf:6, qBuf:6, aBuf:6, bBuf:6 }, // 両儀式
+  92: { criBuf:10 }, // 両儀式
+  94: { qBuf:11, criBuf:8 }, // アストルフォ
+  95: { criBuf:10, fixedDmg:175 }, // 子ギル
+  96: { criBuf:8 }, // 巌窟王
+  97: { bBuf:12 }, // ナイチンゲール
+  98: { bBuf:6, fixedDmg:150 }, // クー・フーリン〔オルタ〕
+  99: { qBuf:10 }, // 女王メイヴ
+  100: { aBuf:10 }, // エレナ・ブラヴァツキー
+  101: { qBuf:11, fixedDmg:200 }, // ラーマ
+  103: { aBuf:4 }, // トーマス・エジソン
+  104: { aBuf:8 }, // ジェロニモ
+  105: { criBuf:10, qBuf:7 }, // ビリー・ザ・キッド
+  106: { criBuf:10 }, // ジャンヌ・ダルク〔オルタ〕
+  107: { criBuf:10 }, // アンリマユ
+  108: { qBuf:11, fixedDmg:150 }, // イスカンダル
+  109: { criBuf:10 }, // エミヤ〔アサシン〕
+  111: { aBuf:8, fixedDmg:200 }, // アイリスフィール〔天の衣〕
+  112: { fixedDmg:150 }, // 酒呑童子
+  113: { aBuf:11, fixedDmg:125 }, // 玄奘三蔵
+  114: { bBuf:12, qBuf:11, fixedDmg:150 }, // 源頼光
+  115: { fixedDmg:150 }, // 坂田金時
+  116: { bBuf:8 }, // 茨木童子
+  118: { qBuf:11, fixedDmg:175 }, // オジマンディアス
+  119: { qBuf:10 }, // アルトリア・ペンドラゴン
+  120: { aBuf:10, fixedDmg:175 }, // ニトクリス
+  121: { qBuf:8 }, // ランスロット
+  122: { criBuf:8 }, // トリスタン
+  123: { qBuf:8 }, // ガウェイン
+  124: { criBuf:10 }, // 静謐のハサン
+  125: { criBuf:8 }, // 俵藤太
+  126: { qBuf:10 }, // ベディヴィエール
+  127: { aBuf:10 }, // レオナルド・ダ・ヴィンチ
+  128: { qBuf:10, aBuf:10, fixedDmg:230 }, // 玉藻の前
+  129: { criBuf:10, aBuf:10 }, // アルトリア・ペンドラゴン
+  130: { aBuf:10 }, // マリー・アントワネット
+  131: { criBuf:10 }, // アン・ボニー＆メアリー・リード
+  132: { aBuf:5 }, // モードレッド
+  134: { bBuf:12 }, // 清姫
+  137: { criBuf:8 }, // クロエ・フォン・アインツベルン
+  138: { aBuf:6 }, // エリザベート・バートリー〔ブレイブ〕
+  139: { fixedDmg:125 }, // クレオパトラ
+  142: { criBuf:10, fixedDmg:225 }, // イシュタル
+  144: { qBuf:12, fixedDmg:300 }, // ケツァル・コアトル
+  145: { aBuf:10, fixedDmg:175 }, // ギルガメッシュ
+  146: { fixedDmg:250 }, // メドゥーサ
+  147: { criBuf:6 }, // ゴルゴーン
+  148: { bBuf:2, fixedDmg:200 }, // ジャガーマン
+  150: { aBuf:6 }, // マーリン
+  152: { aBuf:10 }, // ソロモン
+  154: { criBuf:8 }, // "山の翁"
+  155: { bBuf:6 }, // 謎のヒロインX〔オルタ〕
+  156: { criBuf:11 }, // ジェームズ・モリアーティ
+  157: { criBuf:10 }, // エミヤ〔オルタ〕
+  158: { criBuf:8 }, // ヘシアン・ロボ
+  159: { qBuf:5, criBuf:5 }, // 燕青
+  160: { qBuf:8 }, // アーサー・ペンドラゴン〔プロトタイプ〕
+  161: { bBuf:5 }, // 土方歳三
+  162: { bBuf:3 }, // 茶々
+  163: { qBuf:8, criBuf:10, fixedDmg:225 }, // メルトリリス
+  164: { criBuf:6, fixedDmg:200 }, // パッションリップ
+  165: { qBuf:8, fixedDmg:200 }, // 鈴鹿御前
+  166: { aBuf:10 }, // ＢＢ
+  167: { criBuf:10 }, // 殺生院キアラ
+  169: { aBuf:11.5 }, // シェヘラザード
+  171: { bBuf:12, fixedDmg:175 }, // ペンテシレイア
+  172: { qBuf:8 }, // クリストファー・コロンブス
+  173: { aBuf:12 }, // シャーロック・ホームズ
+  174: { bBuf:4 }, // ポール・バニヤン
+  175: { qBuf:8, aBuf:11 }, // ネロ・クラウディウス
+  176: { qBuf:12, bBuf:2 }, // フランケンシュタイン
+  177: { fixedDmg:185 }, // ニトクリス
+  178: { bBuf:6 }, // 織田信長
+  179: { qBuf:8, criBuf:12 }, // アルトリア・ペンドラゴン〔オルタ〕
+  180: { criBuf:6 }, // エレナ・ブラヴァツキー
+  181: { qBuf:11, bBuf:6, fixedDmg:150 }, // 源頼光
+  182: { qBuf:12, criBuf:10, fixedDmg:225 }, // イシュタル
+  183: { fixedDmg:225 }, // パールヴァティー
+  184: { criBuf:10, bBuf:2 }, // 巴御前
+  187: { qBuf:8 }, // 柳生但馬守宗矩
+  189: { aBuf:11, fixedDmg:150 }, // 刑部姫
+  192: { aBuf:8 }, // キルケー
+  194: { aBuf:6 }, // シバの女王
+  195: { bBuf:8, fixedDmg:175 }, // アビゲイル・ウィリアムズ
+  196: { aBuf:11, fixedDmg:225 }, // エレシュキガル
+  197: { qBuf:12, criBuf:10, fixedDmg:175 }, // アルテラ・ザ・サン〔タ〕
+  198: { aBuf:4, fixedDmg:175 }, // 葛飾北斎
+  199: { aBuf:12, fixedDmg:150 }, // セミラミス
+  200: { criBuf:11, aBuf:8 }, // 浅上藤乃
+  201: { aBuf:12 }, // アナスタシア
+  202: { bBuf:8, criBuf:10 }, // アタランテ〔オルタ〕
+  203: { aBuf:8 }, // アヴィケブロン
+  204: { criBuf:8 }, // アントニオ・サリエリ
+  205: { qBuf:12 }, // イヴァン雷帝
+  206: { qBuf:11, fixedDmg:150 }, // アキレウス
+  207: { criBuf:10, fixedDmg:150 }, // ケイローン
+  208: { criBuf:12, aBuf:6.5 }, // ジーク
+  209: { criBuf:10 }, // 沖田総司〔オルタ〕
+  211: { qBuf:11, fixedDmg:170 }, // 坂本龍馬
+  212: { criBuf:6 }, // ナポレオン
+  213: { qBuf:10, fixedDmg:175 }, // シグルド
+  214: { fixedDmg:200 }, // ワルキューレ
+  215: { aBuf:12, fixedDmg:250 }, // スカサハ＝スカディ
+  216: { criBuf:10 }, // ジャンヌ・ダルク
+  217: { bBuf:4 }, // 茨木童子
+  218: { criBuf:11, qBuf:11 }, // 牛若丸
+  219: { bBuf:12 }, // ジャンヌ・ダルク〔オルタ〕
+  220: { aBuf:10, fixedDmg:250 }, // ＢＢ
+  221: { qBuf:10 }, // 女王メイヴ
+  222: { criBuf:10, qBuf:10 }, // 謎のヒロインXX
+  223: { qBuf:8 }, // ディルムッド・オディナ
+  224: { aBuf:10, fixedDmg:225 }, // シトナイ
+  225: { aBuf:8, fixedDmg:150 }, // 酒呑童子
+  226: { bBuf:8, criBuf:8 }, // 項羽
+  227: { qBuf:10 }, // 蘭陵王
+  231: { qBuf:12 }, // 赤兎馬
+  233: { fixedDmg:250 }, // ケツァル・コアトル〔サンバ／サンタ〕
+  234: { criBuf:10, aBuf:10 }, // 紅閻魔
+  235: { aBuf:8 }, // 李書文
+  237: { aBuf:7 }, // 紫式部
+  238: { bBuf:11, criBuf:8, aBuf:12, fixedDmg:250 }, // キングプロテア
+  239: { qBuf:10, criBuf:6, fixedDmg:225 }, // カーマ
+  241: { qBuf:8, aBuf:8 }, // 司馬懿〔ライネス〕
+  242: { criBuf:10, aBuf:10, fixedDmg:225 }, // アストライア
+  243: { criBuf:11 }, // グレイ
+  244: { qBuf:10, fixedDmg:175 }, // ジナコ＝カリギリ
+  245: { qBuf:8, fixedDmg:200 }, // ラクシュミー・バーイー
+  246: { criBuf:10 }, // ウィリアム・テル
+  247: { bBuf:12, fixedDmg:250 }, // アルジュナ〔オルタ〕
+  248: { criBuf:22, bBuf:5, fixedDmg:210 }, // アシュヴァッターマン
+  249: { aBuf:10, fixedDmg:200 }, // アスクレピオス
+  250: { criBuf:2 }, // 魔王信長
+  251: { bBuf:4 }, // 森長可
+  252: { qBuf:6, fixedDmg:150 }, // 長尾景虎
+  253: { qBuf:8, aBuf:6 }, // レオナルド・ダ・ヴィンチ
+  254: { qBuf:8 }, // イアソン
+  255: { criBuf:12 }, // パリス
+  256: { qBuf:8 }, // ガレス
+  257: { qBuf:4 }, // バーソロミュー・ロバーツ
+  258: { aBuf:6 }, // 陳宮
+  260: { bBuf:5.5 }, // サロメ
+  261: { bBuf:12, qBuf:4, fixedDmg:125 }, // 宮本武蔵
+  262: { criBuf:10, fixedDmg:145, aBuf:8 }, // 刑部姫
+  263: { criBuf:10 }, // カーミラ
+  264: { fixedDmg:100 }, // 葛飾北斎
+  265: { aBuf:8 }, // アルトリア・ペンドラゴン
+  266: { qBuf:6, criBuf:12, fixedDmg:200 }, // 謎のアルターエゴ・Λ
+  267: {}, // オキタ・Ｊ・ソウジ（ダメージ系パッシブなし・動的解析誤検出防止）
+  268: { criBuf:16, fixedDmg:270 }, // スペース・イシュタル
+  269: { qBuf:10, criBuf:11 }, // カラミティ・ジェーン
+  270: { qBuf:10 }, // アストルフォ
+  271: { criBuf:11, bBuf:12 }, // ナイチンゲール〔サンタ〕
+  272: { criBuf:12, fixedDmg:175 }, // 超人オリオン
+  273: { qBuf:8 }, // マンドリカルド
+  274: { qBuf:11, fixedDmg:150 }, // エウロペ
+  275: { fixedDmg:175 }, // 楊貴妃
+  276: { criBufQ:10 }, // 清少納言
+  277: { qBuf:9, aBuf:10 }, // オデュッセウス
+  278: { qBuf:8, bBuf:7.5, criBuf:6, fixedDmg:225 }, // ディオスクロイ
+  279: { bBuf:12, fixedDmg:225, aBuf:8 }, // カイニス
+  280: { criBuf:9, fixedDmg:235, bBuf:9 }, // ロムルス＝クィリヌス
+  281: { criBuf:8, aBuf:8 }, // ボイジャー
+  282: { bBuf:10 }, // 鬼女紅葉
+  283: { qBuf:7, criBuf:8, fixedDmg:100 }, // 宇津見エリセ
+  284: { aBuf:12, criBuf:10 }, // アルトリア・キャスター
+  285: { aBuf:12, npBuf:12, criBuf:2 }, // 殺生院キアラ
+  286: { criBuf:8 }, // イリヤスフィール・フォン・アインツベルン
+  287: { bBuf:3.5, fixedDmg:100 }, // ブリュンヒルデ
+  289: { bBuf:9, fixedDmg:185 }, // アビゲイル・ウィリアムズ〔夏〕
+  290: { qBuf:9 }, // 巴御前
+  291: { qBuf:9 }, // 紫式部
+  292: { aBuf:10 }, // 卑弥呼
+  293: { criBuf:6 }, // 斎藤一
+  294: { criBuf:6 }, // 織田信勝
+  295: { bBuf:6, fixedDmg:185 }, // ヴァン・ゴッホ
+  296: { qBuf:11, fixedDmg:200, criBuf:10 }, // ネモ
+  297: { aBuf:8, fixedDmg:225 }, // 蘆屋道満
+  298: { qBuf:8 }, // 渡辺綱
+  299: { qBuf:9, bBuf:12, fixedDmg:250 }, // 伊吹童子
+  300: { bBuf:10 }, // ヴリトラ
+  301: { fixedDmg:200, criBuf:12 }, // カルナ〔サンタ〕
+  302: { aBuf:10, criBuf:5 }, // 千子村正
+  303: { criBuf:6 }, // 平景清
+  304: { aBuf:9 }, // 鬼一法眼
+  305: { criBuf:10, atkBuf:20, fixedDmg:225 }, // アムール〔カレン〕
+  306: { bBuf:12 }, // ガラテア
+  307: { aBuf:7 }, // ミス・クレーン
+  308: { bBuf:6 }, // 謎のアイドルX〔オルタ〕
+  309: { bBuf:8, aBuf:8 }, // モルガン
+  310: { bBuf:11 }, // バーゲスト
+  311: { qBuf:10, aBuf:10 }, // バーヴァン・シー
+  312: { aBuf:9 }, // メリュジーヌ
+  313: { qBuf:7 }, // パーシヴァル
+  314: { qBuf:8, criBuf:18, aBuf:10, npBuf:20 }, // 光のコヤンスカヤ
+  315: { qBuf:6 }, // ハベトロット
+  316: { aBuf:1.5, qBuf:10 }, // オベロン
+  317: { criBuf:10 }, // 沖田総司〔オルタ〕
+  318: { criBuf:10 }, // アナスタシア＆ヴィイ
+  319: { aBuf:5, criBuf:10 }, // シャルロット・コルデー
+  320: { qBuf:12 }, // レオナルド・ダ・ヴィンチ
+  321: { criBuf:10, qBuf:10, fixedDmg:225 }, // カーマ
+  322: { qBuf:12, fixedDmg:225, aBuf:8 }, // カイニス
+  323: { bBuf:4 }, // 清少納言
+  324: { aBuf:10, fixedDmg:175 }, // ジャック・ド・モレー
+  325: { criBuf:8, qBuf:8 }, // ゼノビア
+  326: { qBuf:12 }, // エリザベート・バートリー〔シンデレラ〕
+  327: { aBuf:4, criBuf:12 }, // 出雲阿国
+  328: { criBuf:2, aBuf:3 }, // 謎の蘭丸X
+  329: { qBuf:12, criBuf:10 }, // 坂本龍馬
+  330: { aBuf:8, qBuf:12 }, // マルタ〔サンタ〕
+  331: { qBuf:11 }, // 太公望
+  332: { qBuf:12 }, // ドブルイニャ・ニキチッチ
+  334: { aBuf:5 }, // 闇のコヤンスカヤ
+  335: { criBuf:12, aBuf:12, npBuf:10 }, // ヘファイスティオン
+  336: { qBuf:10, fixedDmg:175, criBuf:5 }, // マナナン・マク・リール〔バゼット〕
+  337: { qBuf:8, fixedDmg:150 }, // 徴姉妹
+  338: { fixedDmg:195 }, // 太歳星君
+  340: { aBuf:2, fixedDmg:95 }, // 大黒天
+  342: { qBuf:9, criBuf:7.2 }, // コンスタンティノス11世
+  343: { qBuf:10 }, // シャルルマーニュ
+  344: { qBuf:10 }, // ローラン
+  345: { bBuf:12 }, // クリームヒルト
+  346: { criBuf:10, aBuf:5, npBuf:5 }, // ジェームズ・モリアーティ
+  347: { qBuf:2 }, // ドン・キホーテ
+  348: { aBuf:8 }, // 張角
+  349: { qBuf:8, fixedDmg:150 }, // 曲亭馬琴
+  350: { criBuf:8 }, // 源為朝
+  351: { aBuf:42, criBuf:10, qBuf:30, bBuf:30 }, // アーキタイプ：アース
+  352: { aBuf:8 }, // 徐福
+  353: { aBuf:4, criBuf:10 }, // レディ・アヴァロン
+  354: { qBuf:8 }, // ガレス
+  355: { bBuf:14, fixedDmg:250 }, // 伊吹童子
+  356: { criBuf:14, qBuf:7, fixedDmg:100 }, // 宇津見エリセ
+  357: { aBuf:10, fixedDmg:250 }, // スカサハ＝スカディ
+  358: { aBuf:10 }, // 武則天
+  359: { fixedDmg:200 }, // スルーズ
+  360: { fixedDmg:200 }, // ヒルド
+  361: { fixedDmg:200 }, // オルトリンデ
+  362: { bBuf:10, criBuf:5, aBuf:8 }, // 千利休
+  363: { qBuf:2 }, // 山南敬助
+  364: { aBuf:8, qBuf:5, criBuf:10 }, // 壱与
+  365: { qBuf:8 }, // 呼延灼
+  366: { qBuf:9, fixedDmg:150, criBuf:10 }, // 黄飛虎
+  367: { criBuf:9, aBuf:6 }, // 九紋竜エリザ
+  369: { aBuf:8, criBuf:8 }, // 言峰綺礼
+  370: { bBuf:2, criBuf:10, fixedDmg:250 }, // ニトクリス〔オルタ〕
+  371: { aBuf:10, fixedDmg:150, bBuf:10 }, // テスカトリポカ
+  372: { aBuf:20, fixedDmg:210, criBuf:20 }, // テノチティトラン
+  374: { aBuf:10 }, // 女教皇ヨハンナ
+  375: { criBuf:14, aBuf:6 }, // 高杉晋作
+  376: { criBuf:14, fixedDmg:300 }, // ラーヴァ／ティアマト
+  377: { criBuf:12 }, // ソドムズビースト／ドラコー
+  379: { fixedDmg:175 }, // セタンタ
+  380: { qBuf:6, criBuf:10 }, // 果心居士
+  381: { fixedDmg:175 }, // ビーマ
+  382: { bBuf:1 }, // ドゥリーヨダナ
+  383: { qBuf:10, criBuf:16, fixedDmg:225, aBuf:10 }, // ドゥルガー
+  384: { qBuf:10, fixedDmg:120 }, // メドゥーサ
+  385: { aBuf:12 }, // 雨の魔女トネリコ
+  386: { bBuf:10 }, // アルトリア・キャスター
+  387: { qBuf:10, aBuf:6, fixedDmg:200 }, // 鈴鹿御前〔サマバケ〕
+  388: { criBuf:15.8 }, // クロエ・フォン・アインツベルン
+  390: { qBuf:11, criBuf:12 }, // メリュジーヌ
+  391: { bBuf:6, criBuf:4 }, // ＵＤＫ－バーゲスト
+  392: { qBuf:12, aBuf:4, criBuf:24 }, // ケット・クー・ミコケル
+  393: { npBuf:20 }, // ワンジナ
+  394: { criBuf:10, aBuf:11 }, // プトレマイオス
+  395: { criBuf:12 }, // 杉谷善住坊
+  396: { qBuf:8 }, // テセウス
+  397: { qBuf:10, aBuf:5 }, // 武田晴信
+  398: { bBuf:5 }, // 永倉新八
+  399: { criBuf:20, aBuf:5 }, // 雑賀孫一
+  400: { qBuf:10, fixedDmg:200 }, // 上杉謙信
+  401: { qBuf:10, fixedDmg:175, criBuf:6 }, // ネモ〔サンタ〕
+  402: { qBuf:10, fixedDmg:125 }, // ヤマトタケル
+  403: { criBuf:28, bBuf:12, fixedDmg:100 }, // 源頼光／丑御前
+  404: { aBuf:7 }, // 由井正雪
+  405: { qBuf:8 }, // 宮本伊織
+  406: { qBuf:11 }, // アンドロメダ
+  407: { criBuf:6 }, // マリー・アントワネット〔オルタ〕
+  408: { criBuf:8 }, // 耀星のハサン
+  409: { criBuf:12 }, // 巌窟王　モンテ・クリスト
+  410: { criBuf:10 }, // アレッサンドロ・ディ・カリオストロ
+  411: { criBuf:10, qBuf:6, aBuf:6, bBuf:26 }, // Ｅ－フレアマリー
+  412: { criBuf:10, qBuf:6, aBuf:6, bBuf:26 }, // Ｅ－アクアマリー
+  413: { aBuf:2 }, // 蒼崎青子
+  415: { aBuf:10 }, // 久遠寺有珠
+  416: { criBuf:13, fixedDmg:100 }, // ひびき＆千鍵
+  417: { fixedDmg:140, criBuf:21.5 }, // エレシュキガル
+  418: { criBuf:12 }, // 謎の代行者C.I.E.L
+  419: { qBuf:8 }, // ドブルイニャ・ニキチッチ
+  420: { criBuf:12 }, // 徐福
+  421: { atkBuf:10, fixedDmg:250 }, // ＢＢドバイ
+  422: { aBuf:17, fixedDmg:100, criBuf:25, qBuf:5 }, // テノチティトラン
+  423: { bBuf:6 }, // 謎のヒロインXX〔オルタ〕
+  424: { criBuf:17, aBuf:5, bBuf:5, atkBuf:10 }, // 岸波白野
+  425: { criBuf:17, aBuf:5, bBuf:5, atkBuf:10 }, // 岸波白野
+  426: { aBuf:12 }, // カズラドロップ
+  427: { criBuf:10, fixedDmg:150 }, // ツタンカーメン
+  428: { bBuf:4 }, // ヴァン・ゴッホ〔マイナー〕
+  429: { bBuf:6, aBuf:10 }, // ロウヒ
+  430: { aBuf:6 }, // アビゲイル・ウィリアムズ〔サンタ〕
+  431: { criBuf:10, qBuf:20, aBuf:20, bBuf:20 }, // ファンタズムーン
+  432: { qBuf:10 }, // リチャードⅠ世
+  433: { criBuf:6, bBuf:8 }, // ビショーネ
+  434: { qBuf:6 }, // 黒姫
+  435: { aBuf:10, fixedDmg:225 }, // 小野小町
+  436: { criBuf:10, qBuf:6, aBuf:6, bBuf:26 }, // Ｅ－グランマリー
+  437: { criBuf:9, aBuf:5.2 }, // ダンテ・アリギエーリ
+  438: { criBuf:12, fixedDmg:225, npBuf:8 }, // メタトロン・ジャンヌ
+  439: { fixedDmg:175 }, // アショカ王
+  440: { bBuf:12, fixedDmg:175 }, // リリス
+  441: { npBuf:10, criBuf:10 }, // テュフォン・エフェメロス
+  442: { qBuf:10, criBuf:18, fixedDmg:195 }, // インドラ
+  443: { criBuf:10, qBuf:6, aBuf:6, bBuf:26 }, // Ｅ－ステラマリー
+  444: { aBuf:10, fixedDmg:250 }, // Ｕ－オルガマリー
+  445: { criBuf:16, fixedDmg:200 }, // パッションリップ
+  446: { qBuf:12 }, // クリームヒルト
+  447: { bBuf:12 }, // 呼延灼
+  448: { criBuf:12, qBuf:6, aBuf:6, bBuf:6 }, // 玉兎
+  449: { aBuf:6, criBuf:10 }, // 美遊・エーデルフェルト
+  450: { criBuf:10, fixedDmg:300 }, // ラーヴァ／ティアマト
+  452: { qBuf:10, criBuf:12, fixedDmg:175 }, // ネモ／ノア
+  453: { criBuf:8 }, // 河上彦斎
+  454: { criBuf:2 }, // 藤堂平助
+  456: { qBuf:6 }, // 近藤勇
+  457: { criBuf:12 }, // エリザベート・バートリー
+  458: { criBuf:12 }, // 終わりのエリザベート
+  459: { aBuf:4, criBuf:2 }, // ソロモン
+  460: { criBuf:17.5 }, // マリス・カルデアス
+  461: { qBuf:10 }, // ロード・ログレス
+  462: { aBuf:5.5, qBuf:3.5, npBuf:20 }, // 花咲翁
+  463: { criBuf:8, bBuf:3.5 }, // 蛇女房
+  464: { fixedDmg:260 }, // フローラ
+  465: { criBuf:10, aBuf:8, fixedDmg:200 }, // デメテル
+  466: { qBuf:6 }, // ジャック・ド・モレー
+  467: { aBuf:8, fixedDmg:95 }, // フランソワ・プレラーティ
+  468: { qBuf:10, fixedDmg:175 }, // ヒッポリュテ
+};
+
+// マップの最大 collectionNo（これ以上は動的解析にフォールバック）
+const PASSIVE_BUFF_MAP_MAX_CNO = 468;
+
+const PASSIVE_NAME_FIELD = [
+  [/divinity|神性/i, 'fixedDmg'],
+  [/independent action|単独行動/i, 'criBuf'],
+  [/oblivion correction|忘却補正/i, 'criBuf'],
+  [/presence\s*concealment|気配遮断/i, null],
+  [/critical\s*(star\s*)?generation\s*resist|critical\s*rate\s*resist|crit(?:ical)?\s*resist|クリティカル発生耐性/i, null],
+  [/territory creation|陣地作成/i, 'aBuf'],
+  [/riding|騎乗/i, 'qBuf'],
+  [/mad enhancement|狂化/i, 'bBuf'],
+  [/dragon kind|竜種/i, 'bBuf'],
+  [/high servant|ハイ\s*サーヴァント/i, 'atkBuf'],
+  [/beast's footstep|獣の足跡/i, 'qBuf'],
+  [/independent manifestation|単独顕現/i, 'criBuf'],
+  [/core of the goddess|女神の神核/i, 'fixedDmg'],
+  [/mixed blood|混血/i, 'atkBuf'],
+  [/entity of the outer realm|領域外の生命/i, 'criBuf'],
+  [/skill reloading|スキル再装填/i, null],
+];
+
+const PASSIVE_DETAIL_RULES = [
+  { re:/buster(?:カード)?(?:の性能|性能)?[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'bBuf', scale:0.1 },
+  { re:/arts(?:カード)?(?:の性能|性能)?[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'aBuf', scale:0.1 },
+  { re:/quick(?:カード)?(?:の性能|性能)?[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'qBuf', scale:0.1 },
+  { re:/extra\s*attack[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'exBuf', scale:0.1 },
+  // Quick/Buster/Arts限定クリティカル威力 → 色別フィールド
+  { re:/Quickカードのクリティカル威力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'criBufQ', scale:0.1 },
+  { re:/Busterカードのクリティカル威力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'criBufB', scale:0.1 },
+  { re:/Artsカードのクリティカル威力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'criBufA', scale:0.1 },
+  // クリティカル威力（日本語・汎用）→ criBuf
+  { re:/クリティカル威力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'criBuf', scale:0.1 },
+  // critical damage のみ (rate/star/generation は除外)
+  { re:/critical\s+(?:damage|strike)[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'criBuf', scale:0.1 },
+  { re:/宝具威力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'npBuf', scale:0.1 },
+  { re:/noble\s*phantasm[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'npBuf', scale:0.1 },
+  { re:/攻撃力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'atkBuf', scale:0.1 },
+  { re:/attack(?:\s+up)?[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'atkBuf', scale:0.1 },
+  { re:/与ダメージプラス[^\d\-－％%]*([\d.]+)/ig, fid:'fixedDmg', scale:1 },
+  { re:/damage\s*plus[^\d\-－％%]*([\d.]+)/ig, fid:'fixedDmg', scale:1 },
+  { re:/特攻威力[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'spBuf', scale:0.1 },
+  { re:/special\s*attack[^\d\-－％%]*([\d.]+)\s*[％%]/ig, fid:'spBuf', scale:0.1 },
+];
+
+function passiveScaleForField(fid) {
+  return fid === 'fixedDmg' ? 1 : 0.1;
+}
+
+function normalizeBuffType(type) {
+  return String(type || '').trim();
+}
+
+function normalizePassiveToken(text) {
+  return String(text || '')
+    .trim()
+    .replace(/[\s_\-]/g, '')
+    .replace(/[％%]/g, '%')
+    .toLowerCase();
+}
+
+// upCommandall はカード種別を ckSelfIndv で判別する
+// buff オブジェクト全体を受け取って B/A/Q/all を返す
+// カード色別フィールドを取得 (upCommandall / card-specific crit 共通)
+function getCardColorFid(buff, baseField) {
+  const ckSelf = Array.isArray(buff.ckSelfIndv) ? buff.ckSelfIndv : [];
+  const names = ckSelf.map(t => String(t.name || '').toLowerCase());
+  const hasBuster = names.some(n => n.includes('buster'));
+  const hasArts   = names.some(n => n.includes('arts'));
+  const hasQuick  = names.some(n => n.includes('quick'));
+  if (!hasBuster && !hasArts && !hasQuick) {
+    // tvals でも確認
+    const tvals = Array.isArray(buff.tvals) ? buff.tvals : [];
+    const tnames = tvals.map(t => String(t.name || '').toLowerCase());
+    if (tnames.some(n => n.includes('buster'))) return baseField === 'cri' ? 'criBufB' : 'bBuf';
+    if (tnames.some(n => n.includes('arts')))   return baseField === 'cri' ? 'criBufA' : 'aBuf';
+    if (tnames.some(n => n.includes('quick')))  return baseField === 'cri' ? 'criBufQ' : 'qBuf';
+    return null;
+  }
+  if (hasBuster) return baseField === 'cri' ? 'criBufB' : 'bBuf';
+  if (hasArts)   return baseField === 'cri' ? 'criBufA' : 'aBuf';
+  if (hasQuick)  return baseField === 'cri' ? 'criBufQ' : 'qBuf';
+  return null;
+}
+
+function passiveFieldFromCommandall(buff) {
+  return getCardColorFid(buff, 'cmd');
+}
+
+function passiveFieldFromBuffType(type) {
+  const raw = normalizeBuffType(type);
+  const t = normalizePassiveToken(raw);
+  if (!t) return null;
+
+  // 除外リスト
+  if (NON_DAMAGE_BUFF_TYPES.has(raw)) return null;
+  const lowerRaw = raw.charAt(0).toLowerCase() + raw.slice(1);
+  if (NON_DAMAGE_BUFF_TYPES.has(lowerRaw)) return null;
+
+  // 直接マッピング（Atlas実名 + 旧互換名）
+  const direct = BUFF_FIELD[raw] || BUFF_FIELD[lowerRaw];
+  if (direct !== undefined) return direct;
+
+  // upCommandall はカード種別判定が必要なので呼び出し元で処理
+  if (t === 'upcommandall') return null;
+
+  // Atlas up* 系のフォールバック
+  if (t === 'upcriticaldamage' || t === 'criticaldamageup') return 'criBuf';
+  // カード色限定クリティカル威力（呼び出し元で色判定済みを想定）
+  if (t === 'upcriticaldamageindividuality' || t === 'criticalindividualitydamageup') return '__card_specific_crit__';
+  if (t === 'upnpdamage' || t === 'npdamageup') return 'npBuf';
+  if (t === 'upatk' || t === 'upattack' || t === 'atkup' || t === 'attackup') return 'atkBuf';
+  if (t === 'upextraattack' || t === 'extraattackup') return 'exBuf';
+
+  // 旧来の正規表現フォールバック（upCommandall 以外のカード系）
+  if ((t.includes('buster')) && (t.includes('up') || t.includes('damage'))) return 'bBuf';
+  if ((t.includes('arts'))   && (t.includes('up') || t.includes('damage'))) return 'aBuf';
+  if ((t.includes('quick'))  && (t.includes('up') || t.includes('damage'))) return 'qBuf';
+
+  // クリティカル威力（damage を含む場合のみ）
+  if (t.includes('critical') && t.includes('damage')) return 'criBuf';
+  if (t === 'criticalup') return 'criBuf';
+  if (t.includes('critical') && (t.includes('rate') || t.includes('star') || t.includes('generate') || t.includes('point'))) return null;
+
+  if ((t.includes('npdamage') || t.includes('noblephantasm') || t.includes('treasuredevice')) && t.includes('up')) return 'npBuf';
+  if ((t.includes('atk') || t.includes('attack')) && (t.includes('up') || t.includes('function'))) return 'atkBuf';
+  if (t.includes('adddamage') || t.includes('damageplus') || t.includes('fixeddamage')) return 'fixedDmg';
+  if ((t.includes('extraattack') || t.includes('exattack')) && t.includes('up')) return 'exBuf';
+  if ((t.includes('specialattack') || t.includes('power')) && t.includes('up')) return 'spBuf';
+  if (t.includes('npspecialattack')) return 'npSpBuf';
+
+  return null;
+}
+
+function passiveFieldFromSkillName(name) {
+  const n = String(name || '');
+  for (const [re, fid] of PASSIVE_NAME_FIELD) {
+    if (re.test(n)) return fid;
+  }
+  return null;
+}
+
+function passiveFieldFromDetailText(text) {
+  const s = String(text || '');
+  for (const rule of PASSIVE_DETAIL_RULES) {
+    if (rule.re.test(s)) {
+      rule.re.lastIndex = 0;
+      return rule.fid;
+    }
+    rule.re.lastIndex = 0;
+  }
+  return null;
+}
+
+function extractPassiveNumericFromText(text) {
+  const m = String(text || '').match(/([\d.]+)\s*%?/);
+  return m ? +m[1] : 0;
+}
+
+function extractPassiveEffectsFromText(text) {
+  const s = String(text || '');
+  const out = [];
+  for (const rule of PASSIVE_DETAIL_RULES) {
+    rule.re.lastIndex = 0;
+    let m;
+    while ((m = rule.re.exec(s)) !== null) {
+      const rawVal = +(m[1] || 0);
+      if (rawVal) out.push({ fid: rule.fid, rawVal, scale: rule.scale ?? passiveScaleForField(rule.fid) });
+      if (!rule.re.global) break;
+    }
+    rule.re.lastIndex = 0;
+  }
+  return out;
+}
+
+function isNonDamagePassiveSkillName(name) {
+  return /item construction|道具作成|magic resistance|対魔力/i.test(String(name || ''));
+}
+
+function collectPassiveSkillsFromServant(d) {
+  const picked = [];
+  const seen = new Set();
+  const pushSkill = (skill) => {
+    if (!skill || typeof skill !== 'object') return;
+    const key = String(skill.id ?? '') + '|' + String(skill.name ?? '') + '|' + String(skill.detail ?? skill.unmodifiedDetail ?? '');
+    if (seen.has(key)) return;
+    seen.add(key);
+    picked.push(skill);
+  };
+
+  const candidateKeys = Object.keys(d || {}).filter(k => /passive/i.test(k));
+  for (const key of candidateKeys) {
+    const value = d[key];
+    if (Array.isArray(value)) value.forEach(pushSkill);
+    else pushSkill(value);
+  }
+
+  (d.classPassive || []).forEach(pushSkill);
+  (d.classPassives || []).forEach(pushSkill);
+
+  return picked;
+}
+
+const CLS_MAP = {
+  Saber:'セイバー',Archer:'アーチャー',Lancer:'ランサー',Rider:'ライダー',
+  Caster:'キャスター',Assassin:'アサシン',Berserker:'バーサーカー',Shielder:'シールダー',
+  Ruler:'ルーラー',Avenger:'アヴェンジャー',MoonCancer:'ムーンキャンサー',
+  AlterEgo:'アルターエゴ',Foreigner:'フォーリナー',Pretender:'プリテンダー',Beast:'ビースト'
+};
+
+function normCls(c) {
+  if (!c) return '';
+  const known = Object.keys(CLS_MAP);
+  const up = String(c).toUpperCase().replace(/[-_ ]/g,'');
+  for (const k of known) if (k.toUpperCase()===up) return k;
+  return c.charAt(0).toUpperCase()+c.slice(1);
+}
+
+// バリアントサーヴァント（複数のステータス版を持つサーヴァント）
+const VARIANT_SERVANT_ENTRIES = [
+  // マシュ・キリエライト（シールダー）
+  // type='heroine' のため basic_servant.json のフィルタから除外されるので手動追加
+  {
+    id: 800100, collectionNo: 1,
+    name: 'マシュ・キリエライト', className: 'Shielder', rarity: 3,
+    variantLabel: 'シールダー版',
+  },
+  // マシュ・キリエライト（パラディーン）
+  // 奏章4クリア後のパラディーン版。ATKデータは hardcoded（HARDCODED_SERVANT_DATA を参照）
+  {
+    id: 800150, collectionNo: 1,
+    name: 'マシュ・キリエライト', className: 'Shielder', rarity: 5,
+    variantLabel: 'パラディーン版',
+  },
+  // 蒼崎青子（スーパー版）— collectionNo 0 は除外されるので手動追加
+  // collectionNo を 413 に設定することで PASSIVE_BUFF_MAP[413] = {aBuf:2} が適用される
+  {
+    id: 2501500, collectionNo: 413,
+    name: 'スーパー青子', className: 'Foreigner', rarity: 5,
+    variantLabel: '',   // 名前で判別できるためラベル不要
+  },
+];
+
+// バリアント付きサーヴァントの collectionNo → バリアントラベルのマップ
+// これに collectionNo が含まれるサーヴァントは自動リスト分にもラベルを付与
+const VARIANT_LABEL_FOR_COLLNO = {
+  1:   'シールダー版',   // マシュ（手動エントリ）
+  413: '通常版',         // 蒼崎青子（自動リスト側）
+};
+
+// マシュのパラディーン版 ATK 成長配列（画像掲載ステータスより補間）
+// Lv1=1674, Lv50=9565, Lv60=7738, Lv70=8773, Lv80=9799, Lv90=10835
+// Lv100=11861, Lv120=13922
+const _mashPaladinAtkPoints = [
+  [1,1674],[50,9565],[60,7738],[70,8773],[80,9799],[90,10835],[100,11861],[120,13922]
+];
+const MASH_PALADIN_ATK_GROWTH = Array.from({length:120}, (_,i)=>{
+  const lv=i+1;
+  const pts=_mashPaladinAtkPoints;
+  let lo=pts[0],hi=pts[pts.length-1];
+  for(let j=0;j<pts.length-1;j++){
+    if(lv>=pts[j][0]&&lv<=pts[j+1][0]){lo=pts[j];hi=pts[j+1];break;}
+  }
+  if(lo===hi||lo[0]===hi[0])return lo[1];
+  return Math.round(lo[1]+(hi[1]-lo[1])*(lv-lo[0])/(hi[0]-lo[0]));
+});
+
+// ハードコードサーヴァントデータ（Atlas API を使わず内部データで処理するサーヴァント）
+const _superAokoAtkPoints = [
+  [1,1944],[50,8285],[60,10030],[70,11424],[80,12307],[90,12584],[100,13775],[120,16169]
+];
+const SUPER_AOKO_ATK_GROWTH = Array.from({length:120}, (_,i) => {
+  const lv = i + 1;
+  const pts = _superAokoAtkPoints;
+  let lo = pts[0], hi = pts[pts.length - 1];
+  for (let j = 0; j < pts.length - 1; j++) {
+    if (lv >= pts[j][0] && lv <= pts[j+1][0]) { lo = pts[j]; hi = pts[j+1]; break; }
+  }
+  if (lo === hi || lo[0] === hi[0]) return lo[1];
+  return Math.round(lo[1] + (hi[1] - lo[1]) * (lv - lo[0]) / (hi[0] - lo[0]));
+});
+
+const HARDCODED_SERVANT_DATA = {
+  // マシュ・キリエライト（シールダー）— NPを明示的にハードコード
+  // type='heroine' のため basic_servant.json から除外 → selectServantById で API フェッチ
+  // API が返す NP は防御宝具ばかりのため、攻撃宝具として扱えるものを明示定義
+  800100: {
+    id: 800100,
+    collectionNo: 1,
+    name: 'マシュ・キリエライト',
+    className: 'Shielder',
+    rarity: 3,
+    // ATK は API から取得するため省略（selectServantById で API フェッチ後に applyServantStats が適用）
+    classPassive: [],
+    noblePhantasms: [
+      { id:80010001, name:'？？？', card:'1', targetType:'ptAll', strengthStatus:1,
+        functions:[{svals:[{Value:0},{Value:0},{Value:0},{Value:0},{Value:0}]}] },
+      { id:80010002, name:'仮想宝具 疑似展開／人理の礎', card:'1', targetType:'ptAll', strengthStatus:1,
+        functions:[{svals:[{Value:0},{Value:0},{Value:0},{Value:0},{Value:0}]}] },
+      { id:80010003, name:'いまは遙か理想の城', card:'1', targetType:'ptAll', strengthStatus:1,
+        functions:[{svals:[{Value:0},{Value:0},{Value:0},{Value:0},{Value:0}]}] },
+      { id:80010004, name:'いまは脆き夢想の城', card:'1', targetType:'ptAll', strengthStatus:1,
+        functions:[{svals:[{Value:0},{Value:0},{Value:0},{Value:0},{Value:0}]}] },
+      { id:80010005, name:'いまに在りし夢想の城', card:'1', targetType:'ptAll', strengthStatus:99,
+        functions:[{svals:[{Value:0},{Value:0},{Value:0},{Value:0},{Value:0}]}] },
+    ],
+    extraAssets: {},
+  },
+  800150: {
+    id: 800150,
+    collectionNo: 1,
+    name: 'マシュ・キリエライト（パラディーン）',
+    className: 'Shielder',
+    rarity: 5,
+    atkGrowth: MASH_PALADIN_ATK_GROWTH,
+    atkBase: 1674,
+    atkMax: 10835,
+    lvMax: 90,
+    classPassive: [],
+    noblePhantasms: [
+      {
+        id: 8001501,
+        name: '希望証す人理の剣',
+        card: '2',              // 数値マップ: 2=Buster
+        npCard: null, npCardType: null, cardType: null,
+        targetType: 'enemy',    // 単体攻撃
+        strengthStatus: 99,
+        functions: [{ funcType:'damageNp', svals: [
+          {Value:6000},{Value:8000},{Value:9000},{Value:9500},{Value:10000}
+        ] }],
+      },
+    ],
+    extraAssets: {},
+  },
+  // スーパー青子 — Atlas の collectionNo=0 NPC バリアントのため完全ハードコード
+  2501500: {
+    id: 2501500,
+    collectionNo: 413,
+    name: 'スーパー青子',
+    className: 'Foreigner',
+    rarity: 5,
+    atkBase: 1944,
+    atkMax: 12584,
+    lvMax: 90,
+    atkGrowth: SUPER_AOKO_ATK_GROWTH,
+    classPassive: [],
+    noblePhantasms: [
+      {
+        id: 25015001,
+        name: 'アースライト・スターボウ',
+        card: '1',              // 数値マップ: 1=Arts
+        npCard: null, npCardType: null, cardType: null,
+        targetType: 'enemyAll', // 対軍(AOE)
+        strengthStatus: 99,
+        functions: [{ funcType:'damageNp', svals: [
+          {Value:4500},{Value:6000},{Value:6750},{Value:7125},{Value:7500}
+        ] }],
+      },
+    ],
+    extraAssets: {},
+  },
+};
+
+
+// ════════════════════════════════════════════════════════════
+async function loadAllServants() {
+  const list = document.getElementById('servantList');
+  list.innerHTML = '<div style="padding:12px;text-align:center;color:#666;font-size:11px;">読み込み中…</div>';
+  try {
+    const r = await fetch('https://api.atlasacademy.io/export/JP/basic_servant.json');
+    if (!r.ok) throw 0;
+    const all = await r.json();
+    APP.allSv = all
+      .filter(s => s.collectionNo > 0 && s.type !== 'heroine') // heroine(マシュ等)は別途手動追加
+      .map(s => {
+        const cls = normCls(s.className);
+        const no = Number(s.collectionNo || 0);
+        const forcedClass = no===1 ? 'Shielder' : ((no===417 || no===444) ? 'Beast' : cls);
+        return {...s, className: forcedClass};
+      })
+      .sort((a,b) => a.collectionNo - b.collectionNo);
+
+    // バリアントエントリを末尾に追加（自動リストに含まれないもの）
+    for (const v of VARIANT_SERVANT_ENTRIES) {
+      if (!APP.allSv.some(s => s.id === v.id)) {
+        APP.allSv.push({ ...v, type: 'variant' });
+      }
+    }
+
+    // ハードコードサーヴァントに basic_servant.json から face URL を注入
+    const mashBasic = all.find(s => s.id === 800100);
+    if (mashBasic?.face) {
+      HARDCODED_SERVANT_DATA[800150].extraAssets = {
+        faces: { ascension: { '1': mashBasic.face, '0': mashBasic.face } }
+      };
+    }
+    const aokoBasic = all.find(s => s.id === 2501400);
+    if (aokoBasic?.face) {
+      HARDCODED_SERVANT_DATA[2501500].extraAssets = {
+        faces: { ascension: { '1': aokoBasic.face, '0': aokoBasic.face } }
+      };
+    }
+
+    // No. 昇順ソート（collectionNo=0 は末尾、同 No. は servant ID 昇順）
+    APP.allSv.sort((a, b) => {
+      const ca = (a.collectionNo > 0) ? a.collectionNo : 99999;
+      const cb = (b.collectionNo > 0) ? b.collectionNo : 99999;
+      if (ca !== cb) return ca - cb;
+      return a.id - b.id;
+    });
+
+    rebuildSvList();
+  } catch(e) {
+    list.innerHTML = '<div style="padding:12px;color:#c00;font-size:11px;">読み込み失敗。ネット接続を確認してください。</div>';
+  }
+}
+
+// 進行中のfetchをキャンセルするためのController
+// 複数回連続でサーヴァントを選択し直したとき、前のリクエストを破棄する
+// サーヴァントデータのインメモリキャッシュ
+// 同一サーヴァントを複数回選択しても nice API を再フェッチしない
+const _servantCache = new Map();
+
+let _fetchController = null;
+
+async function selectServantById(id) {
+  // 選択先の行コンテキストを設定
+  _rowCtx = _servantTargetSuffix;
+  // 前回のリクエストをキャンセル
+  if (_fetchController) {
+    _fetchController.abort();
+  }
+  _fetchController = new AbortController();
+  const signal = _fetchController.signal;
+
+  const modal = document.getElementById('servantModal');
+  modal.classList.remove('open');
+
+  // サーヴァント切り替え時: API呼び出し前に全バフフィールドをリセット
+  resetAllBuffFields();
+
+  // ハードコードサーヴァント（Atlas APIを使わず内部データで処理）
+  if (HARDCODED_SERVANT_DATA[id] && HARDCODED_SERVANT_DATA[id].atkMax) {
+    const d = HARDCODED_SERVANT_DATA[id];
+    APP.servantMap = APP.servantMap || {};
+    if (_rowCtx) { APP.servantMap[_rowCtx] = d; } else { APP.servant = d; }
+    _fetchController = null;
+    extractNpData(d);
+    applyClassPassive(d);
+    applyServantStats();
+    renderSelectedServant(d);
+    renderNpDebug(d);
+    recalcRow(_rowCtx);
+    _rowCtx = ''; _servantTargetSuffix = '';
+    return;
+  }
+
+  try {
+    let d;
+    if (_servantCache.has(id)) {
+      // キャッシュヒット: ネットワーク不要・即座に取得
+      d = _servantCache.get(id);
+      _fetchController = null;
+    } else {
+      const r = await fetch(
+        `https://api.atlasacademy.io/nice/JP/servant/${id}?lang=jp`,
+        { signal }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const raw = await r.json();
+
+      // 別のリクエストがすでに完了していたらこの結果は捨てる
+      if (signal.aborted) return;
+
+      // ── 必要なフィールドだけ抽出してスリム化 ──
+      // nice API の生レスポンスは voices・extraAssets 等を含め 2〜5MB に達する。
+      // フルオブジェクトをキャッシュすると 5 体で 10〜25MB になりGCで固まる。
+      // 計算・表示に使うフィールドだけ残してメモリ消費を 1/10 以下に抑える。
+      d = {
+        id:              raw.id,
+        collectionNo:    raw.collectionNo,
+        name:            raw.name,
+        className:       normCls(raw.className),  // 大文字始まりに正規化（例: "berserker" → "Berserker"）
+        rarity:          raw.rarity,
+        atkBase:         raw.atkBase,
+        atkMax:          raw.atkMax,
+        atkGrowth:       raw.atkGrowth,
+        lvMax:           raw.lvMax,
+        hpMax:           raw.hpMax,
+        starGen:         raw.starGen,
+        noblePhantasms:  raw.noblePhantasms,
+        classPassive:    raw.classPassive,
+        hitsDistribution: raw.hitsDistribution,
+        extraAssets: {
+          faces: raw.extraAssets?.faces
+        }
+      };
+      // raw は参照を手放してGCに回収させる
+      // (キャッシュに d のみ保持)
+
+      // キャッシュに格納（最大10体分を保持、古いものから削除）
+      if (_servantCache.size >= 10) {
+        _servantCache.delete(_servantCache.keys().next().value);
+      }
+      _servantCache.set(id, d);
+    }
+
+    APP.servantMap = APP.servantMap || {};
+    if (_rowCtx) { APP.servantMap[_rowCtx] = d; } else { APP.servant = d; }
+    // NP ハードコード上書き（マシュ Shielder など）
+    if (HARDCODED_SERVANT_DATA[id]?.noblePhantasms?.length) {
+      d.noblePhantasms = HARDCODED_SERVANT_DATA[id].noblePhantasms;
+    }
+    extractNpData(d);
+    applyClassPassive(d);
+    applyServantStats();
+    renderSelectedServant(d);
+    renderNpDebug(d);
+    recalcRow(_rowCtx);
+    _rowCtx = ''; _servantTargetSuffix = '';
+  } catch (e) {
+    // AbortError は正常なキャンセルなので無視
+    if (e?.name === 'AbortError') return;
+    // それ以外のエラーはデバッグパネルに表示する
+    const out = document.getElementById('npDebugOutput');
+    if (out) out.textContent = `取得エラー: ${e?.message || e}`;
+    console.error('selectServantById error:', e);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// NP カード色 調査パネル
+// ════════════════════════════════════════════════════════════
+function renderNpDebug(d) {
+  const out = document.getElementById('npDebugOutput');
+  if (!out) return;
+
+  // エラーが起きても必ずパネルに表示する
+  try {
+    _renderNpDebugInner(d, out);
+  } catch (e) {
+    out.textContent = `[renderNpDebug エラー]\n${e?.stack || e}`;
+    console.error('renderNpDebug error:', e);
+  }
+}
+
+function _renderNpDebugInner(d, out) {
+  const nps = Array.isArray(d.noblePhantasms) ? d.noblePhantasms : [];
+  if (!nps.length) { out.textContent = '宝具データなし'; return; }
+
+  // ─ 数値か判定するヘルパー（この関数スコープで1回だけ宣言）─
+  const isNum = (raw) => {
+    if (raw == null) return false;
+    if (typeof raw === 'number') return true;
+    const s = String(raw).trim();
+    return s !== '' && /^\d+$/.test(s);
+  };
+  const numMap      = { 1:'a', 2:'b', 3:'q' };
+  const numMapLabel = { 1:'Arts', 2:'Buster', 3:'Quick' };
+
+  const lines = [];
+  lines.push(`サーヴァント: ${d.name || '?'}  (collectionNo: ${d.collectionNo || d.id || '?'})`);
+  lines.push(`noblePhantasms 件数: ${nps.length}`);
+  lines.push('─'.repeat(60));
+
+  nps.forEach((np, idx) => {
+    lines.push('');
+    lines.push(`【NP #${idx}】  id: ${np.id ?? '(なし)'}  name: "${np.name || '(なし)'}"`);
+
+    // 生フィールド
+    const cardRaw      = np.card ?? null;
+    const cardIsNum    = isNum(cardRaw);
+    const numMapResult = cardIsNum ? numMap[Number(String(cardRaw).trim())] : null;
+    lines.push('  ┌ Atlas Academy 生フィールド');
+    lines.push(`  │  np.card        = ${JSON.stringify(cardRaw)}${
+      cardIsNum
+        ? `  → 数値マッピング: ${Number(String(cardRaw).trim())}=${numMapLabel[Number(String(cardRaw).trim())] ?? '未定義'}`
+        : ''
+    }`);
+    lines.push(`  │  np.npCard      = ${JSON.stringify(np.npCard ?? null)}`);
+    lines.push(`  │  np.cardType    = ${JSON.stringify(np.cardType ?? null)}`);
+    lines.push(`  │  np.npCardType  = ${JSON.stringify(np.npCardType ?? null)}`);
+    lines.push(`  │  np.targetType  = ${JSON.stringify(np.targetType ?? null)}`);
+    lines.push(`  │  np.strengthStatus = ${JSON.stringify(np.strengthStatus ?? null)}`);
+    lines.push('  └──');
+
+    // ダメージ関数
+    const dmgFns = (np.functions || []).filter(fn =>
+      String(fn.funcType || '').toLowerCase().includes('damagenp')
+    );
+    if (!dmgFns.length) {
+      lines.push('  ダメージ関数: なし → 補助宝具と判定');
+    }
+    dmgFns.forEach((fn, fi) => {
+      const svals   = fn.svals || [];
+      const rawVals = svals.slice(0, 5).map(sv => sv.Value ?? sv.value ?? '?');
+      const computed = rawVals.map(v => typeof v === 'number' ? `${(v / 10).toFixed(1)}%` : '?');
+      lines.push(`  ┌ ダメージ関数 #${fi}  funcType: "${fn.funcType}"`);
+      lines.push(`  │  svals.Value  = [${rawVals.join(', ')}]`);
+      lines.push(`  │  → /10 換算   = [${computed.join(', ')}]`);
+      lines.push('  └──');
+    });
+
+    // 解決過程
+    const resolvedKey = getCardKey(np);
+    const letter      = { b:'B', a:'A', q:'Q' }[resolvedKey] || '(解決不能)';
+
+    // Step1の再現
+    let step1Key = '', step1Source = '';
+    for (const raw of [np?.card, np?.npCard, np?.cardType, np?.npCardType]) {
+      if (raw == null) continue;
+      const asStr = String(raw).trim();
+      if (/^\d+$/.test(asStr) || typeof raw === 'number') {
+        const n = Number(asStr);
+        if (numMap[n]) {
+          step1Key    = numMap[n];
+          step1Source = `np.card="${raw}" (数値) → ${n}=${numMapLabel[n]}`;
+          break;
+        }
+        continue;
+      }
+      let target = raw;
+      if (typeof raw === 'object') target = raw.value ?? raw.name ?? '';
+      const s = String(target).trim().toLowerCase();
+      if (s === 'b' || s.includes('buster')) { step1Key = 'b'; step1Source = `np.card="${raw}" (文字列)`; break; }
+      if (s === 'a' || s.includes('arts'))   { step1Key = 'a'; step1Source = `np.card="${raw}" (文字列)`; break; }
+      if (s === 'q' || s.includes('quick'))  { step1Key = 'q'; step1Source = `np.card="${raw}" (文字列)`; break; }
+    }
+
+    lines.push('  ┌ 解決過程');
+    if (step1Key) {
+      lines.push(`  │  Step1: ${step1Source} → "${step1Key}" ✅ ここで確定`);
+    } else {
+      lines.push('  │  Step1: 全フィールド解決不能 → Step2（倍率スコアリング）へ');
+    }
+    lines.push(`  │  最終結果: "${resolvedKey}" (${letter})`);
+    lines.push('  └──');
+
+    // 倍率スコアリング詳細（参考表示）
+    const actualMults = getActualNpMultipliers(np);
+    if (actualMults && actualMults.some(v => v > 0)) {
+      const isAoeResult = isAoeNp(np);
+      lines.push(`  isAoeNp() = ${isAoeResult}  (targetType="${np.targetType ?? 'null'}")`);
+      const allCands = [
+        'aoe_b_up','aoe_b_unup','aoe_a_up','aoe_a_unup','aoe_q_up','aoe_q_unup',
+        'single_b_up','single_b_unup','single_a_up','single_a_unup','single_q_up','single_q_unup',
+      ];
+      lines.push('  倍率スコアリング詳細（全12候補）');
+      allCands.forEach(key => {
+        const displayVals = NP_RATE_MAP[key] || [];
+        const cKey        = key.includes('_b_') ? 'b' : key.includes('_a_') ? 'a' : 'q';
+        const baseVals    = displayVals.map(v => toBaseNpMultiplier(v, cKey));
+        const n           = Math.max(actualMults.length, displayVals.length);
+        let dScore = 0, bScore = 0;
+        for (let i = 0; i < n; i++) {
+          const a = actualMults[Math.min(i, actualMults.length - 1)] || 0;
+          dScore += Math.abs(a - (+displayVals[Math.min(i, displayVals.length - 1)] || 0));
+          bScore += Math.abs(a - (+baseVals[Math.min(i, baseVals.length - 1)] || 0));
+        }
+        const score = Math.min(dScore, bScore);
+        const mark  = score === 0 ? ' ← ✅ 完全一致' : '';
+        lines.push(`    ${key.padEnd(18)} display=${String(dScore.toFixed(0)).padStart(6)}  base=${String(bScore.toFixed(0)).padStart(6)}  min=${score.toFixed(0)}${mark}`);
+      });
+    }
+  });
+
+  lines.push('');
+  lines.push('─'.repeat(60));
+  lines.push(`npTypeSelect.value:  "${_el('npTypeSelect')?.value || '?'}"`);
+  lines.push(`npCardDisplay.value: "${_el('npCardDisplay')?.value || '?'}"`);
+
+  out.textContent = lines.join('\n');
+}
+
+function renderSelectedServant(d) {
+  const btnEl = _el('targetOpenBtn');
+  const imgEl = _el('selectedServantImg');
+
+  btnEl.title = d.name || '対象選択';
+
+  const face =
+    d.extraAssets?.faces?.ascension?.['1'] ||
+    d.extraAssets?.faces?.ascension?.['0'] ||
+    d.extraAssets?.charaGraph?.ascension?.['1'] ||
+    d.extraAssets?.charaGraph?.ascension?.['0'] ||
+    '';
+
+  if (face) {
+    imgEl.src = face;
+    imgEl.classList.add('show');
+  } else {
+    imgEl.removeAttribute('src');
+    imgEl.classList.remove('show');
+  }
+}
+
+
+// ── Extract NP multipliers from nice API ──
+function getActualNpMultipliers(np) {
+  for (const fn of (np.functions || [])) {
+    const ft = String(fn.funcType || '').toLowerCase();
+    if (!ft.includes('damagenp')) continue;
+    const svals = Array.isArray(fn.svals) ? fn.svals : [];
+    if (!svals.length) continue;
+    const ms = [];
+    for (let i = 0; i < 5; i++) {
+      const sv = svals[Math.min(i, svals.length - 1)] || {};
+      const val = sv.Value ?? sv.value ?? 0;
+      ms.push((+val || 0) / 10);
+    }
+    if (ms.some(v => v > 0)) return ms;
+  }
+  return null;
+}
+
+function isDamageNp(np) {
+  return (np.functions || []).some(fn => String(fn.funcType || '').toLowerCase().includes('damagenp'));
+}
+
+function isAoeNp(np) {
+  const target = String(np.targetType || '').toLowerCase();
+  const dmg    = String(np.damageType || '').toLowerCase();
+  if (['enemyall', 'enemyaoe', 'allenemy'].includes(target)) return true;
+  if (dmg.includes('aoe') || dmg.includes('broad')) return true;
+  return (np.functions || []).some(fn => ['enemyall', 'enemyaoe', 'allenemy'].includes(String(fn.targetType || '').toLowerCase()));
+}
+
+function resolveNpSelectValue(np, actualMults) {
+  const cardKey = getCardKey(np);
+  const card = cardKey === 'b' ? 'buster' : cardKey === 'a' ? 'arts' : cardKey === 'q' ? 'quick' : '';
+  if (!card || !isDamageNp(np)) return 'support';
+
+  const prefix = isAoeNp(np) ? 'aoe' : 'single';
+  const candA = `${prefix}_${card}_unup`;
+  const candB = `${prefix}_${card}_up`;
+  if (!actualMults || !NP_RATE_MAP[candA] || !NP_RATE_MAP[candB]) return candA;
+
+  const lv1 = +actualMults[0] || 0;
+  const a1 = (+NP_RATE_MAP[candA][0] || 0);
+  const b1 = (+NP_RATE_MAP[candB][0] || 0);
+  return Math.abs(lv1 - b1) < Math.abs(lv1 - a1) ? candB : candA;
+}
+
+function getCardKey(np) {
+  // ── 解決方針 (v111) ────────────────────────────────────────────────────
+  //
+  //  Step 1: np.card などのフィールドから直接解決
+  //    ・文字列 "buster"/"arts"/"quick" → そのまま採用
+  //    ・数値 / 数値文字列              → 1=Arts / 2=Buster / 3=Quick
+  //      根拠: ネロ (No.5) 実測で np.card="1" → Arts NP 確認済み
+  //
+  //  Step 2: 倍率スコアリング（フォールバック）
+  //    フィールドが null や未対応値だった場合、実際の NP 倍率を
+  //    NP_RATE_MAP の全12候補と照合してカード色を特定する。
+  //    ※ AOE/単体の事前判定は廃止（np.targetType が null のケースに対応）
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ─ Step 1: フィールドから直接解決 ─
+  const fieldCandidates = [np?.card, np?.npCard, np?.cardType, np?.npCardType];
+  for (const raw of fieldCandidates) {
+    if (raw == null) continue;
+
+    // 数値または数値文字列: 1=Arts / 2=Buster / 3=Quick
+    const asStr = String(raw).trim();
+    if (/^\d+$/.test(asStr) || typeof raw === 'number') {
+      const n = Number(asStr);
+      if (n === 1) return 'a'; // Arts
+      if (n === 2) return 'b'; // Buster
+      if (n === 3) return 'q'; // Quick
+      continue; // 4以上など未定義値は次フィールドへ
+    }
+
+    // オブジェクト: ネストされた値を取り出す
+    let target = raw;
+    if (typeof raw === 'object') {
+      target = raw.value ?? raw.name ?? raw.text ?? raw.card ?? raw.type ?? '';
+    }
+
+    // 文字列マッチ
+    const s = String(target).trim().toLowerCase();
+    if (s === 'b' || s.includes('buster')) return 'b';
+    if (s === 'a' || s.includes('arts'))   return 'a';
+    if (s === 'q' || s.includes('quick'))  return 'q';
+  }
+
+  // ─ Step 2: 倍率スコアリング（フォールバック）─
+  const actualMults = getActualNpMultipliers(np);
+  if (actualMults && actualMults.some(v => v > 0)) {
+
+    const scoreArray = (arrA, arrB) => {
+      const n = Math.max(arrA.length, arrB.length);
+      let total = 0;
+      for (let i = 0; i < n; i++) {
+        const a = +arrA[Math.min(i, arrA.length - 1)] || 0;
+        const b = +arrB[Math.min(i, arrB.length - 1)] || 0;
+        total += Math.abs(a - b);
+      }
+      return total;
+    };
+
+    // AOE・単体の全12候補を一括照合
+    // （np.targetType が null でも正しく判定できるよう全候補を検索）
+    const allCandidates = [
+      'aoe_b_up',    'aoe_b_unup',
+      'aoe_a_up',    'aoe_a_unup',
+      'aoe_q_up',    'aoe_q_unup',
+      'single_b_up', 'single_b_unup',
+      'single_a_up', 'single_a_unup',
+      'single_q_up', 'single_q_unup',
+    ];
+
+    let best = null;
+    for (const key of allCandidates) {
+      const displayVals  = NP_RATE_MAP[key] || [];
+      const cardKey      = key.includes('_b_') ? 'b' : key.includes('_a_') ? 'a' : 'q';
+      const baseVals     = displayVals.map(v => toBaseNpMultiplier(v, cardKey));
+      const displayScore = scoreArray(actualMults, displayVals);
+      const baseScore    = scoreArray(actualMults, baseVals);
+      const score        = Math.min(displayScore, baseScore);
+
+      if (!best || score < best.score) {
+        best = { cardKey, score, key };
+      } else if (best && score === best.score) {
+        // 同点: isAoeNp で AOE と判定できる場合は AOE 候補を優先
+        if (key.startsWith('aoe_') && !best.key.startsWith('aoe_') && isAoeNp(np)) {
+          best = { cardKey, score, key };
+        }
+      }
+    }
+
+    if (best && Number.isFinite(best.score)) return best.cardKey;
+  }
+
+  return ''; // 補助宝具など（ダメージ関数なし）
+}
+
+function isStrengthenedNp(np) {
+  const s = String(np.strengthStatus || np.strengthenStatus || np.status || '').toLowerCase();
+  return s.includes('strength') || s.includes('up');
+}
+
+function npDisplayFactor(/* cardKey */) {
+  // 廃止: カード色による NP 倍率変換は不要。
+  // 入力フィールドの値はゲーム表示%と同じ単位で扱う。
+  return 1;
+}
+
+function toDisplayNpMultiplier(value, cardKey) {
+  return (+value || 0) * npDisplayFactor(cardKey);
+}
+
+function toBaseNpMultiplier(value, cardKey) {
+  return (+value || 0) / npDisplayFactor(cardKey);
+}
+
+function findBestNp(d) {
+  const nps = Array.isArray(d.noblePhantasms) ? d.noblePhantasms.filter(Boolean) : [];
+  if (!nps.length) return null;
+  const damageNps = nps.filter(np => isDamageNp(np) || getCardKey(np));
+  if (damageNps.length) {
+    const strengthened = damageNps.filter(isStrengthenedNp);
+    return (strengthened[strengthened.length - 1] || damageNps[damageNps.length - 1]);
+  }
+  return nps[nps.length - 1];
+}
+
+function buildNpOptionLabel(np, actualMults) {
+  return np.name || '宝具';
+}
+
+function normalizeNpGroupName(name) {
+  return String(name || '')
+    .replace(/\s+/g, '')
+    .replace(/[・･]/g, '')
+    .replace(/[\[\(（].*?[\]\)）]/g, '')
+    .trim();
+}
+
+function getNpStrengthPriority(opt) {
+  if (opt.isSupport) return -1;
+  if (opt.strengthened) return 2;
+  const lv1 = +(opt.actualMults?.[0] || 0);
+  return lv1 > 0 ? 1 : 0;
+}
+
+function buildServantNpOptions(d) {
+  const nps = Array.isArray(d.noblePhantasms) ? d.noblePhantasms.filter(Boolean) : [];
+  if (!nps.length) return [];
+
+  const options = nps.map((np, idx) => {
+    const actualMults = getActualNpMultipliers(np);
+    const isDamage = isDamageNp(np) || !!getCardKey(np);
+    const fallbackType = resolveNpSelectValue(np, actualMults);
+    return {
+      value: `np_${np.id || idx}`,
+      npId: np.id || idx,
+      name: np.name || '宝具',
+      groupName: normalizeNpGroupName(np.name || '宝具'),
+      cardKey: getCardKey(np),
+      cardLetter: ({b:'B',a:'A',q:'Q'})[getCardKey(np)] || '',
+      isAoe: isAoeNp(np),
+      isDamage,
+      isSupport: !isDamage || fallbackType === 'support',
+      strengthened: isStrengthenedNp(np),
+      fallbackType,
+      actualMults: actualMults && actualMults.some(v => v > 0) ? actualMults : null,
+      label: buildNpOptionLabel(np, actualMults),
+      raw: np,
+      _sourceIndex: idx,
+    };
+  });
+
+  const groupBestLv1 = new Map();
+  options.forEach(opt => {
+    if (opt.isSupport) return;
+    const key = `${opt.groupName}__${opt.cardKey}__${opt.isAoe ? 'aoe' : 'single'}`;
+    const lv1 = +(opt.actualMults?.[0] || 0);
+    const prev = groupBestLv1.get(key);
+    if (!prev || lv1 > prev.lv1 || (lv1 === prev.lv1 && getNpStrengthPriority(opt) > prev.priority)) {
+      groupBestLv1.set(key, { lv1, priority: getNpStrengthPriority(opt), npId: opt.npId });
+    }
+  });
+
+  options.forEach(opt => {
+    if (opt.isSupport) return;
+    const key = `${opt.groupName}__${opt.cardKey}__${opt.isAoe ? 'aoe' : 'single'}`;
+    const best = groupBestLv1.get(key);
+    if (best && best.npId === opt.npId) opt.strengthened = true;
+  });
+
+  options.sort((a, b) => {
+    const groupCmp = String(a.groupName).localeCompare(String(b.groupName), 'ja');
+    const typeCmp = Number(b.isDamage) - Number(a.isDamage);
+    const strengthenCmp = Number(b.strengthened) - Number(a.strengthened);
+    const aoeCmp = Number(b.isAoe) - Number(a.isAoe);
+    const lv1Cmp = (+(b.actualMults?.[0] || 0)) - (+(a.actualMults?.[0] || 0));
+    return typeCmp || groupCmp || strengthenCmp || aoeCmp || lv1Cmp || a._sourceIndex - b._sourceIndex;
+  });
+
+  return options.map(({ _sourceIndex, ...rest }) => rest);
+}
+
+function getSelectedNpOption() {
+  const value = _el('npTypeSelect')?.value || '';
+  return APP.npOptions.find(o => o.value === value) || null;
+}
+
+function refreshNpRateOptionsFromSelection() {
+  const npRateSel = _el('npRateSelect');
+  const selected = getSelectedNpOption();
+  APP.npMults = selected?.actualMults || null;
+  const lvIdx = getSelectedNpLevelIndex();
+  const specialOverride = getSpecialNpRateOverride(getRowServant(), lvIdx);
+
+  if (specialOverride) {
+    npRateSel.value = specialOverride.rate;
+    npRateSel.dataset.autoFilled = '1';
+    npRateSel.title = specialOverride.rates.map((v, i) => `Lv${i + 1}: ${v}%`).join(' / ');
+    updateNpCardDisplay();
+    return;
+  }
+
+  if (selected) {
+    if (selected.actualMults?.length) {
+      const rate = selected.actualMults[Math.min(lvIdx, selected.actualMults.length - 1)] || selected.actualMults[0] || 0;
+      npRateSel.value = toDisplayNpMultiplier(rate, selected.cardKey);
+      npRateSel.dataset.autoFilled = '1';
+      npRateSel.title = selected.actualMults.map((v, i) => `Lv${i + 1}: ${toDisplayNpMultiplier(v, selected.cardKey).toFixed(0)}%`).join(' / ');
+      updateNpCardDisplay();
+      return;
+    }
+    if (selected.isSupport) {
+      npRateSel.value = 0;
+      npRateSel.dataset.autoFilled = '1';
+      npRateSel.title = '補助宝具';
+      updateNpCardDisplay();
+      return;
+    }
+    const values = NP_RATE_MAP[selected.fallbackType] || [0];
+    const fallbackRate = (Array.isArray(values) && typeof values[Math.min(lvIdx, values.length - 1)] === 'number')
+      ? values[Math.min(lvIdx, values.length - 1)]
+      : ((Array.isArray(values) && typeof values[0] === 'number') ? values[0] : 0);
+    npRateSel.value = fallbackRate;
+    npRateSel.dataset.autoFilled = '1';
+    npRateSel.title = Array.isArray(values)
+      ? values.map((v, i) => typeof v === 'number' ? `Lv${i + 1}: ${v}%` : `Lv${i + 1}: ${v}`).join(' / ')
+      : '';
+    updateNpCardDisplay();
+    return;
+  }
+
+  updateNpRateOptions();
+updateNpCardDisplay();
+}
+
+function extractNpData(d) {
+  const sel = _el('npTypeSelect');
+  APP.npOptions = buildServantNpOptions(d);
+  APP.npCardUserOverride = false; // 新サーヴァント選択でユーザー override をリセット
+
+  if (!APP.npOptions.length) {
+    rebuildDefaultNpTypeOptions();
+    sel.value = 'support';
+    updateNpRateOptions();
+    return;
+  }
+
+  sel.innerHTML = APP.npOptions.map((opt, i) => `<option value="${opt.value}" ${i===0?'selected':''}>${escH(opt.label)}</option>`).join('');
+
+  const preferred = APP.npOptions.find(o => o.isDamage && o.strengthened && o.actualMults?.length)
+    || APP.npOptions.find(o => o.isDamage && o.strengthened)
+    || APP.npOptions.find(o => o.isDamage && o.actualMults?.length)
+    || APP.npOptions.find(o => o.isDamage)
+    || APP.npOptions[0];
+  if (preferred) sel.value = preferred.value;
+
+  refreshNpRateOptionsFromSelection();
+}
+
+// ── パッシブバフ解析ログ ──
+let _passiveDebugLog = [];
+
+function renderPassiveDebug() {
+  const panel = document.getElementById('passiveDebugPanel');
+  const pre   = document.getElementById('passiveDebugOutput');
+  const tog   = document.getElementById('passiveDebugToggle');
+  if (!panel || !pre) return;
+  if (tog?.checked) panel.style.display = '';
+  pre.textContent = _passiveDebugLog.join('\n');
+}
+
+// ── サーヴァント選択時にすべてのバフ入力欄をゼロリセット ──
+// applyClassPassive の内部リセットとは独立して呼び出す。
+// selectServantById の冒頭で叩くことで「切り替え後の残留」を防ぐ。
+const ALL_BUFF_FIELD_IDS = [
+  'atkBuf', 'defDebuf',
+  'bBuf', 'bDebuf', 'aBuf', 'aDebuf', 'qBuf', 'qDebuf',
+  'cardBufB', 'cardBufA', 'cardBufQ',
+  'criBuf', 'criBufB', 'criBufA', 'criBufQ',
+  'npBuf', 'npResDown', 'exBuf', 'spBuf', 'npSpBuf',
+  'fixedDmg',
+];
+
+function resetAllBuffFields() {
+  ALL_BUFF_FIELD_IDS.forEach(fid => {
+    const el = _el(fid);
+    if (!el) return;
+    el.value = fid === 'npSpBuf' ? '100' : '0';
+    setAutoFilled(el, false);
+    delete el.dataset.classScoreBase;
+  });
+  // サーヴァントのパッシブ値マップをリセット（classScoreBonus計算に使用）
+  // _passiveValueMap を行コンテキスト単位でリセット
+  APP._passiveValueMap = APP._passiveValueMap || {};
+  if (_rowCtx) {
+    delete APP._passiveValueMap[_rowCtx];
+  } else {
+    // 元行のみクリア（'_R*' キーは他行のものなので残す）
+    Object.keys(APP._passiveValueMap).filter(k => !k.startsWith('_R'))
+      .forEach(k => delete APP._passiveValueMap[k]);
+  }
+  // _buffDetailStore を現在の行コンテキストのエントリのみクリア
+  for (const key of Object.keys(_buffDetailStore)) {
+    const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySuffix === _rowCtx) delete _buffDetailStore[key];
+  }
+}
+
+// col-buster / col-arts / col-quick が付いた要素には auto-filled（黄色）を適用しない
+// （カード色のピンク/ブルー/グリーンを保護するため）
+function setAutoFilled(el, flag) {
+  // auto-filled ハイライト（黄色）は廃止
+}
+
+
+function applyClassPassive(d) {
+  _passiveDebugLog = [];
+  const dbg = (...args) => _passiveDebugLog.push(args.join(' '));
+
+  // 念のため内部でもリセット（多重呼び出し時の安全策）
+  resetAllBuffFields();
+
+  const cno = d?.collectionNo ?? 0;
+  const mapEntry = PASSIVE_BUFF_MAP[cno];
+
+  if (mapEntry) {
+    // ── マップヒット: スキャン済み確定値を直接適用 ──
+    dbg(`[${cno}] PASSIVE_BUFF_MAP ヒット → 確定値を適用`);
+    for (const [fid, v] of Object.entries(mapEntry)) {
+      const el = _el(fid);
+      if (!el) { dbg(`  ${fid}: 要素なし`); continue; }
+      const vStr = Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+
+      // バフ詳細ストアの先頭行（パッシブバフ）に値をセット
+      const _storeKey = fid + (_rowCtx || '');  // 行コンテキストを含むストアキー
+      if (!_buffDetailStore[_storeKey]) {
+        _buffDetailStore[_storeKey] = [
+          { label:'パッシブバフ', value: vStr, fixed:true },
+          ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
+        ];
+      } else {
+        _buffDetailStore[_storeKey][0] = { label:'パッシブバフ', value: vStr, fixed:true };
+      }
+      // 合計をフィールドに反映（row0=パッシブ + 残り行の合計）
+      const total = _buffDetailStore[_storeKey].reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
+      const totalStr = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(4)).toString();
+      el.value = totalStr;
+      setAutoFilled(el, true);
+      // パッシブ値マップに記録（classScoreBonus計算で passive + bonus を組み合わせるため）
+      APP._passiveValueMap = APP._passiveValueMap || {};
+      const _pmKey = fid + (_rowCtx || '');
+      APP._passiveValueMap[_pmKey] = parseFloat(vStr) || 0;
+      dbg(`  ${fid}: passive=${vStr} total=${totalStr}`);
+    }
+    // クラススコア加算
+    applyClassScoreBonus();
+    renderPassiveDebug();
+    recalc();
+    return;
+  }
+
+  // ── マップ未収録（collectionNo > PASSIVE_BUFF_MAP_MAX_CNO の新サーヴァント）
+  // → 動的解析にフォールバック ──
+  dbg(`[${cno}] PASSIVE_BUFF_MAP 未収録 → 動的解析`);
+
+  const passives = collectPassiveSkillsFromServant(d);
+  const accum = {};
+
+  const addToField = (fid, rawVal, customScale) => {
+    if (!fid || !rawVal) return;
+    const scale = customScale ?? passiveScaleForField(fid);
+    accum[fid] = (accum[fid] || 0) + rawVal * scale;
+  };
+
+  const addEffectsFromText = (text) => {
+    for (const eff of extractPassiveEffectsFromText(text)) {
+      addToField(eff.fid, eff.rawVal, eff.scale);
+    }
+  };
+
+  for (const skill of passives) {
+    dbg(`\n━━ スキル: "${skill.name || '(名称なし)'}"  id=${skill.id ?? '-'}`);
+
+    const fallbackFieldByName = passiveFieldFromSkillName(skill.name);
+    const skillDetail = String(skill.detail || skill.unmodifiedDetail || '');
+    const functions = Array.isArray(skill.functions) ? skill.functions : [];
+    let skillMatched = false;
+
+    for (const fn of functions) {
+      const svals = Array.isArray(fn.svals) ? fn.svals : [];
+      const sval = svals[0] || {};
+      let rawVal = +(sval.Value ?? sval.value ?? 0) || 0;
+      dbg(`   fn[funcType=${fn.funcType}] rawVal=${rawVal}`);
+      const buffs = Array.isArray(fn.buffs) ? fn.buffs : [];
+      const candidates = new Set();
+
+      for (const buff of buffs) {
+        const buffTypeRaw = String(buff.type || '');
+        if (NON_DAMAGE_BUFF_TYPES.has(buffTypeRaw)) {
+          dbg(`     buff.type="${buffTypeRaw}" → [除外] NON_DAMAGE`);
+          continue;
+        }
+        if (buffTypeRaw === 'upCommandall') {
+          const fid = passiveFieldFromCommandall(buff);
+          dbg(`     upCommandall ckSelfIndv=${JSON.stringify(buff.ckSelfIndv)} → fid=${fid}`);
+          if (fid) candidates.add(fid);
+          continue;
+        }
+        let byType = passiveFieldFromBuffType(buffTypeRaw);
+        // カード色限定クリ威力: ckSelfIndv で色を判定して criBufQ 等に振る
+        if (byType === '__card_specific_crit__') {
+          byType = getCardColorFid(buff, 'cri') || 'criBuf';
+        }
+        dbg(`     buff.type="${buffTypeRaw}" → byType=${byType}`);
+        if (byType && byType !== '__card_specific_crit__') candidates.add(byType);
+      }
+
+      if (!candidates.size && fallbackFieldByName) candidates.add(fallbackFieldByName);
+
+      if (!rawVal && candidates.size) {
+        const dv = extractPassiveNumericFromText(skillDetail);
+        if (dv) rawVal = dv;
+      }
+
+      if (candidates.size && rawVal) {
+        candidates.forEach(fid => { dbg(`   → addToField(${fid}, ${rawVal})`); addToField(fid, rawVal); });
+        skillMatched = true;
+      }
+    }
+
+    if (!skillMatched && fallbackFieldByName) {
+      const rawVal = extractPassiveNumericFromText(`${skill.name || ''} ${skillDetail}`);
+      if (rawVal) addToField(fallbackFieldByName, rawVal);
+    }
+  }
+
+  for (const [fid, v] of Object.entries(accum)) {
+    if (!v) continue;
+    const el = _el(fid);
+    if (!el) continue;
+    el.value = Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+    setAutoFilled(el, true);
+  }
+
+  dbg(`\n── accum ──`);
+  for (const [k, v] of Object.entries(accum)) dbg(`  ${k}: ${v}`);
+
+  // クラススコア加算
+  applyClassScoreBonus();
+  renderPassiveDebug();
+  recalc();
+}
+
+
+let selectedClassScore = false;
+
+function normalizeNumberString(v){
+  return Number.isInteger(v) ? String(v) : String(v).replace(/\.0$/, '');
+}
+
+function getAllToggleBonusFields(){
+  return {
+    cardBufB: 0,
+    cardBufA: 0,
+    cardBufQ: 0,
+    criBuf: 0,
+    criBufB: 0,
+    criBufA: 0,
+    criBufQ: 0,
+    npBuf: 0,
+    exBuf: 0,
+    footB: 0,
+    footA: 0,
+    footQ: 0
+  };
+}
+
+function getClassScoreAddMap(){
+  const map = getAllToggleBonusFields();
+
+  // クラススコア
+  if (document.getElementById('classScore')?.checked) {
+    Object.assign(map, {
+      ...map,
+      cardBufB: map.cardBufB + 20,
+      cardBufA: map.cardBufA + 20,
+      cardBufQ: map.cardBufQ + 20,
+      criBuf: map.criBuf + 10,
+      criBufB: map.criBufB + 20,
+      criBufA: map.criBufA + 40,
+      criBufQ: map.criBufQ + 60,
+      npBuf: map.npBuf + 10,
+      exBuf: map.exBuf + 50
+    });
+  }
+
+  // アペンド1
+  if (document.getElementById('append1')?.checked) {
+    map.exBuf += 50;
+  }
+
+  // アペンド4
+  if (document.getElementById('append4')?.checked) {
+    map.criBuf += 30;
+  }
+
+  // 足跡MAX
+  if (document.getElementById('footprintMax')?.checked) {
+    map.footB += 500;
+    map.footA += 500;
+    map.footQ += 500;
+  }
+
+  return map;
+}
+
+function applyClassScoreBonus(){
+  const addMap = getClassScoreAddMap();
+  const passiveMap = APP._passiveValueMap || {};
+  const _csRowCtx = _rowCtx || '';
+
+  for (const [fid, bonus] of Object.entries(addMap)) {
+    const el = _el(fid);
+    if (!el) continue;
+
+    // 足跡フィールド（footB/A/Q）はバフ詳細モーダル非対象 → el.value を直接設定
+    if (fid === 'footB' || fid === 'footA' || fid === 'footQ') {
+      el.value = bonus ? normalizeNumberString(bonus) : '0';
+      recalc();
+      continue;
+    }
+
+    const passive = passiveMap[fid + _csRowCtx] ?? passiveMap[fid] ?? 0;
+    const row0Total = passive + bonus;  // passive + class score / append bonus
+    const vStr = row0Total !== 0 ? normalizeNumberString(row0Total) : '';
+
+    // buff detail store の row 0 を更新
+    const _skey = fid + _csRowCtx;  // 行コンテキストを含むストアキー
+    if (!_buffDetailStore[_skey]) {
+      if (row0Total !== 0) {
+        _buffDetailStore[_skey] = [
+          { label:'パッシブバフ', value: String(row0Total), fixed:true },
+          ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
+        ];
+      }
+    } else {
+      _buffDetailStore[_skey][0] = { label:'パッシブバフ', value: vStr, fixed:true };
+    }
+
+    // store 合計を el.value に反映
+    let storeTotal = row0Total; // store がない場合は row0 の値のみ
+    if (_buffDetailStore[_skey]) {
+      storeTotal = _buffDetailStore[_skey].reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
+    }
+    const totalStr = normalizeNumberString(storeTotal);
+    el.value = storeTotal ? totalStr : '0';
+    if (row0Total !== 0) setAutoFilled(el, true);
+    else if (passive === 0) setAutoFilled(el, false);
+  }
+}
+
+// ── Apply servant ATK + class mod ──
+function setSelectByNumericValue(selectId, value) {
+  const sel = _el(selectId);
+  if (!sel) return;
+  for (let i = 0; i < sel.options.length; i++) {
+    if (Math.abs((+sel.options[i].value || 0) - value) < 0.01) {
+      sel.selectedIndex = i;
+      return;
+    }
+  }
+}
+
+function getClassAffinity(attackerClass, defenderClass) {
+  if (!attackerClass || !defenderClass) return 1.0;
+  return CLASS_AFFINITY_MAP[attackerClass]?.[defenderClass] || 1.0;
+}
+
+function updateClassAffinity() {
+  const attackerClass = APP.servant?.className || '';
+  const enemyClass = document.getElementById('enemyClass')?.value || '';
+  const aff = getClassAffinity(attackerClass, enemyClass);
+  setSelectByNumericValue('clsAff', aff);
+  recalc();
+}
+
+function applyServantStats() {
+  const d = getRowServant();
+  if (!d) return;
+  const lv  = +document.getElementById('popLv').value  || 90;
+  const fou  = +document.getElementById('popFou').value || 0;
+  const ce   = +document.getElementById('popCE').value  || 0;
+  const grand= document.getElementById('popGrand').checked ? 1000 : 0;
+
+  let atk;
+  const ag = d.atkGrowth||[];
+  if (ag.length>0) {
+    const idx = Math.min(Math.max(lv-1,0), ag.length-1);
+    atk = (ag[idx]||d.atkMax||0) + fou + ce + grand;
+  } else {
+    const base=d.atkBase||0, max=d.atkMax||0, lvMax=d.lvMax||90;
+    const ratio = Math.min(1,Math.max(0,(lv-1)/(lvMax-1)));
+    atk = Math.round(base+(max-base)*ratio)+fou+ce+grand;
+  }
+  const atkEl = _el('atk'); if (atkEl) atkEl.value = Math.max(0, atk);
+
+  const cm = CLS_MOD_MAP[d.className] || 1.0;
+  setSelectByNumericValue('clsMod', cm);
+
+  // クラス相性デフォルト: バーサーカーは1.5（全クラスへの与ダメ1.5倍有利）、それ以外は1.0
+  const defaultAff = (d.className === 'Berserker') ? 1.5 : 1.0;
+  setSelectByNumericValue('clsAff', defaultAff);
+
+  recalcRow(_rowCtx);
+}
+
+function getCurrentNpCardLetter() {
+  // ユーザーが手動変更している場合は npCardDisplay の値を最優先で返す
+  if (APP.npCardUserOverride) {
+    return _el('npCardDisplay')?.value || 'B';
+  }
+  const selected = getSelectedNpOption();
+  if (selected?.cardLetter) return selected.cardLetter;
+  const nts = document.getElementById('npTypeSelect')?.value || '';
+  if (nts.includes('_b_')) return 'B';
+  if (nts.includes('_a_')) return 'A';
+  if (nts.includes('_q_')) return 'Q';
+  return 'B';
+}
+
+function getCurrentNpMultiplier() {
+  const npRateStr = _el('npRateSelect')?.value || '0';
+  const npRatePercent = parseFloat(npRateStr) || 0;
+  // ゲーム表示% ÷ 100 = 計算に使う倍率 (例: 2400% → 24.0)
+  return npRatePercent / 100;
+}
+
+function rebuildDefaultNpTypeOptions() {
+  const sel = _el('npTypeSelect');
+  // サーヴァント未選択時は空オプションのみ表示
+  sel.innerHTML = '<option value="" selected>—</option>';
+  APP.npOptions = [];
+  APP.npMults = null;
+}
+
+
+
+// ════════════════════════════════════════════════════════════
+// SERVANT MODAL FILTER + LIST
+// ════════════════════════════════════════════════════════════
+function setClsFilter(btn) {
+  APP.filterCls = btn.dataset.cls||'';
+  document.querySelectorAll('.cls-chip').forEach(b=>b.classList.remove('active-chip'));
+  btn.classList.add('active-chip');
+  rebuildSvList();
+}
+function setRarFilter(btn) {
+  APP.filterRar = btn.dataset.rar||'';
+  document.querySelectorAll('.rar-chip').forEach(b=>b.classList.remove('active-chip'));
+  btn.classList.add('active-chip');
+  rebuildSvList();
+}
+
+function setNpLevel(btn) {
+  APP.selectedNpLevel = Math.max(1, Math.min(5, +(btn.dataset.npLevel || 1)));
+  document.querySelectorAll('.np-level-chip').forEach(b=>b.classList.remove('active-chip'));
+  btn.classList.add('active-chip');
+  updateNpRateOptions();
+  recalc();
+}
+
+function getSelectedNpLevelIndex() {
+  return Math.max(0, Math.min(4, (APP.selectedNpLevel || 1) - 1));
+}
+
+function rebuildSvList() {
+  const list = document.getElementById('servantList');
+  const q = (document.getElementById('servantSearch').value||'').trim();
+  let items = APP.allSv;
+  if (APP.filterCls) items = items.filter(s=>s.className===APP.filterCls);
+  if (APP.filterRar!=='') items = items.filter(s=>String(s.rarity)===String(APP.filterRar));
+  if (q) items = items.filter(s=>(s.name||'').includes(q));
+
+  if (!items.length) {
+    list.innerHTML = '<div style="padding:10px;color:#888;text-align:center;font-size:11px;">該当なし</div>';
+    return;
+  }
+  list.innerHTML = items.map(sv => {
+    const no    = sv.collectionNo > 0 ? String(sv.collectionNo).padStart(3,'0') : '---';
+    const stars = '★'.repeat(sv.rarity||0);
+    const varLabel = sv.hasOwnProperty('variantLabel')
+      ? sv.variantLabel
+      : (VARIANT_LABEL_FOR_COLLNO[sv.collectionNo] || '');
+    const varTag = varLabel
+      ? `<span style="font-size:10px;color:#777;margin-left:4px;">(${escH(varLabel)})</span>`
+      : '';
+    return `<button class="sv-item" type="button" onclick="selectServantById(${sv.id})">
+      <span class="sv-main">
+        <span>No.${no} ${escH(sv.name||'？')}${varTag}</span>
+      </span>
+      <span class="sv-rank">${stars}</span>
+    </button>`;
+  }).join('');
+}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ════════════════════════════════════════════════════════════
+// DAMAGE CALCULATION ENGINE (通常カード 既存版互換寄せ / debug)
+// ════════════════════════════════════════════════════════════
+let _rowCtx = '';  // 行コンテキスト（''=元行, '_R2'=2行目, etc.）
+let _originalRowHtml = '';  // 元行テンプレート（インポート復元用）
+let _importingData = false;  // インポート/ロード中はtrue（イベント暴走を防ぐ）
+let _rowCounter = 1;
+let _activeActionRow = null;
+let _servantTargetSuffix = '';  // サーヴァント選択を要求している行のサフィックス
+let _koModalRowSuffix = '';  // 撃破率モーダルを開いている行のサフィックス
+function _el(id) {
+  return (_rowCtx ? document.getElementById(id + _rowCtx) : null) || document.getElementById(id);
+}
+// 現在の行コンテキストのサーヴァントデータを取得
+function getRowServant() {
+  if (_rowCtx && APP.servantMap && APP.servantMap[_rowCtx]) return APP.servantMap[_rowCtx];
+  return APP.servant;
+}
+function g(id){ return +_el(id)?.value||0; }
+function gs(id){ return _el(id)?.value||''; }
+function fmt(n){ return Math.max(0,Math.floor(n + 1e-4)).toLocaleString('ja-JP'); }
+
+function cardLetter(sel) {
+  const v = gs(sel);
+  if(v==='B') return 'B';
+  if(v==='A') return 'A';
+  if(v==='Q') return 'Q';
+  if(v==='宝') return 'NP';
+  if(v==='有') return 'EX';
+  return 'N';
+}
+
+const LEGACY_CARD_BASE = { B:1.5, A:1.0, Q:0.8 };
+const LEGACY_FIRST_BON = { B:0.5, A:0.0, Q:0.2, NP:0.0, EX:0.0, N:0.0 };
+const LEGACY_BUSTER_CHAIN_BONUS = 0.2;
+
+// ── バフ上限値（入力フィールドの % 単位で管理）────────────────
+// atwiki 304 ダメージ計算式の各区分上限に準拠
+// 計算時にこの値で clamp する（UI入力値は変更しない）
+const BUFF_CAPS = {
+  atkBuf:    400,   // B区分: 攻撃力アップ 上限400%(5.0倍)
+  defDebuf:  100,   // B区分: 防御ダウン 上限100%(2.0倍)
+  bBuf:      400,   // A区分: カード性能アップ 上限400%
+  aBuf:      400,
+  qBuf:      400,
+  // bDebuf/aDebuf/qDebuf: 上限なし（除外）
+  // cardBufB/A/Q: 上限400% だが個別上限は設けない（合算で管理）
+  cardBufB:  400,   // A区分: カード威力バフ 上限400%
+  cardBufA:  400,
+  cardBufQ:  400,
+  // criBuf/criBufB/A/Q: 各色ごとに合計500%上限（calcOneDmg内で合算clamp）
+  // 個別フィールドには上限を設けない
+  npBuf:     500,   // C区分: 宝具威力 上限500%(6.0倍)
+  spBuf:    1000,   // C区分: 特攻威力 上限1000%(11.0倍)
+  // exBuf: 上限なし（除外）
+  // npSpBuf: 上限なし (D区分: 宝具特攻)
+  // fixedDmg: 上限なし (E区分)
+};
+
+// バフ値を上限でクランプして返す（% 単位の生数値を受け取る）
+function capBuff(fieldId, rawPercent) {
+  const cap = BUFF_CAPS[fieldId];
+  if (cap === undefined) return rawPercent;               // 上限なし
+  return Math.min(rawPercent, cap);
+}
+
+// g() のバフ上限対応版（% 単位で読み取り、上限適用して返す）
+function gc(fieldId) {
+  return capBuff(fieldId, g(fieldId));
+}
+
+function legacyGetCurrentNpCardLetter(){
+  const v = gs('npTypeSelect');
+  if (v.includes('_b_')) return 'B';
+  if (v.includes('_a_')) return 'A';
+  if (v.includes('_q_')) return 'Q';
+  return 'B';
+}
+
+/**
+ * ユーザーが npCardDisplay を手動変更したときのハンドラ。
+ * override フラグを立てて再計算する。
+ * サーヴァントを新しく選択すると override は自動リセットされる。
+ */
+function onNpCardDisplayChange(letter) {
+  APP.npCardUserOverride = true;
+  recalc();
+}
+
+function updateNpCardDisplay() {
+  const el = _el('npCardDisplay');
+  const typeSel = _el('npTypeSelect');
+  if (!el || !typeSel) return;
+
+  // ユーザーが手動変更している場合は上書きしない
+  if (APP.npCardUserOverride) return;
+
+  const pickCardLetter = (raw) => {
+    const s = String(raw || '').trim().toLowerCase();
+    if (!s) return '';
+    if (s === 'b' || s.includes('buster')) return 'B';
+    if (s === 'a' || s.includes('arts')) return 'A';
+    if (s === 'q' || s.includes('quick')) return 'Q';
+    return '';
+  };
+
+  const cardKeyToLetter = (cardKey) => {
+    if (cardKey === 'b') return 'B';
+    if (cardKey === 'a') return 'A';
+    if (cardKey === 'q') return 'Q';
+    return '';
+  };
+
+  const parseTypeKeyToLetter = (typeKey) => {
+    const s = String(typeKey || '').toLowerCase();
+    if (s.includes('_b_')) return 'B';
+    if (s.includes('_a_')) return 'A';
+    if (s.includes('_q_')) return 'Q';
+    return '';
+  };
+
+  let v = '';
+  const selected = getSelectedNpOption();
+
+  if (selected?.raw) {
+    v = cardKeyToLetter(getCardKey(selected.raw));
+  }
+
+  if (!v && selected) {
+    v = pickCardLetter(selected.cardLetter) || cardKeyToLetter(selected.cardKey) || parseTypeKeyToLetter(selected.fallbackType);
+  }
+
+  if (!v && APP.servant?.noblePhantasms?.length) {
+    const selectedValue = typeSel.value || '';
+    let np = null;
+    if (selected?.raw) {
+      np = selected.raw;
+    } else if (selectedValue.startsWith('np_')) {
+      const npId = selectedValue.slice(3);
+      np = APP.servant.noblePhantasms.find(x => String(x?.id ?? '') === npId) || null;
+    }
+    if (np) {
+      v = cardKeyToLetter(getCardKey(np)) || pickCardLetter(np?.card || np?.type || np?.npCard || np?.cardType || np?.npCardType);
+    }
+  }
+
+  if (!v) {
+    const selectedText = typeSel.selectedOptions?.[0]?.textContent || '';
+    const m = selectedText.match(/(?:^|[^A-Z])([BAQ])(?:[^A-Z]|$)/i);
+    if (m) v = m[1].toUpperCase();
+  }
+
+  if (!v) {
+    v = parseTypeKeyToLetter(typeSel.value || '');
+  }
+
+  if (!v || ![...el.options].some(o => o.value === v)) v = 'B';
+  el.value = v;
+}
+
+function getFootprintAtk(cardType) {
+  if (cardType === 'B') return g('footB');
+  if (cardType === 'A') return g('footA');
+  if (cardType === 'Q') return g('footQ');
+  return 0;
+}
+
+
+
+function getMightyTotalMult(pos, c1, c2, c3) {
+  const seq = `${c1}${c2}${c3}`;
+  const table = {
+    ABQ: [1.50, 2.30, 1.62],
+    AQB: [1.50, 1.46, 2.60],
+    QAB: [1.30, 1.70, 2.60],
+    QBA: [1.30, 2.30, 1.90],
+    BAQ: [2.00, 1.70, 1.62],
+    BQA: [2.00, 1.46, 1.90],
+  };
+  const row = table[seq];
+  return row ? row[pos] : null;
+}
+
+// ════════════════════════════════════════════════════════════
+// NP DAMAGE CALCULATION (atwiki 304 準拠)
+// ════════════════════════════════════════════════════════════
+//
+// FGO 宝具ダメージ計算式:
+//   cardMult = cardBase × npRate
+//     cardBase : B=1.5 / A=1.0 / Q=0.8  (通常カードと同じ基本倍率)
+//     ※ NP は先頭カードボーナス（Buster先頭+0.5）を受けない
+//
+//   baseDmg = ATK × 0.23 × cardMult
+//           × clsMod × clsAff × attrAff × (1 − resist)
+//           × (1 + atkBuf + defDebuf)
+//           × (1 + cardColorBuf − colorDebuf + cardPowBuf)
+//           × (1 + npBuf + spBuf)
+//           × (1 + npSpBuf)
+//   damage  = floor(baseDmg × rand[0.9~1.099]) + fixedDmg
+
+function calcNpDmg(pos, firstType) {  // pos/firstType は将来の拡張用に保持
+  const npCardLetter = getCurrentNpCardLetter(); // 'B' | 'A' | 'Q'
+  const npRate = getCurrentNpMultiplier();        // 倍率小数 (例: 2400% → 24.0)
+
+  const baseAtk = g('atk');
+  // 宝具ダメージに足跡ATKは含まれない（通常カードのみ対象）
+
+  const clsMod  = +gs('clsMod')  || 1.0;
+  const clsAff  = +gs('clsAff')  || 1.0;
+  const attrAff = +gs('attrAff') || 1.0;
+  const resist  = g('specialResist') / 100;
+
+  const atkBuf    = gc('atkBuf')   / 100;
+  const defDebuf  = gc('defDebuf') / 100;
+  const atkDefBuf = 1 + atkBuf + defDebuf;
+
+  // カードバフ部（NP のカード色に応じたバフを参照）
+  let npCardColorBuf = 0, npCardColorDebuf = 0, npCardPowBuf = 0;
+  if (npCardLetter === 'B') {
+    npCardColorBuf   = gc('bBuf')     / 100;
+    npCardColorDebuf = gc('bDebuf')   / 100;
+    npCardPowBuf     = gc('cardBufB') / 100;
+  } else if (npCardLetter === 'A') {
+    npCardColorBuf   = gc('aBuf')     / 100;
+    npCardColorDebuf = gc('aDebuf')   / 100;
+    npCardPowBuf     = gc('cardBufA') / 100;
+  } else if (npCardLetter === 'Q') {
+    npCardColorBuf   = gc('qBuf')     / 100;
+    npCardColorDebuf = gc('qDebuf')   / 100;
+    npCardPowBuf     = gc('cardBufQ') / 100;
+  }
+  const cardBufMult = 1 + npCardColorBuf + npCardColorDebuf + npCardPowBuf;
+
+  // その他バフ部
+  const npBuf     = gc('npBuf')     / 100;
+  const npResDown = g('npResDown')  / 100;  // 宝具威力耐性ダウン（上限なし・npBufと加算）
+  const spBuf   = gc('spBuf')   / 100;
+  // 宝具特攻倍率（D区分・別枠乗算）: 100=1.0, 150=1.5, 300=3.0
+  // (1 + npSpBuf) ではなく npSpMult を直接掛ける
+  const npSpMult = g('npSpBuf') / 100;
+
+  const fixedDmg = g('fixedDmg');
+
+// ── カード倍率: カード色基本倍率のみ（NP は先頭ボーナスを受けない）──
+  const NP_CARD_BASE = { B: 1.5, A: 1.0, Q: 0.8 };
+  const cardBase = NP_CARD_BASE[npCardLetter] || 1.0;
+  const cardMult = cardBase * npRate;
+
+  const base = baseAtk * 0.23;
+
+  const avgBeforeFixed =
+    base
+    * cardMult
+    * clsMod
+    * clsAff
+    * attrAff
+    * (1 - resist)
+    * atkDefBuf
+    * cardBufMult
+    * (1 + npBuf + npResDown + spBuf)  // C区分: 宝具威力+耐性ダウン+特攻（加算）
+    * npSpMult;      // D区分: 宝具特攻倍率（直接乗算）
+
+  // fixedDmg は乱数適用後に加算
+  return {
+    lo: Math.max(0, Math.floor(avgBeforeFixed * 0.9   + 1e-9) + fixedDmg),
+    av: Math.max(0, Math.floor(avgBeforeFixed          + 1e-9) + fixedDmg),
+    hi: Math.max(0, Math.floor(avgBeforeFixed * 1.099 + 1e-9) + fixedDmg),
+    isNp: true,
+    npDebug: {
+      npCardLetter, npRate,
+      cardBase, cardMult,
+      baseAtk,
+      atkBuf, defDebuf, atkDefBuf,
+      npCardColorBuf, npCardColorDebuf, npCardPowBuf, cardBufMult,
+      npBuf, npResDown, spBuf, npSpMult,
+      clsMod, clsAff, attrAff, resist,
+      base, fixedDmg, avgBeforeFixed
+    }
+  };
+}
+
+function calcOneDmg(pos, cardType, firstType, isCrit, bChain) {
+  // 宝具スロット → NP ダメージ計算に委譲
+  if (cardType === 'NP') return calcNpDmg(pos, firstType);
+
+  if (cardType === 'N' || cardType === 'EX') {
+    return {
+      lo:0,av:0,hi:0,
+      debug: {
+        active: false,
+        cardType,
+        pos,
+        note: '通常カード以外のため未計算'
+      }
+    };
+  }
+
+  const baseAtk  = g('atk');
+  const footprintAtk = getFootprintAtk(cardType);
+  const atk      = baseAtk + footprintAtk;
+  const clsMod   = +gs('clsMod') || 1.0;
+  const clsAff   = +gs('clsAff') || 1.0;
+  const attrAff  = +gs('attrAff') || 1.0;
+  const resist   = g('specialResist') / 100;
+
+  const atkBuf   = gc('atkBuf') / 100;
+  const defDebuf = gc('defDebuf') / 100;
+
+  const bBuf=gc('bBuf')/100, bDebuf=gc('bDebuf')/100;
+  const aBuf=gc('aBuf')/100, aDebuf=gc('aDebuf')/100;
+  const qBuf=gc('qBuf')/100, qDebuf=gc('qDebuf')/100;
+  const scaledB = bBuf * 0.75;
+  const scaledA = aBuf * 0.75;
+  const scaledQ = qBuf * 0.75;
+
+  const cardBufB=gc('cardBufB')/100, cardBufA=gc('cardBufA')/100, cardBufQ=gc('cardBufQ')/100;
+  // クリティカル威力: 各色ごとに(criBuf + criBufX)の合計を500%上限でclamp
+  const _criBuf  = g('criBuf')  / 100;
+  const _criBufB = g('criBufB') / 100;
+  const _criBufA = g('criBufA') / 100;
+  const _criBufQ = g('criBufQ') / 100;
+  const CRI_CAP = 5.0; // 500% = 6.0倍上限
+  const criBufForB = Math.min(_criBuf + _criBufB, CRI_CAP);
+  const criBufForA = Math.min(_criBuf + _criBufA, CRI_CAP);
+  const criBufForQ = Math.min(_criBuf + _criBufQ, CRI_CAP);
+  // 後続の分岐でカード色に応じて criBufForX を参照するため、
+  // 共通 criBuf は色別clamp済み値から逆算せず、分岐ごとに直接使用する
+  const criBuf = _criBuf; // 色指定なしのデフォルト（色別分岐で上書き）
+  const exBuf=0; // 通常カードではEXバフを使わない
+  const spBuf=gc('spBuf')/100;
+  const fixedDmg=g('fixedDmg');
+
+  // NP が先頭のとき: NP の実際のカード色に解決してfirstBonusを判定する
+  // B色NP → 後続全カードに 0.5
+  // Q色NP → 後続Qカードのみ 0.2（Qチェーン先頭ボーナス）
+  // A色NP → firstBonus なし（Artsはダメージボーナスなし）
+  const npColorForFirst = getCurrentNpCardLetter(); // 'B' | 'A' | 'Q'
+  const ft = (firstType === 'NP') ? npColorForFirst : firstType;
+
+  let firstBonus = 0;
+  if (ft === 'B') {
+    // B始動: 後続の全カードに +0.5（atwiki: 1stがBusterカード時）
+    if (pos === 0) firstBonus = 0.5;
+    else if (pos === 1) firstBonus = 0.5;
+    else if (pos === 2) firstBonus = 0.5;
+  }
+  // Q始動: ダメージボーナスなし（NP獲得ボーナスのみ）
+  // A始動: ダメージボーナスなし
+  const bChainBonus = 0;
+
+  let cardMult = 1.0;
+  let cardCore = 1.0;
+  let cardBuff = 0.0;
+  let cardDebuff = 0.0;
+  let colorCardPow = 0.0;
+  let commonCriPow = 0.0;
+  let colorCriPow = 0.0;
+  let critBaseMult = 1.0;
+  let critBuff = 0.0;
+  let critMult = 1.0;
+
+  const positionMult = pos === 0 ? 1.0 : (pos === 1 ? 1.2 : 1.4);
+  // マイティチェイン判定: N（宝具スロット）は宝具のカード色で代替
+  const npLetter = getCurrentNpCardLetter();
+  const seqC1 = cardLetter('card1') === 'N' ? npLetter : cardLetter('card1');
+  const seqC2 = cardLetter('card2') === 'N' ? npLetter : cardLetter('card2');
+  const seqC3 = cardLetter('card3') === 'N' ? npLetter : cardLetter('card3');
+  const mightyTotalMult = getMightyTotalMult(pos, seqC1, seqC2, seqC3);
+  let mightyAdd = 0.0;
+  let normalCardMult = 1.0;
+  let useMightySpecial = false;
+
+  if (cardType === 'B') {
+    cardCore = (LEGACY_CARD_BASE.B * positionMult);
+    normalCardMult = cardCore + firstBonus;
+    cardMult = normalCardMult;
+    if (mightyTotalMult !== null) {
+      cardMult = mightyTotalMult;
+      mightyAdd = Math.max(0, mightyTotalMult - cardCore);
+      useMightySpecial = true;
+    }
+    cardBuff = bBuf * 0.75;
+    cardDebuff = bDebuf;
+    colorCardPow = cardBufB;
+    if (isCrit) {
+      critBaseMult = 2.0;
+      critBuff = criBufForB;
+      // C区分: spBuf はクリティカル威力と加算（critBaseMult × (1 + critBuff + spBuf)）
+      critMult = critBaseMult * (1 + critBuff + spBuf);
+    }
+  } else if (cardType === 'A') {
+    cardCore = (LEGACY_CARD_BASE.A * positionMult);
+    normalCardMult = cardCore + firstBonus;
+    cardMult = normalCardMult;
+    if (mightyTotalMult !== null) {
+      cardMult = mightyTotalMult;
+      mightyAdd = Math.max(0, mightyTotalMult - cardCore);
+      useMightySpecial = true;
+    }
+    cardBuff = aBuf * 0.75;
+    cardDebuff = aDebuf;
+    colorCardPow = cardBufA;
+    if (isCrit) {
+      critBaseMult = 2.0;
+      critBuff = criBufForA;
+      critMult = critBaseMult * (1 + critBuff + spBuf);
+    }
+  } else if (cardType === 'Q') {
+    cardCore = (LEGACY_CARD_BASE.Q * positionMult);
+    normalCardMult = cardCore + firstBonus;
+    cardMult = normalCardMult;
+    if (mightyTotalMult !== null) {
+      cardMult = mightyTotalMult;
+      mightyAdd = Math.max(0, mightyTotalMult - cardCore);
+      useMightySpecial = true;
+    }
+    cardBuff = qBuf * 0.75;
+    cardDebuff = qDebuf;
+    colorCardPow = cardBufQ;
+    if (isCrit) {
+      critBaseMult = 2.0;
+      critBuff = criBufForQ;
+      critMult = critBaseMult * (1 + critBuff + spBuf);
+    }
+  } else {
+    return {
+      lo:0,av:0,hi:0,
+      debug: {
+        active: false,
+        cardType,
+        pos,
+        note: '未対応カード種別'
+      }
+    };
+  }
+
+  // v99確定仕様:
+  // - 通常カードの攻撃補正は 0.23 に統一
+  // - 非Mighty: A/Q始動の B/A は raw whole-card、後続Qは card_core_only
+  // - Mighty時は全カード special 処理、cardPow は cardCore のみ、加算項 0.5 は1回だけ
+  // - BBB の 2nd / 3rd B は専用分岐で raw cardPow を cardCore のみに掛ける
+  // - EX は別ロジック(0.23)を維持
+  let cardPow = cardBuff + cardDebuff + (colorCardPow * 0.75);
+
+  // 元ファイルは防御デバフを加算していたので、UI互換を保つためそのまま継承
+  const atkDefBuf = 1 + atkBuf + defDebuf;
+  let cardPowMult = 1 + cardPow;
+  const classAffinityMult = clsMod;
+  const classCorrectionMult = clsAff;
+  const attrAffinityMult = attrAff;
+  const resistMult = 1 - resist;
+  // 非クリ時: critBaseMult=1, critBuff=0 → critMult = 1 × (1 + 0 + spBuf) = 1 + spBuf
+  // クリ時:  critBaseMult=2, critBuff=X → critMult = 2 × (1 + X + spBuf)
+  // C区分では spBuf は critBuff と加算（別乗算にしない）
+  if (!isCrit) {
+    critMult = 1.0 * (1 + spBuf); // 非クリ: spBuf のみ C区分適用
+  }
+  const spMult = 1 + spBuf; // デバッグ表示用（EX では別途使用）
+  const exMult = 1 + exBuf;
+
+  const base = atk * 0.23;
+  const firstBonusBaseRate = 0.23;
+  const firstBonusBase = atk * firstBonusBaseRate;
+  let cardPart = base * cardCore * cardPowMult;
+  let firstBonusPart = base * firstBonus * cardPowMult;
+  let mightyAddPart = base * mightyAdd * cardPowMult;
+  let additiveBonus = firstBonus;
+  let preDamage = base * cardMult * cardPowMult;
+  let cardPowMode = 'whole_card';
+
+  if (useMightySpecial) {
+    let rawCardBuff = 0;
+    let rawColorCardPow = colorCardPow;
+    if (cardType === 'B') rawCardBuff = bBuf;
+    else if (cardType === 'A') rawCardBuff = aBuf;
+    else if (cardType === 'Q') rawCardBuff = qBuf;
+    cardPow = rawCardBuff + cardDebuff + rawColorCardPow;
+    cardPowMult = 1 + cardPow;
+    cardPart = base * cardCore * cardPowMult;
+    additiveBonus = Math.max(firstBonus, mightyAdd);
+    firstBonusPart = base * additiveBonus;
+    mightyAddPart = 0;
+    preDamage = cardPart + firstBonusPart;
+    cardPowMode = 'mighty_all_special_raw_single_add';
+  } else if (ft === 'B' && cardType === 'B') {
+    // B始動の全Bカード（1st含む）: card_core_only + raw bBuf + firstBonus を別加算
+    // ※ pos > 0 条件を削除: 1stBも3rdBと同じ計算式（atwiki実測値一致）
+    cardPow = bBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    cardPart = base * cardCore * cardPowMult;
+    additiveBonus = firstBonus;
+    firstBonusPart = base * additiveBonus;
+    mightyAddPart = 0;
+    preDamage = cardPart + firstBonusPart;
+    cardPowMode = bChain
+      ? 'buster_chain_b_core_only_raw_single_add'
+      : 'b_start_late_b_core_only_raw_single_add';
+  } else if (ft === 'B' && pos > 0 && cardType === 'A') {
+    // B始動の後続Aも、実測では whole-card ではわずかに高く出る。
+    // cardCore のみに raw 系のカード威力を掛け、B始動の 0.5 は1回だけ加算すると BBA で一致。
+    cardPow = aBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    cardPart = base * cardCore * cardPowMult;
+    additiveBonus = firstBonus;
+    firstBonusPart = base * additiveBonus;
+    mightyAddPart = 0;
+    preDamage = cardPart + firstBonusPart;
+    cardPowMode = 'b_start_late_a_core_only_raw_single_add';
+  } else if (ft === 'A' && cardType !== 'Q') {
+    // A始動の非Mighty通常カードは raw 系のカード威力を whole-card で扱う
+    let rawCardBuff = 0;
+    if (cardType === 'B') rawCardBuff = bBuf;
+    else if (cardType === 'A') rawCardBuff = aBuf;
+    cardPow = rawCardBuff + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    preDamage = base * cardMult * cardPowMult;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus * cardPowMult;
+    mightyAddPart = 0;
+    cardPowMode = 'a_start_raw_whole_card';
+  } else if (ft === 'A' && cardType === 'Q') {
+    // A始動のQは raw 系で cardCore のみに cardPow を掛ける
+    cardPow = qBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus;
+    mightyAddPart = 0;
+    preDamage = cardPart + firstBonusPart;
+    cardPowMode = 'a_start_q_core_only_raw';
+  } else if (ft === 'Q' && cardType === 'B') {
+    // Q始動の非Mighty Bは raw 系のカード威力を whole-card で扱う
+    cardPow = bBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    preDamage = base * cardMult * cardPowMult;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus * cardPowMult;
+    mightyAddPart = 0;
+    cardPowMode = 'q_start_b_raw_whole_card';
+  } else if (ft === 'Q' && cardType === 'A') {
+    // Q始動の非Mighty Aも raw 系のカード威力を whole-card で扱う
+    cardPow = aBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    preDamage = base * cardMult * cardPowMult;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus * cardPowMult;
+    mightyAddPart = 0;
+    cardPowMode = 'q_start_a_raw_whole_card';
+  } else if (ft === '' && cardType === 'B' && bChain) {
+    // NP(B色)先頭 + B + B = BBB チェーン検出時:
+    // B Buster NP が先頭の場合、後続 B カードには firstBonus=0.5 が付与される
+    // (atwiki: 1stがBusterカード時に2nd,3rd,EX攻撃に加算 → B色NPも対象)
+    firstBonus = 0.5;
+    cardPow = bBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus;
+    mightyAddPart = 0;
+    preDamage = cardPart + firstBonusPart;
+    cardPowMode = 'np_b_chain_b_start_late_b';
+  } else if (ft === '' && cardType !== 'Q') {
+    // NP始動や先頭なし (A/B カード): raw 系のカード威力を whole-card で適用
+    // 他の全分岐と同様、colorCardPow は 0.75 スケールなし
+    let rawCardBuff = 0;
+    if (cardType === 'B') rawCardBuff = bBuf;
+    else if (cardType === 'A') rawCardBuff = aBuf;
+    cardPow = rawCardBuff + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    preDamage = base * cardMult * cardPowMult;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus * cardPowMult;
+    mightyAddPart = 0;
+    cardPowMode = 'np_first_raw_whole_card';
+  } else if (cardType === 'Q') {
+    // Q カードは常に raw qBuf を使用（0.75スケールなし）
+    // card_core_only: cardPow は cardCore 部分にのみ適用、firstBonus には掛けない
+    cardPow = qBuf + cardDebuff + colorCardPow;
+    cardPowMult = 1 + cardPow;
+    cardPart = base * cardCore * cardPowMult;
+    firstBonusPart = base * firstBonus;
+    mightyAddPart = 0;
+    preDamage = cardPart + firstBonusPart;
+    cardPowMode = 'card_core_only';
+  }
+
+  // v79: floor は最後に 1 回のみ
+  const avgBeforeFixed =
+    preDamage *
+    classAffinityMult *
+    classCorrectionMult *
+    attrAffinityMult *
+    resistMult *
+    atkDefBuf *
+    critMult *
+    exMult;
+
+  const busterChainFlat = (bChain && cardType === "B")
+    ? (atk * 0.2)
+    : 0;
+
+  // fixedDmg と busterChainFlat は乱数適用後に加算（乱数の影響を受けない）
+  return {
+    lo: Math.max(0, Math.floor(avgBeforeFixed * 0.9   + busterChainFlat + 1e-9)) + fixedDmg,
+    av: Math.max(0, Math.floor(avgBeforeFixed          + busterChainFlat + 1e-9)) + fixedDmg,
+    hi: Math.max(0, Math.floor(avgBeforeFixed * 1.099  + busterChainFlat + 1e-9)) + fixedDmg,
+    debug: {
+      active: true,
+      pos: pos + 1,
+      cardType,
+      firstType: ft,
+      isCrit,
+      bChain,
+      baseAtk,
+      footprintAtk,
+      atkAfterFootprint: atk,
+      positionMult,
+      baseCardValue: LEGACY_CARD_BASE[cardType],
+      firstBonus,
+      bChainBonus,
+      mightyTotalMult,
+      cardCore,
+      normalCardMult,
+      useMightySpecial,
+      cardMult,
+      mightyAdd,
+      additiveBonus,
+      atkBuf,
+      defDebuf,
+      atkDefBuf,
+      rawB: bBuf,
+      rawA: aBuf,
+      rawQ: qBuf,
+      scaledB,
+      scaledA,
+      scaledQ,
+      cardBuff,
+      cardDebuff,
+      colorCardPow,
+      commonCriPow,
+      colorCriPow,
+      critBaseMult,
+      critBuff,
+      critMult,
+      cardPow,
+      cardPowMult,
+      cardPowMode,
+      classAffinityMult,
+      classCorrectionMult,
+      attrAffinityMult,
+      resist,
+      resistMult,
+      spBuf,
+      spMult,
+      exBuf,
+      exMult,
+      base,
+      firstBonusBaseRate,
+      firstBonusBase,
+      cardPart,
+      firstBonusPart,
+      preDamage,
+      fixedDmg,
+      avgBeforeFixed,
+      busterChainFlat,
+      avgFinal: Math.floor(avgBeforeFixed + busterChainFlat + 1e-9) + fixedDmg,
+      avg: Math.floor(avgBeforeFixed + busterChainFlat + 1e-9) + fixedDmg
+    }
+  };
+}
+
+
+function formatDebugValue(v) {
+  if (typeof v === 'number') {
+    if (Number.isInteger(v)) return String(v);
+    return v.toFixed(4);
+  }
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  return String(v);
+}
+
+function renderDebugBlock(label, result) {
+  const d = result && result.debug ? result.debug : null;
+  if (!d || !d.active) {
+    return `${label}
+  status: inactive
+  reason: ${(d && d.note) ? d.note : '未計算'}`;
+  }
+
+  return `${label}
+  cardType: ${d.cardType}
+  position: ${d.pos}
+  firstType: ${d.firstType}
+  isCrit: ${formatDebugValue(d.isCrit)}
+  bChain: ${formatDebugValue(d.bChain)}
+
+  baseAtk: ${formatDebugValue(d.baseAtk)}
+  footprintAtk: ${formatDebugValue(d.footprintAtk)}
+  atkAfterFootprint: ${formatDebugValue(d.atkAfterFootprint)}
+
+  positionMult: ${formatDebugValue(d.positionMult)}
+  baseCardValue: ${formatDebugValue(d.baseCardValue)}
+  firstBonus: ${formatDebugValue(d.firstBonus)}
+  bChainBonus: ${formatDebugValue(d.bChainBonus)}
+  mightyTotalMult: ${formatDebugValue(d.mightyTotalMult)}
+  mightyAdd: ${formatDebugValue(d.mightyAdd)}
+  additiveBonus: ${formatDebugValue(d.additiveBonus)}
+  normalCardMult: ${formatDebugValue(d.normalCardMult)}
+  useMightySpecial: ${formatDebugValue(d.useMightySpecial)}
+  cardMult: ${formatDebugValue(d.cardMult)}
+
+  atkBuf: ${formatDebugValue(d.atkBuf)}
+  defDebuf: ${formatDebugValue(d.defDebuf)}
+  atkDefBuf: ${formatDebugValue(d.atkDefBuf)}
+
+  rawB/rawA/rawQ: ${formatDebugValue(d.rawB)} / ${formatDebugValue(d.rawA)} / ${formatDebugValue(d.rawQ)}
+  scaledB/scaledA/scaledQ: ${formatDebugValue(d.scaledB)} / ${formatDebugValue(d.scaledA)} / ${formatDebugValue(d.scaledQ)}
+  cardBuff: ${formatDebugValue(d.cardBuff)}
+  cardDebuff: ${formatDebugValue(d.cardDebuff)}
+  colorCardPow: ${formatDebugValue(d.colorCardPow)}
+  commonCriPow(legacy unused): ${formatDebugValue(d.commonCriPow)}
+  colorCriPow(legacy unused): ${formatDebugValue(d.colorCriPow)}
+  critBaseMult: ${formatDebugValue(d.critBaseMult)}
+  critBuff: ${formatDebugValue(d.critBuff)}
+  critMult: ${formatDebugValue(d.critMult)}
+  cardPow: ${formatDebugValue(d.cardPow)}
+  cardPowMult: ${formatDebugValue(d.cardPowMult)}
+  cardPowMode: ${formatDebugValue(d.cardPowMode)}
+
+  classAffinityMult(clsMod): ${formatDebugValue(d.classAffinityMult)}
+  classCorrectionMult(clsAff): ${formatDebugValue(d.classCorrectionMult)}
+  attrAffinityMult(attrAff): ${formatDebugValue(d.attrAffinityMult)}
+  resist: ${formatDebugValue(d.resist)}
+  resistMult: ${formatDebugValue(d.resistMult)}
+
+  spBuf: ${formatDebugValue(d.spBuf)}
+  spMult: ${formatDebugValue(d.spMult)}
+  exBuf: ${formatDebugValue(d.exBuf)}
+  exMult: ${formatDebugValue(d.exMult)}
+
+  base: ${formatDebugValue(d.base)}
+  firstBonusBaseRate: ${formatDebugValue(d.firstBonusBaseRate)}
+  firstBonusBase: ${formatDebugValue(d.firstBonusBase)}
+  avgBeforeFixed: ${formatDebugValue(d.avgBeforeFixed)}
+  fixedDmg: ${formatDebugValue(d.fixedDmg)}
+  avgFinal: ${formatDebugValue(d.avg)}
+  displayed(avg): ${formatDebugValue(result.av)}
+  displayed(lo/hi): ${formatDebugValue(result.lo)} / ${formatDebugValue(result.hi)}`;
+}
+
+
+function calcExDmg(firstType, c1, c2, c3, isNpChain) {
+  const baseAtk = g('atk');
+  const footprintAtk = 0; // EX に足跡は入らない
+  const atk = baseAtk + footprintAtk;
+  const clsMod = +gs('clsMod') || 1.0;
+  const clsAff = +gs('clsAff') || 1.0;
+  const attrAff = +gs('attrAff') || 1.0;
+  const resist = g('specialResist') / 100;
+
+  const atkBuf = gc('atkBuf') / 100;
+  const defDebuf = gc('defDebuf') / 100;
+  const atkDefBuf = 1 + atkBuf + defDebuf;
+
+  const exBuf = gc('exBuf') / 100;
+  const spBuf = gc('spBuf') / 100;
+  const fixedDmg = g('fixedDmg');
+
+  const base = atk * 0.23;
+
+  const hasA = (c1 === 'A' || c2 === 'A' || c3 === 'A');
+  const hasB = (c1 === 'B' || c2 === 'B' || c3 === 'B');
+  const hasQ = (c1 === 'Q' || c2 === 'Q' || c3 === 'Q');
+
+  const isMighty = hasA && hasB && hasQ;
+  const isAAA = (c1 === 'A' && c2 === 'A' && c3 === 'A');
+  const isBBB = (c1 === 'B' && c2 === 'B' && c3 === 'B');
+  const isQQQ = (c1 === 'Q' && c2 === 'Q' && c3 === 'Q');
+
+  const baseCore = 2.0;
+
+  let firstBonus = 0.0;
+  let sameColorBonus = 0.0;
+  let mightyBonus = 0.0;
+
+  if (isBBB) {
+    firstBonus = 1.0;
+    sameColorBonus = 3.75;
+  } else if (isAAA) {
+    // NP ブレイブチェーン（NP + AA）: NP のカード色が A → sameColorBonus=3.0
+    // 純粋な AAA チェーン（NP なし）: sameColorBonus=1.25
+    sameColorBonus = isNpChain ? 3.0 : 1.25;
+  } else if (isQQQ) {
+    sameColorBonus = 3.0;
+  } else if (isMighty) {
+    if (firstType === 'A' || firstType === 'B') firstBonus = 1.0;
+    else if (firstType === 'Q') mightyBonus = 1.0;
+  } else if (firstType === 'B') {
+    firstBonus = 1.0;
+  }
+
+  const exMult = 1 + exBuf;
+
+  // 重要: EXバフは baseCore 部分にだけ掛け、first/sameColor/mighty 加算には掛けない
+  const exCore = baseCore * exMult + firstBonus + sameColorBonus + mightyBonus;
+
+  const avgBeforeFixed =
+    (base * exCore) *
+    clsMod *
+    clsAff *
+    attrAff *
+    (1 - resist) *
+    atkDefBuf *
+    (1 + spBuf);
+
+  return {
+    cardType: 'EX',
+    firstType,
+    baseAtk,
+    footprintAtk,
+    atkAfterFootprint: atk,
+    atkBuf,
+    defDebuf,
+    atkDefBuf,
+    clsMod,
+    clsAff,
+    attrAff,
+    resist,
+    resistMult: 1 - resist,
+    spBuf,
+    spMult: 1 + spBuf,
+    exBuf,
+    exMult,
+    base,
+    baseCore,
+    firstBonus,
+    sameColorBonus,
+    mightyBonus,
+    exCore,
+    avgBeforeFixed,
+    fixedDmg,
+    // fixedDmg は乱数適用後に加算
+    avg: Math.floor(avgBeforeFixed + 1e-9) + fixedDmg,
+    av:  Math.floor(avgBeforeFixed + 1e-9) + fixedDmg,
+    lo:  Math.max(0, Math.floor(avgBeforeFixed * 0.9   + 1e-9) + fixedDmg),
+    hi:  Math.max(0, Math.floor(avgBeforeFixed * 1.099 + 1e-9) + fixedDmg),
+  };
+}
+
+
+function updateDebugOutput(d1, d2, d3, exRes) {
+  const out = document.getElementById('debugOutput');
+  if (!out) return;
+
+  const parts = [
+    renderDebugBlock('1st Card', d1),
+    '',
+    renderDebugBlock('2nd Card', d2),
+    '',
+    renderDebugBlock('3rd Card', d3),
+    ''
+  ];
+
+  if (exRes) {
+    parts.push(`EX Card
+  cardType: EX
+  firstType: ${formatDebugValue(exRes.firstType)}
+
+  baseAtk: ${formatDebugValue(exRes.baseAtk)}
+  footprintAtk: ${formatDebugValue(exRes.footprintAtk)}
+  atkAfterFootprint: ${formatDebugValue(exRes.atkAfterFootprint)}
+
+  atkBuf: ${formatDebugValue(exRes.atkBuf)}
+  defDebuf: ${formatDebugValue(exRes.defDebuf)}
+  atkDefBuf: ${formatDebugValue(exRes.atkDefBuf)}
+
+  classAffinityMult(clsMod): ${formatDebugValue(exRes.clsMod)}
+  classCorrectionMult(clsAff): ${formatDebugValue(exRes.clsAff)}
+  attrAffinityMult(attrAff): ${formatDebugValue(exRes.attrAff)}
+  resist: ${formatDebugValue(exRes.resist)}
+  resistMult: ${formatDebugValue(exRes.resistMult)}
+
+  spBuf: ${formatDebugValue(exRes.spBuf)}
+  spMult: ${formatDebugValue(exRes.spMult)}
+  exBuf: ${formatDebugValue(exRes.exBuf)}
+  exMult: ${formatDebugValue(exRes.exMult)}
+
+  base: ${formatDebugValue(exRes.base)}
+  baseCore: ${formatDebugValue(exRes.baseCore)}
+  firstBonus: ${formatDebugValue(exRes.firstBonus)}
+  sameColorBonus: ${formatDebugValue(exRes.sameColorBonus)}
+  mightyBonus: ${formatDebugValue(exRes.mightyBonus)}
+  exCore: ${formatDebugValue(exRes.exCore)}
+
+  avgBeforeFixed: ${formatDebugValue(exRes.avgBeforeFixed)}
+  fixedDmg: ${formatDebugValue(exRes.fixedDmg)}
+  avgFinal: ${formatDebugValue(exRes.avg)}
+  displayed(avg): ${formatDebugValue(exRes.av)}
+  displayed(lo/hi): ${formatDebugValue(exRes.lo)} / ${formatDebugValue(exRes.hi)}`);
+  } else {
+    parts.push('EX Card\n  status: inactive\n  reason: 未計算');
+  }
+
+  out.textContent = parts.join('\n');
+}
+
+function recalc() {
+  updateNpCardDisplay();
+  // N を選択したスロットは宝具ダメージとして扱う
+  const _c1 = cardLetter('card1');
+  const _c2 = cardLetter('card2');
+  const _c3 = cardLetter('card3');
+  const c1 = _c1 === 'N' ? 'NP' : _c1;
+  const c2 = _c2 === 'N' ? 'NP' : _c2;
+  const c3 = _c3 === 'N' ? 'NP' : _c3;
+  const exOn = gs('cardEx') === '有';
+
+  const crit1 = gs('crit1') === '有';
+  const crit2 = gs('crit2') === '有';
+  const crit3 = gs('crit3') === '有';
+  const zero1 = gs('crit1') === '0';
+  const zero2 = gs('crit2') === '0';
+  const zero3 = gs('crit3') === '0';
+
+  const bCount =
+    (c1 === 'B' ? 1 : 0) +
+    (c2 === 'B' ? 1 : 0) +
+    (c3 === 'B' ? 1 : 0);
+
+  // Buster Chain はコマンドカード3枚がすべてBの時のみ成立。
+  // EXの有無は判定に含めない。
+  // バスターチェーン判定: NP スロットはその宝具カード色に解決して判定する
+  // 例: B宝具(NP) + B + B → bc1='B', bc2='B', bc3='B' → bChain=true
+  const npLetterForChain = getCurrentNpCardLetter();
+  const bc1 = c1 === 'NP' ? npLetterForChain : c1;
+  const bc2 = c2 === 'NP' ? npLetterForChain : c2;
+  const bc3 = c3 === 'NP' ? npLetterForChain : c3;
+  const bChain = (bc1 === 'B' && bc2 === 'B' && bc3 === 'B');
+  const first = c1;
+
+  const ZERO_SLOT = { lo:0, av:0, hi:0, debug:{ active:false, note:'クリ=0 のためダメージなし' } };
+
+  // NP ダメージを1回計算して slot1 と デバッグパネル両方に使う
+  // （2回呼ぶとbuff detail storeのタイミング差で2倍になるバグを防ぐ）
+  const npCardLetter0 = getCurrentNpCardLetter();
+  const npDmgResult = calcNpDmg(0, npCardLetter0);
+
+  // c1='NP' のとき d1 を NP 計算結果で置き換え
+  const d1 = (c1 === 'NP')
+    ? npDmgResult
+    : (zero1 ? ZERO_SLOT : calcOneDmg(0, c1, first, crit1, bChain));
+  const d2 = (c2 === 'NP')
+    ? npDmgResult
+    : (zero2 ? ZERO_SLOT : calcOneDmg(1, c2, first, crit2, bChain));
+  const d3 = (c3 === 'NP')
+    ? npDmgResult
+    : (zero3 ? ZERO_SLOT : calcOneDmg(2, c3, first, crit3, bChain));
+  // EX のマイティチェイン判定: NP を宝具カード色に変換して渡す
+  const npLetter = getCurrentNpCardLetter();
+  const ec1 = c1 === 'NP' ? npLetter : c1;
+  const ec2 = c2 === 'NP' ? npLetter : c2;
+  const ec3 = c3 === 'NP' ? npLetter : c3;
+  // firstType も NP なら宝具カード色に解決（マイティチェインのボーナス判定に必要）
+  const eFirst = first === 'NP' ? npLetter : first;
+  // NP がチェーンに含まれるかどうかのフラグ（EX の同色ボーナス判定に使用）
+  const isNpChain = (c1 === 'NP' || c2 === 'NP' || c3 === 'NP');
+  const dE = exOn ? calcExDmg(eFirst, ec1, ec2, ec3, isNpChain) : {lo:0,av:0,hi:0,debug:{active:false,note:'EX無効'}};
+
+  const totLo = d1.lo + d2.lo + d3.lo + dE.lo;
+  const totAv = d1.av + d2.av + d3.av + dE.av;
+  const totHi = d1.hi + d2.hi + d3.hi + dE.hi;
+
+  const _ctx = _rowCtx;  // recalc呼び出し時のコンテキストを固定
+  const set = (id, v) => {
+    const el = (_ctx ? document.getElementById(id + _ctx) : null) || document.getElementById(id);
+    if (el) el.textContent = fmt(v);
+  };
+
+  set('d1lo', d1.lo); set('d1av', d1.av); set('d1hi', d1.hi);
+  set('d2lo', d2.lo); set('d2av', d2.av); set('d2hi', d2.hi);
+  set('d3lo', d3.lo); set('d3av', d3.av); set('d3hi', d3.hi);
+  set('dElo', dE.lo); set('dEav', dE.av); set('dEhi', dE.hi);
+  set('dTlo', totLo); set('dTav', totAv); set('dThi', totHi);
+
+  // NP スロット（N選択）を紫色で色分け
+  const npColor = '#7c3aed';
+  [
+    { avId:'d1av', loId:'d1lo', hiId:'d1hi', isNp: c1 === 'NP' },
+    { avId:'d2av', loId:'d2lo', hiId:'d2hi', isNp: c2 === 'NP' },
+    { avId:'d3av', loId:'d3lo', hiId:'d3hi', isNp: c3 === 'NP' },
+  ].forEach(({ avId, loId, hiId, isNp }) => {
+    [avId, loId, hiId].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.color = isNp ? npColor : '';
+    });
+  });
+
+  updateNpDamageDebug(npDmgResult);
+
+  updateDebugOutput(d1, d2, d3, exOn ? dE : null);
+}
+
+function updateNpDamageDebug(res) {
+  const panel = document.getElementById('npDamageDebugPanel');
+  const pre   = document.getElementById('npDamageDebugOutput');
+  if (!panel || !pre) return;
+
+  panel.style.display = '';   // 常時表示
+
+  const f = v => typeof v === 'number'
+    ? (Number.isInteger(v) ? String(v) : v.toFixed(4))
+    : String(v ?? '');
+
+  const d = res && res.npDebug;
+  if (!d) { pre.textContent = '宝具データなし'; return; }
+
+  const lines = [];
+  lines.push(`カード色        : ${d.npCardLetter}`);
+  lines.push(`NP倍率          : ${f(d.npRate)}  (入力値 ${f(d.npRate * 100)}%)`);
+  lines.push(`cardBase        : ${f(d.cardBase)}  (B=1.5 / A=1.0 / Q=0.8)`);
+  lines.push(`cardMult        : ${f(d.cardMult)}  = ${f(d.cardBase)} × ${f(d.npRate)}  ※先頭ボーナスなし`);
+  lines.push('');
+  lines.push(`ATK             : ${f(d.baseAtk)}`);
+  lines.push(`base (atk×0.23) : ${f(d.base)}`);
+  lines.push(`※ 宝具ダメージに足跡ATKは含まれません`);
+  lines.push('');
+  lines.push(`攻撃バフ / 防御デバフ : ${f(d.atkBuf)} / ${f(d.defDebuf)}  → atkDefBuf = ${f(d.atkDefBuf)}`);
+  lines.push(`カード色バフ    : ${f(d.npCardColorBuf)}  カード色デバフ(正) : ${f(d.npCardColorDebuf)}`);
+  lines.push(`カード威力バフ  : ${f(d.npCardPowBuf)}`);
+  lines.push(`cardBufMult     : ${f(d.cardBufMult)}  = 1 + ${f(d.npCardColorBuf)} + ${f(d.npCardColorDebuf)} + ${f(d.npCardPowBuf)}`);
+  lines.push(`宝具威力バフ    : ${f(d.npBuf)}  耐性ダウン : ${f(d.npResDown)}  特攻バフ : ${f(d.spBuf)}  → C区分 = ${f(1+d.npBuf+d.npResDown+d.spBuf)}`);
+  lines.push(`宝具特攻倍率    : ${f(d.npSpMult)}  (入力値${Math.round(d.npSpMult*100)} → ×${f(d.npSpMult)}, デフォルト100=×1.0)`);
+  lines.push(`クラス補正      : ${f(d.clsMod)}  クラス相性 : ${f(d.clsAff)}  属性相性 : ${f(d.attrAff)}`);
+  lines.push(`特殊耐性        : ${f(d.resist)}  → resistMult = ${f(1-d.resist)}`);
+  lines.push('');
+  lines.push(`avgBeforeFixed  : ${f(d.avgBeforeFixed)}`);
+  lines.push(`固定ダメージ    : ${f(d.fixedDmg)}`);
+  lines.push(`ダメージ 最低 / 平均 / 最高 : ${res.lo.toLocaleString()} / ${res.av.toLocaleString()} / ${res.hi.toLocaleString()}`);
+  pre.textContent = lines.join('\n');
+}
+
+// ════════════════════════════════════════════════════════════
+// NP RATE OPTIONS (original logic — preserved)
+// ════════════════════════════════════════════════════════════
+const NP_RATE_MAP = {
+  single_b_unup:[600,800,900,950,1000], single_b_up:[800,1000,1100,1150,1200],
+  single_a_unup:[900,1200,1350,1425,1500], single_a_up:[1000,1250,1500,1750,2000],
+  single_q_unup:[1200,1600,1800,1900,2000], single_q_up:[1600,2000,2200,2300,2400],
+  aoe_b_unup:[300,400,450,475,500], aoe_b_up:[400,500,550,575,600],
+  aoe_a_unup:[450,600,675,712.5,750], aoe_a_up:[600,750,825,862.5,900],
+  aoe_q_unup:[600,800,900,950,1000], aoe_q_up:[800,1000,1100,1150,1200],
+  support:['-']
+};
+const SPECIAL_NP_RATE_OVERRIDE = {
+  336: [600, 800, 900, 950, 1000] // マナナン・マク・リール〔バゼット〕
+};
+const npRateSelect = document.getElementById('npRateSelect');
+const npTypeSelect = document.getElementById('npTypeSelect');
+
+function getSpecialNpRateOverride(servant, npLevelIndex) {
+  const collectionNo = +(servant?.collectionNo || 0);
+  const rates = SPECIAL_NP_RATE_OVERRIDE[collectionNo];
+  if (!Array.isArray(rates) || !rates.length) return null;
+  const idx = Math.max(0, Math.min(rates.length - 1, npLevelIndex || 0));
+  return {
+    rate: +rates[idx] || 0,
+    rates
+  };
+}
+
+function onNpTypeSelectChange(suffix) {
+  if (_importingData) return;
+  const prev = _rowCtx;
+  _rowCtx = suffix;
+  try { updateNpRateOptions(); } finally { _rowCtx = prev; }
+}
+
+function updateNpRateOptions() {
+  if (_importingData) return;  // インポート中は処理しない
+  const selected = getSelectedNpOption();
+  if (selected) {
+    refreshNpRateOptionsFromSelection();
+    return;
+  }
+  APP.npMults = null;
+  const npTypeSel = _el('npTypeSelect');
+  const npRateSel = _el('npRateSelect');
+  // 空オプション選択中はレートを0にしてカード表示をリセット
+  if (!npTypeSel?.value) {
+    if (npRateSel) { npRateSel.value = 0; npRateSel.title = ''; }
+    return;
+  }
+  const values = NP_RATE_MAP[npTypeSel.value] || [0];
+  const lvIdx = getSelectedNpLevelIndex();
+  if (npRateSel) {
+    npRateSel.value = (Array.isArray(values) && typeof values[Math.min(lvIdx, values.length - 1)] === 'number')
+      ? values[Math.min(lvIdx, values.length - 1)]
+      : ((Array.isArray(values) && typeof values[0] === 'number') ? values[0] : 0);
+    npRateSel.dataset.autoFilled = '1';
+    npRateSel.title = Array.isArray(values)
+      ? values.map((v, i) => typeof v === 'number' ? `Lv${i + 1}: ${v}%` : `Lv${i + 1}: ${v}`).join(' / ')
+      : '';
+  }
+  updateNpCardDisplay();
+}
+npTypeSelect.addEventListener('change', ()=>{ updateNpRateOptions(); recalc(); });
+npRateSelect.addEventListener('input', recalc);
+npRateSelect.addEventListener('change', recalc);
+rebuildDefaultNpTypeOptions();
+updateNpRateOptions();
+// 元行テンプレートを保存（削除されてもインポート時に復元できるように）
+_originalRowHtml = document.querySelector('#calcTable tbody tr[data-row-suffix=""]')?.outerHTML || '';
+
+// ════════════════════════════════════════════════════════════
+// MENU DROPDOWNS (original logic preserved)
+// ════════════════════════════════════════════════════════════
+const menuButtons = document.querySelectorAll('.menu-btn');
+const dropdowns   = document.querySelectorAll('.dropdown');
+menuButtons.forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const target = document.getElementById(btn.dataset.menu);
+    const isOpen = target.classList.contains('open');
+    dropdowns.forEach(d=>d.classList.remove('open'));
+    menuButtons.forEach(b=>b.classList.remove('active'));
+    if(!isOpen){ target.classList.add('open'); btn.classList.add('active'); }
+  });
+});
+
+// データ管理ドロップダウン: エクスポート / インポート
+document.querySelectorAll('.drop-item[data-action]').forEach(item => {
+  item.addEventListener('click', e => {
+    e.stopPropagation();
+    dropdowns.forEach(d => d.classList.remove('open'));
+    menuButtons.forEach(b => b.classList.remove('active'));
+    const action = item.dataset.action;
+    if (action === 'save') {
+      saveToLocal();
+    } else if (action === 'load') {
+      loadFromLocal();
+    } else if (action === 'export') {
+      exportCsv();
+    } else if (action === 'import') {
+      const inp = document.getElementById('csvImportInput');
+      inp.value = '';
+      inp.click();
+    }
+  });
+});
+
+// CSVファイル選択後のインポート処理
+document.getElementById('csvImportInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) importCsv(file);
+});
+document.addEventListener('click', () => {
+  dropdowns.forEach(d => d.classList.remove('open'));
+  menuButtons.forEach(b => b.classList.remove('active'));
+  rowActionMenu.classList.remove('open');
+  // servantModal は独自の開閉制御を持つため、ここでは触らない
+});
+
+// ════════════════════════════════════════════════════════════
+// ROW ACTION MENU (イベント委譲・複数行対応)
+// ════════════════════════════════════════════════════════════
+const rowActionMenu = document.getElementById('rowActionMenu');
+
+// tbodyクリック委譲: ・・・ボタンで行アクションメニューを表示
+document.querySelector('#calcTable tbody').addEventListener('click', e => {
+  const btn = e.target.closest('.ellipsis-btn');
+  if (!btn) return;
+  e.stopPropagation();
+  _activeActionRow = btn.closest('tr');
+  const rect = btn.getBoundingClientRect();
+  rowActionMenu.style.left = `${rect.left + window.scrollX + 2}px`;
+  rowActionMenu.style.top  = `${rect.bottom + window.scrollY + 2}px`;
+  rowActionMenu.classList.toggle('open');
+});
+rowActionMenu.addEventListener('click', e => e.stopPropagation());
+
+// アクション実行
+rowActionMenu.querySelectorAll('.action-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const action = item.dataset.action;
+    const row = _activeActionRow;
+    if (row) {
+      const rows = [...document.querySelectorAll('#calcTable tbody tr')];
+      const idx = rows.indexOf(row);
+      if (action === 'swap-up') {
+        if (idx > 0) swapRows(rows[idx - 1], row);
+      } else if (action === 'swap-down') {
+        if (idx < rows.length - 1) swapRows(row, rows[idx + 1]);
+      } else if (action === 'reset') {
+        resetRow(row);
+      } else if (action === 'copy-up') {
+        cloneRow(row, 'up');
+      } else if (action === 'copy-down') {
+        cloneRow(row, 'down');
+      } else if (action === 'delete') {
+        const allRows = [...document.querySelectorAll('#calcTable tbody tr')];
+        // 元行（data-row-suffix=""）は削除不可 → リセットを促す
+        if ((row.dataset.rowSuffix || '') === '') {
+          alert('この行は削除できません。\n「リセット」で初期化できます。');
+          rowActionMenu.classList.remove('open');
+          _activeActionRow = null;
+          return;
+        }
+        if (allRows.length > 1) {
+          const sfx = row.dataset.rowSuffix || '';
+          for (const key of Object.keys(_buffDetailStore)) {
+            if ((key.match(/(_R\d+)$/) || ['',''])[1] === sfx) delete _buffDetailStore[key];
+          }
+          if (sfx && APP.servantMap) delete APP.servantMap[sfx];
+          row.remove();
+        }
+      }
+    }
+    rowActionMenu.classList.remove('open');
+    _activeActionRow = null;
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+// 撃破率 MODAL (original logic preserved)
+// ════════════════════════════════════════════════════════════
+const koModal     = document.getElementById('koModal');
+const openKoBtn   = document.getElementById('openKoBtn');
+const closeKoBtn  = document.getElementById('closeKoModalBtn');
+openKoBtn.addEventListener('click', e=>{
+  e.stopPropagation();
+  openKoModalForRow('');
+});
+closeKoBtn.addEventListener('click', ()=>koModal.classList.remove('open'));
+koModal.addEventListener('click', e=>{ if(e.target===koModal) koModal.classList.remove('open'); });
+
+// ════════════════════════════════════════════════════════════
+// SERVANT MODAL (enhanced)
+// ════════════════════════════════════════════════════════════
+const modal           = document.getElementById('servantModal');
+const closeBtn        = document.getElementById('closeModalBtn');
+const servantSearch   = document.getElementById('servantSearch');
+
+// .target-btn クリック委譲（複数行対応）
+document.querySelector('#calcTable tbody').addEventListener('click', e => {
+  const btn = e.target.closest('.target-btn');
+  if (!btn) return;
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+  // クリックされた行のサフィックスを記録
+  _servantTargetSuffix = btn.closest('tr').dataset.rowSuffix || '';
+  modal.classList.add('open');
+  servantSearch.value = '';
+  servantSearch.focus();
+  if (!APP.allSv.length) loadAllServants();
+  else rebuildSvList();
+});
+closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+// オーバーレイ自体（コンテンツ外）クリックで閉じる — ただし modal の中身クリックは無視
+modal.addEventListener('click', e => {
+  if (e.target === modal) modal.classList.remove('open');
+});
+servantSearch.addEventListener('input', rebuildSvList);
+
+['popLv','popFou','popCE','popGrand'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const ev = el.tagName === 'INPUT' && el.type === 'number' ? 'input' : 'change';
+  el.addEventListener(ev, () => {
+    if (!APP.servant) return;
+    applyServantStats();
+  });
+});
+
+// バフ入力フィールドに上限値ヒントを表示する
+const BUFF_CAP_HINTS = {
+  atkBuf:   '上限: 400%',  defDebuf: '上限: 100%',
+  bBuf:     '上限: 400%',  bDebuf:   '上限なし',
+  aBuf:     '上限: 400%',  aDebuf:   '上限なし',
+  qBuf:     '上限: 400%',  qDebuf:   '上限なし',
+  cardBufB: '上限: 400%',  cardBufA: '上限: 400%',  cardBufQ: '上限: 400%',
+  criBuf:   '上限: 各色合計500%',
+  criBufB:  '上限: criBuf+criBufB合計500%',
+  criBufA:  '上限: criBuf+criBufA合計500%',
+  criBufQ:  '上限: criBuf+criBufQ合計500%',
+  npBuf:    '上限: 500%',
+  spBuf:    '上限: 1000%',
+  exBuf:    '上限なし',
+  npSpBuf:  '上限なし (別枠乗算)',
+  fixedDmg: '上限なし',
+};
+Object.entries(BUFF_CAP_HINTS).forEach(([id, hint]) => {
+  const el = document.getElementById(id);
+  if (el) el.title = (el.title ? el.title + ' / ' : '') + hint;
+});
+
+// ════════════════════════════════════════════════════════════
+// バフ詳細入力モーダル
+// ════════════════════════════════════════════════════════════
+const BUFF_DETAIL_ROWS = 10;
+const _buffDetailStore = {};
+const _buffDetailBoostMap = {}; // fieldId → boolean (ブースト状態)
+let _buffDetailTarget = null;
+
+function _buffDetailSum() {
+  return [...document.querySelectorAll('#buffDetailRows .bd-val')]
+    .reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+}
+function _buffDetailUpdateTotal() {
+  const rawTotal = _buffDetailSum();
+  const boosted = _buffDetailBoostMap[_buffDetailTarget] ? rawTotal * 2 : rawTotal;
+  const fmt = Number.isInteger(boosted) ? String(boosted) : parseFloat(boosted.toFixed(4)).toString();
+  document.getElementById('buffDetailTotal').textContent = `${fmt} %`;
+}
+function _buffDetailAddRow(label = '', value = '', fixedLabel = false) {
+  const tbody = document.getElementById('buffDetailRows');
+  const tr = document.createElement('tr');
+  const labelStyle = fixedLabel
+    ? 'width:100%;font-size:11px;padding:2px 4px;border:1px solid #b0b0b0;border-radius:3px;background:#e8f0f8;color:#333;font-weight:600;cursor:default;'
+    : 'width:100%;font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;background:var(--color-background-secondary);color:var(--color-text-primary);';
+  tr.dataset.fixedLabel = fixedLabel ? '1' : '0';
+  tr.innerHTML = `
+    <td style="padding:3px 4px;">
+      <input class="bd-lbl" type="text" placeholder="スキル・礼装など" value="${label}"
+        ${fixedLabel ? 'readonly tabindex="-1"' : ''}
+        style="${labelStyle}">
+    </td>
+    <td style="padding:3px 4px;text-align:right;">
+      <input class="bd-val" type="number" value="${value}" placeholder="0"
+        style="width:70px;font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;text-align:right;background:var(--color-background-secondary);color:var(--color-text-primary);"
+        oninput="_buffDetailUpdateTotal()">
+    </td>
+    <td style="padding:2px;text-align:center;">
+      ${fixedLabel ? '<span style="display:inline-block;width:20px;"></span>' : `<button type="button" onclick="this.closest('tr').remove();_buffDetailUpdateTotal();"
+        style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;line-height:1;padding:0 2px;"
+        title="削除">×</button>`}
+    </td>`;
+  tbody.appendChild(tr);
+}
+function openBuffDetail(fieldId, label, event) {
+  event && event.stopPropagation();
+  _buffDetailTarget = fieldId;
+  document.getElementById('buffDetailTitle').textContent = `${label} — バフ詳細入力`;
+  const tbody = document.getElementById('buffDetailRows');
+  tbody.innerHTML = '';
+
+  // ストアを初期化（未開封のフィールドは空行で初期化）
+  if (!_buffDetailStore[fieldId]) {
+    _buffDetailStore[fieldId] = [
+      { label:'パッシブバフ', value:'', fixed:true },
+      ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
+    ];
+  }
+
+  // 先頭行は必ず「パッシブバフ」固定
+  const store = _buffDetailStore[fieldId];
+  store[0].label = 'パッシブバフ';
+  store[0].fixed = true;
+
+  store.forEach(r => _buffDetailAddRow(r.label, r.value, r.fixed));
+  _buffDetailUpdateTotal();
+  // ブーストボタンは宝具威力バフ（npBuf）のみ表示
+  const boostBtn = document.getElementById('buffDetailBoostBtn');
+  if (boostBtn) boostBtn.style.display = (fieldId === 'npBuf') ? '' : 'none';
+  _updateBoostButton();
+  document.getElementById('buffDetailModal').classList.add('open');
+}
+function _buffDetailApply() {
+  if (!_buffDetailTarget) return;
+  const rows = [...document.querySelectorAll('#buffDetailRows tr')];
+  _buffDetailStore[_buffDetailTarget] = rows.map((tr, i) => ({
+    label: tr.querySelector('.bd-lbl')?.value || '',
+    value: tr.querySelector('.bd-val')?.value || '',
+    fixed: i === 0 // 先頭行は常に固定
+  }));
+  const rawTotal = _buffDetailSum();
+  const total = _buffDetailBoostMap[_buffDetailTarget] ? rawTotal * 2 : rawTotal;
+  const fmt = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(4)).toString();
+  const el = document.getElementById(_buffDetailTarget);
+  if (el) { el.value = fmt; }
+  document.getElementById('buffDetailModal').classList.remove('open');
+  // _buffDetailTarget の末尾から行サフィックスを検出して適切な recalc を呼ぶ
+  const suffixMatch = _buffDetailTarget.match(/(_R\d+)$/);
+  if (suffixMatch) {
+    recalcRow(suffixMatch[1]);
+  } else {
+    recalc();
+  }
+}
+function _updateBoostButton() {
+  const btn = document.getElementById('buffDetailBoostBtn');
+  if (!btn) return;
+  const active = !!_buffDetailBoostMap[_buffDetailTarget];
+  btn.textContent = active ? 'ブースト ×2' : 'ブースト ×1';
+  btn.style.background = active ? '#e74c3c' : '';
+  btn.style.color = active ? '#fff' : '';
+  btn.style.borderColor = active ? '#c0392b' : '';
+}
+document.getElementById('buffDetailBoostBtn').addEventListener('click', () => {
+  _buffDetailBoostMap[_buffDetailTarget] = !_buffDetailBoostMap[_buffDetailTarget];
+  _updateBoostButton();
+  _buffDetailUpdateTotal();
+});
+document.getElementById('buffDetailOkBtn').addEventListener('click', _buffDetailApply);
+document.getElementById('buffDetailCloseBtn').addEventListener('click', () =>
+  document.getElementById('buffDetailModal').classList.remove('open'));
+document.getElementById('buffDetailModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('buffDetailModal'))
+    document.getElementById('buffDetailModal').classList.remove('open');
+});
+document.getElementById('buffDetailAddRow').addEventListener('click', () => {
+  _buffDetailAddRow(); _buffDetailUpdateTotal();
+});
+document.getElementById('buffDetailClearBtn').addEventListener('click', () => {
+  document.querySelectorAll('#buffDetailRows .bd-val').forEach(el => el.value = '');
+  _buffDetailUpdateTotal();
+});
+document.getElementById('buffDetailModal').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _buffDetailApply(); }
+  if (e.key === 'Escape') document.getElementById('buffDetailModal').classList.remove('open');
+});
+
+// ════════════════════════════════════════════════════════════
+// 複数行サポート: recalcRow / cloneRow
+// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// ローカルストレージ 保存 / 読込
+// ════════════════════════════════════════════════════════════
+const LS_KEY = 'fgo_calc_v1';
+
+function collectRowData(row) {
+  const sfx = row.dataset.rowSuffix || '';
+  const getVal = id => {
+    if (id === 'npOptionsHtml') {
+      const sel = (sfx ? document.getElementById('npTypeSelect' + sfx) : null)
+               || document.getElementById('npTypeSelect');
+      return sel ? sel.innerHTML : '';
+    }
+    const el = (sfx ? document.getElementById(id + sfx) : null)
+             || document.getElementById(id);
+    if (!el) return '';
+    if (el.tagName === 'TEXTAREA') return el.value;
+    if (el.tagName === 'SPAN') return el.textContent.replace(/,/g, '');
+    return el.value ?? '';
+  };
+  const data = {};
+  CSV_INPUT_FIELDS.forEach(id => { data[id] = getVal(id); });
+  CSV_RESULT_FIELDS.forEach(id => { data[id] = getVal(id); });
+  data.servantFace = row.querySelector('.target-face')?.src || '';
+  return data;
+}
+
+function saveToLocal() {
+  const rows = [...document.querySelectorAll('#calcTable tbody tr')];
+  const payload = rows.map(collectRowData);
+  localStorage.setItem(LS_KEY, JSON.stringify(payload));
+  // 一時的な保存完了メッセージ
+  const btn = document.querySelector('.drop-item[data-action="save"]');
+  if (btn) { const orig = btn.textContent; btn.textContent = '保存完了 ✓'; setTimeout(() => btn.textContent = orig, 1500); }
+}
+
+function applyRowData(targetRow, rowData) {
+  const sfx = targetRow.dataset.rowSuffix || '';
+  const setVal = (id, val) => {
+    const el = (sfx ? document.getElementById(id + sfx) : null)
+             || document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'TEXTAREA') { el.value = val; return; }
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.value = val;
+  };
+  // npOptions を先に復元
+  const npOptionsHtml = rowData['npOptionsHtml'] || '';
+  if (npOptionsHtml) {
+    const npTypeSel = (sfx ? document.getElementById('npTypeSelect' + sfx) : null)
+                   || document.getElementById('npTypeSelect');
+    if (npTypeSel) { npTypeSel.innerHTML = npOptionsHtml; APP.npCardUserOverride = false; }
+  }
+  CSV_INPUT_FIELDS.forEach(id => {
+    if (id === 'npOptionsHtml') return;
+    setVal(id, rowData[id] ?? '');
+  });
+  // npCardDisplay を最後に保護
+  const npCardEl = (sfx ? document.getElementById('npCardDisplay' + sfx) : null)
+                || document.getElementById('npCardDisplay');
+  if (npCardEl && rowData['npCardDisplay']) {
+    npCardEl.value = rowData['npCardDisplay'];
+    APP.npCardUserOverride = true;
+  }
+  // サーヴァント画像
+  const faceUrl = rowData['servantFace'] || '';
+  const img = targetRow.querySelector('.target-face');
+  if (img && faceUrl) { img.src = faceUrl; img.classList.add('show'); }
+  else if (img) { img.removeAttribute('src'); img.classList.remove('show'); }
+}
+
+function loadFromLocal() {
+  const json = localStorage.getItem(LS_KEY);
+  _importingData = true;
+  try { _loadFromLocalImpl(); } finally { _importingData = false; }
+}
+function _loadFromLocalImpl() {
+  const json = localStorage.getItem(LS_KEY);
+  if (!json) { alert('保存データがありません'); return; }
+  let payload;
+  try { payload = JSON.parse(json); }
+  catch { alert('データの読み込みに失敗しました'); return; }
+  if (!Array.isArray(payload) || !payload.length) { alert('保存データが空です'); return; }
+
+  const tbody = document.querySelector('#calcTable tbody');
+  // 複製行を全削除
+  [...tbody.querySelectorAll('tr')].forEach(row => {
+    const sfx = row.dataset.rowSuffix ?? null;
+    if (sfx === null || sfx === '') return;
+    for (const key of Object.keys(_buffDetailStore)) {
+      if ((key.match(/(_R\d+)$/) || ['',''])[1] === sfx) delete _buffDetailStore[key];
+    }
+    if (APP.servantMap) delete APP.servantMap[sfx];
+    row.remove();
+  });
+  // 元行がなければ復元
+  if (!tbody.querySelector('tr[data-row-suffix=""]') && _originalRowHtml) {
+    tbody.insertAdjacentHTML('afterbegin', _originalRowHtml);
+  }
+  // 元行リセット
+  const originalRow = tbody.querySelector('tr[data-row-suffix=""]') || tbody.querySelector('tr');
+  if (originalRow) {
+    originalRow.querySelectorAll('input[id], select[id]').forEach(el => {
+      const baseId = el.id.replace(/_R\d+$/, '');
+      if (el.type === 'number') el.value = baseId === 'npSpBuf' ? '100' : baseId === 'atk' ? '12000' : '0';
+      else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    });
+    originalRow.querySelectorAll('textarea').forEach(el => el.value = '');
+    const img = originalRow.querySelector('.target-face');
+    if (img) { img.removeAttribute('src'); img.classList.remove('show'); }
+    for (const key of Object.keys(_buffDetailStore)) {
+      if ((key.match(/(_R\d+)$/) || ['',''])[1] === '') delete _buffDetailStore[key];
+    }
+    APP.servant = null;
+  }
+  // 各行を適用
+  let prevTargetRow = originalRow;
+  for (let ri = 0; ri < payload.length; ri++) {
+    const rowData = payload[ri];
+    let targetRow;
+    if (ri === 0) {
+      targetRow = originalRow;
+    } else {
+      const newRow = cloneRow(prevTargetRow, 'down');
+      targetRow = newRow;
+    }
+    if (!targetRow) continue;
+    applyRowData(targetRow, rowData);
+    recalcRow(targetRow.dataset.rowSuffix || '');
+    prevTargetRow = targetRow;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// CSV エクスポート / インポート
+// ════════════════════════════════════════════════════════════
+
+// エクスポート対象フィールド定義（順序がCSVの列順になる）
+const CSV_INPUT_FIELDS = [
+  'memo',
+  'atk', 'npSpBuf',
+  'atkBuf', 'defDebuf',
+  'bBuf', 'bDebuf', 'aBuf', 'aDebuf', 'qBuf', 'qDebuf',
+  'cardBufB', 'cardBufA', 'cardBufQ',
+  'criBuf', 'criBufB', 'criBufA', 'criBufQ',
+  'npBuf', 'npResDown', 'exBuf', 'spBuf',
+  'fixedDmg', 'specialResist',
+  'footB', 'footA', 'footQ',
+  'card1', 'card2', 'card3',
+  'crit1', 'crit2', 'crit3',
+  'npTypeSelect', 'npCardDisplay', 'npRateSelect',
+  'clsMod', 'clsAff', 'attrAff',
+  'targetDmg',
+  'npOptionsHtml',  // npTypeSelectのoption HTML（宝具名復元用）
+];
+const CSV_RESULT_FIELDS = [
+  'd1lo','d1av','d1hi',
+  'd2lo','d2av','d2hi',
+  'd3lo','d3av','d3hi',
+  'dElo','dEav','dEhi',
+  'dTlo','dTav','dThi',
+];
+const CSV_HEADERS = [
+  ...CSV_INPUT_FIELDS,
+  ...CSV_RESULT_FIELDS,
+  'servantFace',
+];
+
+function csvQuote(v) {
+  const s = String(v ?? '');
+  return s.includes(',') || s.includes('"') || s.includes('\n')
+    ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function getRowCsvValues(row) {
+  const sfx = row.dataset.rowSuffix || '';
+  const getVal = id => {
+    if (id === 'npOptionsHtml') {
+      // npTypeSelectのoption HTMLを保存（宝具名復元用）
+      const sel = (sfx ? document.getElementById('npTypeSelect' + sfx) : null) || document.getElementById('npTypeSelect');
+      return sel ? sel.innerHTML : '';
+    }
+    const el = (sfx ? document.getElementById(id + sfx) : null) || document.getElementById(id);
+    if (!el) return '';
+    if (el.tagName === 'TEXTAREA') return el.value;
+    if (el.tagName === 'SPAN') return el.textContent.replace(/,/g, '');
+    return el.value ?? '';
+  };
+  const vals = [
+    ...CSV_INPUT_FIELDS.map(id => getVal(id)),
+    ...CSV_RESULT_FIELDS.map(id => getVal(id)),
+    (row.querySelector('.target-face')?.src || ''),
+  ];
+  return vals.map(csvQuote).join(',');
+}
+
+function exportCsv() {
+  const rows = [...document.querySelectorAll('#calcTable tbody tr')];
+  const lines = [CSV_HEADERS.join(',')];
+  rows.forEach(row => lines.push(getRowCsvValues(row)));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fgo_calc_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function parseCsvLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQ = false;
+      else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ',') { result.push(cur); cur = ''; }
+      else cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+async function importCsv(file) {
+  _importingData = true;
+  try {
+  let text = await file.text();
+  // BOM除去
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+  if (lines.length < 2) { alert('CSVデータが空です'); return; }
+
+  const headers = parseCsvLine(lines[0]).map(h => h.trim());
+  const dataRows = lines.slice(1)
+    .map(l => parseCsvLine(l))
+    .filter(r => r.some(v => v.trim()));  // 空行スキップ
+
+  if (!dataRows.length) { alert('インポートするデータがありません'); return; }
+
+  const tbody = document.querySelector('#calcTable tbody');
+
+  // ── 全複製行を削除、元行がなければテンプレートから復元 ──
+  [...tbody.querySelectorAll('tr')].forEach(row => {
+    const sfx = row.dataset.rowSuffix ?? null;
+    if (sfx === null || sfx === '') return;  // 元行は残す
+    for (const key of Object.keys(_buffDetailStore)) {
+      if ((key.match(/(_R\d+)$/) || ['',''])[1] === sfx) delete _buffDetailStore[key];
+    }
+    if (APP.servantMap) delete APP.servantMap[sfx];
+    row.remove();
+  });
+
+  // 元行がなければテンプレートから復元
+  if (!tbody.querySelector('tr[data-row-suffix=""]') && _originalRowHtml) {
+    tbody.insertAdjacentHTML('afterbegin', _originalRowHtml);
+    // 復元した行のイベントを再接続（oninput等はHTML属性なので自動的に有効）
+  }
+
+  // 元行の値をリセット（recalcは呼ばず値だけクリア）
+  const originalRow = tbody.querySelector('tr[data-row-suffix=""]') || tbody.querySelector('tr');
+  if (originalRow) {
+    originalRow.querySelectorAll('input[id], select[id]').forEach(el => {
+      const baseId = el.id.replace(/_R\d+$/, '');
+      if (el.type === 'number')   el.value = baseId === 'npSpBuf' ? '100' : baseId === 'atk' ? '12000' : '0';
+      else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    });
+    originalRow.querySelectorAll('textarea').forEach(el => el.value = '');
+    const img = originalRow.querySelector('.target-face');
+    if (img) { img.removeAttribute('src'); img.classList.remove('show'); }
+    for (const key of Object.keys(_buffDetailStore)) {
+      if ((key.match(/(_R\d+)$/) || ['',''])[1] === '') delete _buffDetailStore[key];
+    }
+    APP.servant = null;
+  }
+
+  // ── CSV各行を適用 ──
+  let prevTargetRow = originalRow;  // 前ループで処理した行
+  for (let ri = 0; ri < dataRows.length; ri++) {
+    const rowValues = dataRows[ri];
+    const rowData = {};
+    headers.forEach((h, i) => { rowData[h] = (rowValues[i] ?? '').trim(); });
+
+    let targetRow;
+    if (ri === 0) {
+      targetRow = originalRow;
+    } else {
+      // 直前に処理した行の末尾に追加し、cloneRowの戻り値を直接使う
+      const newRow = cloneRow(prevTargetRow, 'down');
+      targetRow = newRow;
+    }
+    if (!targetRow) continue;
+
+    const sfx = targetRow.dataset.rowSuffix || '';
+    const setVal = (id, val) => {
+      const el = (sfx ? document.getElementById(id + sfx) : null) || document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'TEXTAREA') { el.value = val; return; }
+      if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.value = val;
+    };
+
+    // npOptionsHtml が存在すれば先に npTypeSelect の options を復元
+    const npOptionsHtml = rowData['npOptionsHtml'] || '';
+    if (npOptionsHtml) {
+      const npTypeSel = (sfx ? document.getElementById('npTypeSelect' + sfx) : null) || document.getElementById('npTypeSelect');
+      if (npTypeSel) {
+        npTypeSel.innerHTML = npOptionsHtml;
+        APP.npCardUserOverride = false;  // 一旦falseにしてから後でtrueに戻す
+      }
+    }
+    // 通常フィールド設定（npOptionsHtml はセレクト復元済みのためスキップ）
+    CSV_INPUT_FIELDS.forEach(id => {
+      if (id === 'npOptionsHtml') return;
+      setVal(id, rowData[id] ?? '');
+    });
+    // npCardDisplay を明示的にセットした後、override フラグを立てて recalc 内の
+    // updateNpCardDisplay() による上書きを防ぐ
+    const npCardEl = (sfx ? document.getElementById('npCardDisplay' + sfx) : null) || document.getElementById('npCardDisplay');
+    const npCardVal = rowData['npCardDisplay'] || '';
+    if (npCardEl && npCardVal) {
+      npCardEl.value = npCardVal;
+      APP.npCardUserOverride = true;
+    }
+
+    // サーヴァント画像
+    const faceUrl = rowData['servantFace'] || '';
+    const img = targetRow.querySelector('.target-face');
+    if (img && faceUrl) { img.src = faceUrl; img.classList.add('show'); }
+    else if (img) { img.removeAttribute('src'); img.classList.remove('show'); }
+
+    recalcRow(sfx);
+    prevTargetRow = targetRow;
+  }
+  } finally { _importingData = false; }
+}
+
+function recalcRow(suffix) {
+  const _prevCtx = _rowCtx;  // 呼び出し前のコンテキストを保存
+  _rowCtx = suffix;
+  try { recalc(); } finally { _rowCtx = _prevCtx; }  // 元に戻す（ネスト時に上位コンテキストを保持）
+}
+
+// ── cloneRow: direction = 'up'|'down' (default 'down') ──
+function cloneRow(sourceRow, direction = 'down') {
+  _rowCounter++;
+  const suffix = '_R' + _rowCounter;
+  const sourceSuffix = sourceRow.dataset.rowSuffix || '';
+
+  const originalRow = document.querySelector('tbody tr[data-row-suffix=""]') || sourceRow;
+  const newRow = originalRow.cloneNode(true);
+
+  // ソース行の現在値をコピー
+  // npTypeSelect は元行テンプレートと options が異なる可能性があるので先に innerHTML をコピー
+  const srcNpTypeSel = sourceRow.querySelector('[id^="npTypeSelect"]');
+  const dstNpTypeSel = newRow.querySelector('[id^="npTypeSelect"]');
+  if (srcNpTypeSel && dstNpTypeSel) dstNpTypeSel.innerHTML = srcNpTypeSel.innerHTML;
+
+  const srcInputs = [...sourceRow.querySelectorAll('input, select, textarea')];
+  const dstInputs = [...newRow.querySelectorAll('input, select, textarea')];
+  srcInputs.forEach((src, i) => {
+    const dst = dstInputs[i];
+    if (!dst) return;
+    if (src.type === 'checkbox') dst.checked = src.checked;
+    else dst.value = src.value;
+  });
+  [...sourceRow.querySelectorAll('span[id]')].forEach((src, i) => {
+    const dstSpans = [...newRow.querySelectorAll('span[id]')];
+    if (dstSpans[i]) dstSpans[i].textContent = src.textContent;
+  });
+  const srcImg = sourceRow.querySelector('.target-face');
+  const dstImg = newRow.querySelector('.target-face');
+  if (srcImg && dstImg) dstImg.src = srcImg.src;
+
+  newRow.dataset.rowSuffix = suffix;
+  newRow.querySelectorAll('[id]').forEach(el => { el.id = el.id + suffix; });
+
+  ['oninput', 'onchange'].forEach(attr => {
+    newRow.querySelectorAll(`[${attr}]`).forEach(el => {
+      let h = el.getAttribute(attr);
+      // recalc() → recalcRow('_Rn')
+      h = h.replace(/\brecalc\(\)/g, `recalcRow('${suffix}')`);
+      // npTypeSelect の onchange: updateNpRateOptions() → onNpTypeSelectChange('_Rn')
+      // で _rowCtx を正しく設定してから呼ぶ
+      if (attr === 'onchange' && el.id && el.id.replace(/_R\d+$/, '') === 'npTypeSelect') {
+        h = h.replace(/\bupdateNpRateOptions\(\)/g, `onNpTypeSelectChange('${suffix}')`);
+      }
+      el.setAttribute(attr, h);
+    });
+  });
+
+  newRow.querySelectorAll('[onclick]').forEach(el => {
+    const h = el.getAttribute('onclick');
+    if (!h) return;
+    el.setAttribute('onclick',
+      h.replace(/openBuffDetail\('([^']+)'/g, (m, fid) => `openBuffDetail('${fid}${suffix}'`)
+       .replace(/openKoModalForRow\('[^']*'\)/, `openKoModalForRow('${suffix}')`)
+    );
+  });
+
+  // buff detail store コピー
+  Object.keys(_buffDetailStore).forEach(key => {
+    const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySuffix === sourceSuffix) {
+      const baseKey = sourceSuffix ? key.slice(0, -sourceSuffix.length) : key;
+      _buffDetailStore[baseKey + suffix] = JSON.parse(JSON.stringify(_buffDetailStore[key]));
+    }
+  });
+  if (_buffDetailBoostMap['npBuf' + sourceSuffix]) _buffDetailBoostMap['npBuf' + suffix] = true;
+
+  const targetBtn = newRow.querySelector('.target-btn');
+  if (targetBtn) { targetBtn.style.opacity = ''; targetBtn.style.pointerEvents = ''; }
+  const actionBtn = newRow.querySelector('.ellipsis-btn');
+  if (actionBtn) actionBtn.removeAttribute('id');
+
+  // 挿入位置
+  if (direction === 'up') {
+    sourceRow.parentNode.insertBefore(newRow, sourceRow);
+  } else {
+    sourceRow.parentNode.insertBefore(newRow, sourceRow.nextSibling);
+  }
+  recalcRow(suffix);
+  return newRow;
+}
+
+// ── resetRow: 行をデフォルト状態にリセット ──
+function resetRow(row) {
+  const suffix = row.dataset.rowSuffix || '';
+  const prevCtx = _rowCtx;
+  _rowCtx = suffix;
+
+  // 全入力欄をリセット
+  row.querySelectorAll('input[id], select[id], textarea').forEach(el => {
+    const baseId = el.id.replace(/_R\d+$/, '');
+    if (el.tagName === 'TEXTAREA') { el.value = ''; return; }
+    if (el.type === 'number') {
+      el.value = baseId === 'npSpBuf' ? '100'
+               : baseId === 'atk'    ? '12000'
+               : baseId === 'specialResist' ? '0'
+               : '0';
+    } else if (el.tagName === 'SELECT') {
+      el.selectedIndex = 0;
+    } else if (el.type === 'text') {
+      el.value = '';
+    }
+  });
+  // サーヴァント画像クリア
+  const img = row.querySelector('.target-face');
+  if (img) { img.src = ''; img.classList.remove('show'); }
+  // buff detail store クリア
+  for (const key of Object.keys(_buffDetailStore)) {
+    const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySuffix === suffix) delete _buffDetailStore[key];
+  }
+  // servantMap クリア
+  if (suffix && APP.servantMap) delete APP.servantMap[suffix];
+  else if (!suffix) APP.servant = null;
+
+  recalcRow(suffix);
+  _rowCtx = prevCtx;
+}
+
+// ── swapRows: 2行のDOM位置を入れ替え（IDはそのまま移動） ──
+function swapRows(rowA, rowB) {
+  const parent = rowA.parentNode;
+  const nextB = rowB.nextSibling;
+  if (nextB === rowA) {
+    parent.insertBefore(rowA, rowB);
+  } else {
+    parent.insertBefore(rowB, rowA);
+    parent.insertBefore(rowA, nextB);
+  }
+}
+
+
+// damage(r) = floor(avgBeforeFixed × r) + fixedDmg
+// r = 0.900〜1.099 (0.001刻み、200通り)
+// 撃破率 = count(damage(r) ≥ target) / 200
+// ════════════════════════════════════════════════════════════
+function openKoModalForRow(suffix) {
+  _koModalRowSuffix = suffix || '';
+  const sfx = _koModalRowSuffix;
+  const getEl = id => (sfx ? document.getElementById(id + sfx) || document.getElementById(id)
+                           : document.getElementById(id));
+  // 目標ダメージ転記
+  const targetEl  = getEl('targetDmg');
+  const koTargetEl = document.getElementById('koTargetDmg');
+  if (koTargetEl && targetEl && targetEl.value) {
+    const raw = parseFloat(targetEl.value) || 0;
+    koTargetEl.value = raw ? raw.toLocaleString() : targetEl.value;
+  }
+  // 各スロット平均ダメージ転記
+  [['d1av','koD1'],['d2av','koD2'],['d3av','koD3'],['dEav','koDe'],['dTav','koDt']].forEach(([s,d]) => {
+    const src = getEl(s);
+    const dst = document.getElementById(d);
+    if (src && dst) dst.textContent = src.textContent || '0';
+  });
+  document.getElementById('koModal').classList.add('open');
+  setTimeout(recalcKillProb, 0);
+}
+
+function recalcKillProb() {
+  const targetEl = document.getElementById('koTargetDmg');
+  const fixedEl  = document.getElementById('koFixedTotal');
+  const rateEl   = document.getElementById('koKillRate');
+  const _ksfx = _koModalRowSuffix || '';
+  const loEl = (_ksfx ? document.getElementById('dTlo' + _ksfx) : null) || document.getElementById('dTlo');
+  const hiEl = (_ksfx ? document.getElementById('dThi' + _ksfx) : null) || document.getElementById('dThi');
+  if (!rateEl) return;
+
+  const target   = parseFloat((targetEl?.value || '').replace(/,/g, '')) || 0;
+  const fixedDmg = parseFloat(fixedEl?.value)  || 0;
+  const loBase   = parseFloat((loEl?.textContent  || '0').replace(/,/g, '')) || 0;
+  const hiBase   = parseFloat((hiEl?.textContent  || '0').replace(/,/g, '')) || 0;
+
+  if (target <= 0 || hiBase <= 0) { rateEl.textContent = '—'; return; }
+
+  // 固定ダメージ（追加分）を加味して実際のlo/hi算出
+  const lo = loBase + fixedDmg;
+  const hi = hiBase + fixedDmg;
+
+  if (hi <= lo) { rateEl.textContent = '—'; return; }
+
+  // 連続一様分布補間（モデルサイト準拠）:
+  //   P = (hi − target) / (hi − lo)
+  // ※ 乱数は [0.900, 1.099] の連続一様分布とみなす
+  // ※ 平均 = avg の時 P ≈ 49.75%（≠50%）になる理由:
+  //   hi-avg = avg×0.099,  avg-lo = avg×0.1  と非対称なため
+  const p = Math.max(0, Math.min(1, (hi - target) / (hi - lo)));
+  const pct = (p * 100).toFixed(2);
+  rateEl.textContent = `${pct}%`;
+  rateEl.style.color = p >= 1 ? '#27ae60' : p <= 0 ? '#e74c3c' : '#4a7fd4';
+}
+
+recalc();
+loadAllServants();
+
+document.getElementById('classScore')?.addEventListener('change', () => {
+  selectedClassScore = !!document.getElementById('classScore')?.checked;
+
+  // 減算ではなく、現在のサーヴァントデータから毎回組み直す
+  if (APP && APP.servant) {
+    extractNpData(APP.servant);
+    applyClassPassive(APP.servant);
+    applyServantStats();
+    renderSelectedServant(APP.servant);
+  }
+
+  if (typeof recalc === 'function') recalc();
+});
+
+document.getElementById('append1')?.addEventListener('change', () => {
+  if (APP && APP.servant) {
+    extractNpData(APP.servant);
+    applyClassPassive(APP.servant);
+    applyServantStats();
+    renderSelectedServant(APP.servant);
+  }
+  if (typeof recalc === 'function') recalc();
+});
+
+document.getElementById('append4')?.addEventListener('change', () => {
+  if (APP && APP.servant) {
+    extractNpData(APP.servant);
+    applyClassPassive(APP.servant);
+    applyServantStats();
+    renderSelectedServant(APP.servant);
+  }
+  if (typeof recalc === 'function') recalc();
+});
+
+
+document.getElementById('footprintMax')?.addEventListener('change', () => {
+  if (APP && APP.servant) {
+    extractNpData(APP.servant);
+    applyClassPassive(APP.servant);
+    applyServantStats();
+    renderSelectedServant(APP.servant);
+  }
+  if (typeof recalc === 'function') recalc();
+});
+
+</script>
+</body>
+</html>
