@@ -828,7 +828,7 @@ const NON_DAMAGE_BUFF_TYPES = new Set([
 // applyClassPassive でこのMapを優先使用し、動的解析をフォールバックにする。
 // ══════════════════════════════════════════════════════════════
 const PASSIVE_BUFF_MAP = {
-  1: {}, // マシュ・キリエライト（防御特化のため攻撃関連パッシブなし）
+  1: { qBuf:6 }, // マシュ・キリエライト（シールダー版／パラディーン版 共通：クラススキル「対魔力」「サポート防御適性」相当でQuick+6）
   4: { qBuf:6 }, // アルトリア・ペンドラゴン〔リリィ〕
   8: { qBuf:10, fixedDmg:175 }, // アルテラ
   9: { qBuf:8, bBuf:12 }, // ジル・ド・レェ
@@ -1120,7 +1120,7 @@ const PASSIVE_BUFF_MAP = {
   348: { aBuf:8 }, // 張角
   349: { qBuf:8, fixedDmg:150 }, // 曲亭馬琴
   350: { criBuf:8 }, // 源為朝
-  351: { aBuf:42, criBuf:10, qBuf:30, bBuf:30 }, // アーキタイプ：アース
+  351: { aBuf:12, criBuf:10 }, // アーキタイプ：アース（各カード+30は限定条件下のみ有効のため除外。常時有効の Arts+12 / Crit+10 のみ採用）
   352: { aBuf:8 }, // 徐福
   353: { aBuf:4, criBuf:10 }, // レディ・アヴァロン
   354: { qBuf:8 }, // ガレス
@@ -4058,8 +4058,11 @@ function openBuffDetail(fieldId, label, event) {
   store.forEach(r => _buffDetailAddRow(r.label, r.value, r.fixed));
   _buffDetailUpdateTotal();
   // ブーストボタンは宝具威力バフ（npBuf）のみ表示
+  // 行コピー時に fieldId は 'npBuf_R2', 'npBuf_R3' ... となるため、
+  // 末尾の _R\d+ サフィックスを除いた基底 ID で判定する。
   const boostBtn = document.getElementById('buffDetailBoostBtn');
-  if (boostBtn) boostBtn.style.display = (fieldId === 'npBuf') ? '' : 'none';
+  const baseFieldId = fieldId.replace(/_R\d+$/, '');
+  if (boostBtn) boostBtn.style.display = (baseFieldId === 'npBuf') ? '' : 'none';
   _updateBoostButton();
   document.getElementById('buffDetailModal').classList.add('open');
 }
@@ -4134,6 +4137,10 @@ function collectRowData(row) {
                || document.getElementById('npTypeSelect');
       return sel ? sel.innerHTML : '';
     }
+    if (id === 'buffDetails') {
+      const obj = serializeBuffDetailsForRow(sfx);
+      return Object.keys(obj).length ? JSON.stringify(obj) : '';
+    }
     const el = (sfx ? document.getElementById(id + sfx) : null)
              || document.getElementById(id);
     if (!el) return '';
@@ -4175,8 +4182,23 @@ function applyRowData(targetRow, rowData) {
   }
   CSV_INPUT_FIELDS.forEach(id => {
     if (id === 'npOptionsHtml') return;
+    if (id === 'buffDetails') return;  // バフ詳細は別途適用（applyBuffDetailsForRow）
     setVal(id, rowData[id] ?? '');
   });
+  // バフ詳細ストアを復元（CSV / localStorage 共通）
+  // - 文字列（CSV経由）: JSON.parse
+  // - オブジェクト（localStorage 経由）: そのまま使用
+  // - undefined（旧フォーマットで列が存在しない）: 何もしない（クローン継承を維持）
+  if ('buffDetails' in rowData) {
+    const v = rowData['buffDetails'];
+    let obj = null;
+    if (typeof v === 'string' && v) {
+      try { obj = JSON.parse(v); } catch { obj = null; }
+    } else if (v && typeof v === 'object') {
+      obj = v;
+    }
+    applyBuffDetailsForRow(sfx, obj || {});
+  }
   // npCardDisplay を最後に保護
   const npCardEl = (sfx ? document.getElementById('npCardDisplay' + sfx) : null)
                 || document.getElementById('npCardDisplay');
@@ -4275,6 +4297,7 @@ const CSV_INPUT_FIELDS = [
   'clsMod', 'clsAff', 'attrAff',
   'targetDmg',
   'npOptionsHtml',  // npTypeSelectのoption HTML（宝具名復元用）
+  'buffDetails',    // バフ詳細モーダルの内訳（JSON文字列、行ごと）
 ];
 const CSV_RESULT_FIELDS = [
   'd1lo','d1av','d1hi',
@@ -4295,6 +4318,70 @@ function csvQuote(v) {
     ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+// ── バフ詳細（モーダルでの内訳入力）の保存・復元 ──
+// _buffDetailStore はキー = `${fieldId}${rowSuffix}` で各行のバフ内訳（10行）を保持。
+// _buffDetailBoostMap は同じキー命名でブースト状態（npBuf 用）を保持。
+// 行コンテキスト suffix（''=元行, '_R2'…）に属するエントリだけ抜き出して JSON 化／復元する。
+// 形式（コンパクト）:
+//   { "<fieldId>": [["label","value"], ...], ..., "_boost": ["npBuf", ...] }
+// 末尾の空行はトリム、全行空のフィールドは省略。
+function serializeBuffDetailsForRow(suffix) {
+  const out = {};
+  const sfx = suffix || '';
+  for (const key of Object.keys(_buffDetailStore)) {
+    const keySfx = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySfx !== sfx) continue;
+    const fid = sfx ? key.slice(0, -sfx.length) : key;
+    const arr = _buffDetailStore[key];
+    if (!Array.isArray(arr)) continue;
+    let lastNon = -1;
+    for (let i = 0; i < arr.length; i++) {
+      const r = arr[i] || {};
+      if ((r.label || '') !== '' || (r.value || '') !== '') lastNon = i;
+    }
+    if (lastNon < 0) continue;
+    out[fid] = arr.slice(0, lastNon + 1).map(r => [r.label || '', r.value || '']);
+  }
+  const boost = [];
+  for (const key of Object.keys(_buffDetailBoostMap)) {
+    const keySfx = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySfx !== sfx || !_buffDetailBoostMap[key]) continue;
+    const fid = sfx ? key.slice(0, -sfx.length) : key;
+    boost.push(fid);
+  }
+  if (boost.length) out._boost = boost;
+  return out;
+}
+
+function applyBuffDetailsForRow(suffix, obj) {
+  const sfx = suffix || '';
+  // 同行コンテキストの既存エントリを完全クリア（インポート＝完全置換のため）
+  for (const key of Object.keys(_buffDetailStore)) {
+    const keySfx = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySfx === sfx) delete _buffDetailStore[key];
+  }
+  for (const key of Object.keys(_buffDetailBoostMap)) {
+    const keySfx = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySfx === sfx) delete _buffDetailBoostMap[key];
+  }
+  if (!obj || typeof obj !== 'object') return;
+  for (const fid of Object.keys(obj)) {
+    if (fid === '_boost') continue;
+    const arr = obj[fid];
+    if (!Array.isArray(arr)) continue;
+    const full = Array.from({ length: BUFF_DETAIL_ROWS }, (_, i) => {
+      const entry = arr[i];
+      const label = (entry && entry[0]) || (i === 0 ? 'パッシブバフ' : '');
+      const value = (entry && entry[1]) || '';
+      return { label, value, fixed: i === 0 };
+    });
+    _buffDetailStore[fid + sfx] = full;
+  }
+  if (Array.isArray(obj._boost)) {
+    for (const fid of obj._boost) _buffDetailBoostMap[fid + sfx] = true;
+  }
+}
+
 function getRowCsvValues(row) {
   const sfx = row.dataset.rowSuffix || '';
   const getVal = id => {
@@ -4302,6 +4389,11 @@ function getRowCsvValues(row) {
       // npTypeSelectのoption HTMLを保存（宝具名復元用）
       const sel = (sfx ? document.getElementById('npTypeSelect' + sfx) : null) || document.getElementById('npTypeSelect');
       return sel ? sel.innerHTML : '';
+    }
+    if (id === 'buffDetails') {
+      // バフ詳細ストアと boost 状態を JSON 化（DOM 要素ではなくグローバル状態から取得）
+      const obj = serializeBuffDetailsForRow(sfx);
+      return Object.keys(obj).length ? JSON.stringify(obj) : '';
     }
     const el = (sfx ? document.getElementById(id + sfx) : null) || document.getElementById(id);
     if (!el) return '';
@@ -4330,23 +4422,40 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
-function parseCsvLine(line) {
-  const result = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
+// CSVテキスト全体をパースして行配列の配列を返す。
+// 引用符内の改行・カンマ・"" エスケープを正しく扱う（RFC 4180 準拠）。
+// 旧実装は事前に \n で分割していたため、メモ欄の複数行テキストが
+// 行区切りと誤認されてレコードが分裂するバグがあった。
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
     if (inQ) {
-      if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
-      else if (ch === '"') inQ = false;
-      else cur += ch;
+      if (ch === '"' && text[i+1] === '"') { cur += '"'; i++; }       // "" → "
+      else if (ch === '"') inQ = false;                                  // 引用符閉じ
+      else cur += ch;                                                    // 改行含めそのまま
     } else {
-      if (ch === '"') inQ = true;
-      else if (ch === ',') { result.push(cur); cur = ''; }
+      if (ch === '"') inQ = true;                                        // 引用符開始
+      else if (ch === ',') { row.push(cur); cur = ''; }                  // フィールド区切り
+      else if (ch === '\n' || ch === '\r') {                             // レコード区切り
+        if (ch === '\r' && text[i+1] === '\n') i++;                      // CRLF を1つ分として扱う
+        row.push(cur);
+        rows.push(row);
+        row = [];
+        cur = '';
+      }
       else cur += ch;
     }
   }
-  result.push(cur);
-  return result;
+  // 末尾改行なしで終わるケースの最終行
+  if (cur.length > 0 || row.length > 0) {
+    row.push(cur);
+    rows.push(row);
+  }
+  return rows;
 }
 
 async function importCsv(file) {
@@ -4356,13 +4465,13 @@ async function importCsv(file) {
   // BOM除去
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
-  if (lines.length < 2) { alert('CSVデータが空です'); return; }
+  // 引用符内の改行を尊重するパーサで全体をトークナイズ
+  // （旧実装の split('\n') は memo 欄の複数行テキストを誤って行区切り扱いしていた）
+  const allRows = parseCsv(text).filter(r => r.some(v => v.trim()));
+  if (allRows.length < 2) { alert('CSVデータが空です'); return; }
 
-  const headers = parseCsvLine(lines[0]).map(h => h.trim());
-  const dataRows = lines.slice(1)
-    .map(l => parseCsvLine(l))
-    .filter(r => r.some(v => v.trim()));  // 空行スキップ
+  const headers = allRows[0].map(h => h.trim());
+  const dataRows = allRows.slice(1);
 
   if (!dataRows.length) { alert('インポートするデータがありません'); return; }
 
@@ -4420,44 +4529,10 @@ async function importCsv(file) {
     }
     if (!targetRow) continue;
 
-    const sfx = targetRow.dataset.rowSuffix || '';
-    const setVal = (id, val) => {
-      const el = (sfx ? document.getElementById(id + sfx) : null) || document.getElementById(id);
-      if (!el) return;
-      if (el.tagName === 'TEXTAREA') { el.value = val; return; }
-      if (el.tagName === 'INPUT' || el.tagName === 'SELECT') el.value = val;
-    };
-
-    // npOptionsHtml が存在すれば先に npTypeSelect の options を復元
-    const npOptionsHtml = rowData['npOptionsHtml'] || '';
-    if (npOptionsHtml) {
-      const npTypeSel = (sfx ? document.getElementById('npTypeSelect' + sfx) : null) || document.getElementById('npTypeSelect');
-      if (npTypeSel) {
-        npTypeSel.innerHTML = npOptionsHtml;
-        APP.npCardUserOverride = false;  // 一旦falseにしてから後でtrueに戻す
-      }
-    }
-    // 通常フィールド設定（npOptionsHtml はセレクト復元済みのためスキップ）
-    CSV_INPUT_FIELDS.forEach(id => {
-      if (id === 'npOptionsHtml') return;
-      setVal(id, rowData[id] ?? '');
-    });
-    // npCardDisplay を明示的にセットした後、override フラグを立てて recalc 内の
-    // updateNpCardDisplay() による上書きを防ぐ
-    const npCardEl = (sfx ? document.getElementById('npCardDisplay' + sfx) : null) || document.getElementById('npCardDisplay');
-    const npCardVal = rowData['npCardDisplay'] || '';
-    if (npCardEl && npCardVal) {
-      npCardEl.value = npCardVal;
-      APP.npCardUserOverride = true;
-    }
-
-    // サーヴァント画像
-    const faceUrl = rowData['servantFace'] || '';
-    const img = targetRow.querySelector('.target-face');
-    if (img && faceUrl) { img.src = faceUrl; img.classList.add('show'); }
-    else if (img) { img.removeAttribute('src'); img.classList.remove('show'); }
-
-    recalcRow(sfx);
+    // 行適用は applyRowData に一本化（localStorage 経路と同じロジックを通す）
+    // この一本化により、フィールド追加・バフ詳細復元などの修正が両経路に自動反映される
+    applyRowData(targetRow, rowData);
+    recalcRow(targetRow.dataset.rowSuffix || '');
     prevTargetRow = targetRow;
   }
   } finally { _importingData = false; }
@@ -4632,32 +4707,93 @@ function recalcKillProb() {
   const fixedEl  = document.getElementById('koFixedTotal');
   const rateEl   = document.getElementById('koKillRate');
   const _ksfx = _koModalRowSuffix || '';
-  const loEl = (_ksfx ? document.getElementById('dTlo' + _ksfx) : null) || document.getElementById('dTlo');
-  const hiEl = (_ksfx ? document.getElementById('dThi' + _ksfx) : null) || document.getElementById('dThi');
   if (!rateEl) return;
+
+  // カード単位の lo/hi を取得（攻撃なしのスロットは hi=0 として除外）
+  const getRange = (prefix) => {
+    const loEl = (_ksfx ? document.getElementById(prefix + 'lo' + _ksfx) : null)
+              || document.getElementById(prefix + 'lo');
+    const hiEl = (_ksfx ? document.getElementById(prefix + 'hi' + _ksfx) : null)
+              || document.getElementById(prefix + 'hi');
+    const lo = parseFloat((loEl?.textContent || '0').replace(/,/g, '')) || 0;
+    const hi = parseFloat((hiEl?.textContent || '0').replace(/,/g, '')) || 0;
+    return { lo, hi };
+  };
+  const ranges = ['d1', 'd2', 'd3', 'dE'].map(getRange).filter(r => r.hi > 0);
 
   const target   = parseFloat((targetEl?.value || '').replace(/,/g, '')) || 0;
   const fixedDmg = parseFloat(fixedEl?.value)  || 0;
-  const loBase   = parseFloat((loEl?.textContent  || '0').replace(/,/g, '')) || 0;
-  const hiBase   = parseFloat((hiEl?.textContent  || '0').replace(/,/g, '')) || 0;
 
-  if (target <= 0 || hiBase <= 0) { rateEl.textContent = '—'; return; }
+  if (target <= 0 || ranges.length === 0) { rateEl.textContent = '—'; return; }
 
-  // 固定ダメージ（追加分）を加味して実際のlo/hi算出
-  const lo = loBase + fixedDmg;
-  const hi = hiBase + fixedDmg;
+  // 固定ダメージは全カードに均等に加算 → 分布を一様にシフト
+  // 等価変換として目標ダメージから減算する（lo/hi 加算と数学的に同じ）
+  const effTarget = target - fixedDmg;
 
-  if (hi <= lo) { rateEl.textContent = '—'; return; }
+  // ── 撃破率 = P(Σ damage_i ≥ effTarget)
+  // 各カードの乱数 r_i ∈ [0.9, 1.1] は独立した一様分布として扱う
+  // （FGO 実機準拠：合計に1回ではなく、カード単位で独立に乱数を引く）
+  // 解析解：独立一様分布の和の CDF（包除原理）
+  //   F_S(t) = (1/N!) (1/Π(b_i-a_i)) Σ_{T⊆{1..N}} (-1)^|T| max(0, t - Σ_{i∈T}b_i - Σ_{i∉T}a_i)^N
+  //   P(S ≥ t) = 1 - F_S(t)
+  const p = killProbIndepUniformSum(effTarget, ranges);
+  if (p === null) { rateEl.textContent = '—'; return; }
 
-  // 連続一様分布補間（モデルサイト準拠）:
-  //   P = (hi − target) / (hi − lo)
-  // ※ 乱数は [0.900, 1.099] の連続一様分布とみなす
-  // ※ 平均 = avg の時 P ≈ 49.75%（≠50%）になる理由:
-  //   hi-avg = avg×0.099,  avg-lo = avg×0.1  と非対称なため
-  const p = Math.max(0, Math.min(1, (hi - target) / (hi - lo)));
   const pct = (p * 100).toFixed(2);
   rateEl.textContent = `${pct}%`;
   rateEl.style.color = p >= 1 ? '#27ae60' : p <= 0 ? '#e74c3c' : '#4a7fd4';
+}
+
+// 独立一様分布の和 S = Σ U_i (U_i ∈ [a_i, b_i]) における P(S ≥ t) を解析的に算出
+function killProbIndepUniformSum(target, ranges) {
+  const N = ranges.length;
+  if (N === 0) return target <= 0 ? 1 : 0;
+
+  // 必勝・絶望の早期判定
+  let totLo = 0, totHi = 0;
+  for (const r of ranges) { totLo += r.lo; totHi += r.hi; }
+  if (target <= totLo) return 1;
+  if (target >= totHi) return 0;
+
+  // 数値オーバーフロー防止のため正規化（target^N が double 精度を超えないように）
+  const scale = totHi / 100;
+  if (!isFinite(scale) || scale <= 0) return null;
+
+  const sLo = ranges.map(r => r.lo / scale);
+  const sHi = ranges.map(r => r.hi / scale);
+  const sT  = target / scale;
+
+  let prodW = 1;
+  for (let i = 0; i < N; i++) {
+    const w = sHi[i] - sLo[i];
+    if (w <= 0) {
+      // 幅 0（決定論的）のカードがある異常系：従来の線形補間にフォールバック
+      const ratio = (totHi - target) / (totHi - totLo);
+      return Math.max(0, Math.min(1, ratio));
+    }
+    prodW *= w;
+  }
+
+  let factorial = 1;
+  for (let i = 2; i <= N; i++) factorial *= i;
+
+  // 2^N サブセットを巡回（N≤4 なら 16 回）
+  let sum = 0;
+  const totalMasks = 1 << N;
+  for (let mask = 0; mask < totalMasks; mask++) {
+    let v = sT, bits = 0;
+    for (let i = 0; i < N; i++) {
+      if (mask & (1 << i)) { v -= sHi[i]; bits++; }
+      else                 { v -= sLo[i]; }
+    }
+    if (v > 0) {
+      const sgn = (bits & 1) ? -1 : 1;
+      sum += sgn * Math.pow(v, N);
+    }
+  }
+
+  const cdf = sum / (factorial * prodW);
+  return Math.max(0, Math.min(1, 1 - cdf));
 }
 
 recalc();
