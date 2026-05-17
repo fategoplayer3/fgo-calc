@@ -7090,26 +7090,30 @@ function copyAvgDmgForRow(suffix, btnEl) {
   // 表示テキストからカンマを除去 (例: "12,345" → "12345")
   const text = (avgEl.textContent || '0').replace(/,/g, '').trim();
 
-  const flashOk = () => {
+  // ボタンの状態を一時変更し、 一定時間後に元に戻す。
+  // - 元の文言は最初の 1 回だけ dataset.origText に保存し、 連続クリックで
+  //   「✓ コピー済み」 が origText として上書きされる事故を防ぐ。
+  // - 既に走っているタイマーがあれば clearTimeout で破棄してから新規予約する
+  //   (タイマー競合で「コピー済み」 表示が残るバグを防ぐ)。
+  const flashState = (label, bgColor, duration) => {
     if (!btnEl) return;
-    const orig = btnEl.textContent;
-    btnEl.textContent = '✓ コピー済み';
-    btnEl.style.background = '#d6f5d6';
-    setTimeout(() => {
-      btnEl.textContent = orig;
+    if (!btnEl.dataset.origText) {
+      btnEl.dataset.origText = btnEl.textContent;
+    }
+    if (btnEl._flashTimerId) {
+      clearTimeout(btnEl._flashTimerId);
+      btnEl._flashTimerId = null;
+    }
+    btnEl.textContent = label;
+    btnEl.style.background = bgColor;
+    btnEl._flashTimerId = setTimeout(() => {
+      btnEl.textContent = btnEl.dataset.origText;
       btnEl.style.background = '';
-    }, 1200);
+      btnEl._flashTimerId = null;
+    }, duration);
   };
-  const flashFail = () => {
-    if (!btnEl) return;
-    const orig = btnEl.textContent;
-    btnEl.textContent = '✗ コピー失敗';
-    btnEl.style.background = '#f5d6d6';
-    setTimeout(() => {
-      btnEl.textContent = orig;
-      btnEl.style.background = '';
-    }, 1600);
-  };
+  const flashOk   = () => flashState('✓ コピー済み', '#d6f5d6', 2000);
+  const flashFail = () => flashState('✗ コピー失敗', '#f5d6d6', 2000);
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(flashOk).catch(() => {
