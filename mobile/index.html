@@ -709,6 +709,52 @@ textarea{
     font-size: 13px !important;
     min-height: 44px !important;
   }
+
+  /* サーヴァント選択モーダル: フィルタ行 (クラス / レアリティ / 宝具Lv) のレイアウト統一。
+     クラスはボタン群 (16 個) を select に置き換えて 1 行で完結させ、
+     レアリティ・宝具Lv のチップは font-size 12px、 wrap 禁止で 1 行に収める。 */
+  #servantModal .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  #servantModal .filter-row .filter-label {
+    font-size: 13px !important;
+    color: #444;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 56px;
+  }
+  #servantModal .filter-row .chip-group {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    flex: 1;
+  }
+  /* クラス選択ドロップダウン: font-size 16px は iOS Safari のフォーカス時自動ズーム回避 */
+  #servantModal .cls-select {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 24px 6px 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23007aff' d='M6 8L0 0h12z'/%3E%3C/svg%3E") no-repeat right 8px center;
+    background-size: 9px;
+    appearance: none;
+    -webkit-appearance: none;
+    color: #007aff;
+    cursor: pointer;
+  }
+  /* フィルタチップ (レアリティ / 宝具Lv) を 12px・1 行表示の最小サイズに */
+  #servantModal .rar-chip {
+    font-size: 12px !important;
+    padding: 5px 8px !important;
+    height: auto !important;
+    min-width: 32px;
+    white-space: nowrap;
+  }
   /* ── NP・スター計算モーダル (縦持ち向けリフロー) ────────────────
      PC 版は 960px 幅で、 入力テーブルは 1 行に [ラベル][入力][ラベル][入力] の
      4 セル横並び。 iPhone 15 縦持ち (~360px 有効幅) では収まらないので
@@ -1663,41 +1709,50 @@ textarea{
       <div class="modal-body">
         <div class="modal-search">
           <input type="text" id="servantSearch" placeholder="サーヴァント名で検索" style="margin-bottom:6px;" />
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;" id="clsFilterRow">
-            <span style="font-size:9px;color:#666;align-self:center;">クラス:</span>
-            <button class="tool-btn cls-chip active-chip" data-cls="" onclick="setClsFilter(this)">全</button>
-            <button class="tool-btn cls-chip" data-cls="Saber"       onclick="setClsFilter(this)">剣</button>
-            <button class="tool-btn cls-chip" data-cls="Archer"      onclick="setClsFilter(this)">弓</button>
-            <button class="tool-btn cls-chip" data-cls="Lancer"      onclick="setClsFilter(this)">槍</button>
-            <button class="tool-btn cls-chip" data-cls="Rider"       onclick="setClsFilter(this)">騎</button>
-            <button class="tool-btn cls-chip" data-cls="Caster"      onclick="setClsFilter(this)">術</button>
-            <button class="tool-btn cls-chip" data-cls="Assassin"    onclick="setClsFilter(this)">殺</button>
-            <button class="tool-btn cls-chip" data-cls="Berserker"   onclick="setClsFilter(this)">狂</button>
-            <button class="tool-btn cls-chip" data-cls="Shielder"    onclick="setClsFilter(this)">楯</button>
-            <button class="tool-btn cls-chip" data-cls="Ruler"       onclick="setClsFilter(this)">裁</button>
-            <button class="tool-btn cls-chip" data-cls="Avenger"     onclick="setClsFilter(this)">讐</button>
-            <button class="tool-btn cls-chip" data-cls="MoonCancer"  onclick="setClsFilter(this)">月</button>
-            <button class="tool-btn cls-chip" data-cls="AlterEgo"    onclick="setClsFilter(this)">分</button>
-            <button class="tool-btn cls-chip" data-cls="Foreigner"   onclick="setClsFilter(this)">降</button>
-            <button class="tool-btn cls-chip" data-cls="Pretender"   onclick="setClsFilter(this)">詐</button>
-            <button class="tool-btn cls-chip" data-cls="Beast"       onclick="setClsFilter(this)">獣</button>
+          <!-- クラス選択: ボタン群 (16 個) は 2 行折り返しになりがちなので、 ドロップダウンに集約。
+               font-size:16px は iOS Safari の自動ズームを防ぐため (15px 以下だと
+               input/select フォーカス時に画面が拡大される)。 -->
+          <div class="filter-row" id="clsFilterRow">
+            <span class="filter-label">クラス:</span>
+            <select id="clsFilterSelect" class="cls-select" onchange="setClsFilterFromSelect(this)">
+              <option value="">全クラス</option>
+              <option value="Saber">剣（セイバー）</option>
+              <option value="Archer">弓（アーチャー）</option>
+              <option value="Lancer">槍（ランサー）</option>
+              <option value="Rider">騎（ライダー）</option>
+              <option value="Caster">術（キャスター）</option>
+              <option value="Assassin">殺（アサシン）</option>
+              <option value="Berserker">狂（バーサーカー）</option>
+              <option value="Shielder">楯（シールダー）</option>
+              <option value="Ruler">裁（ルーラー）</option>
+              <option value="Avenger">讐（アヴェンジャー）</option>
+              <option value="MoonCancer">月（ムーンキャンサー）</option>
+              <option value="AlterEgo">分（アルターエゴ）</option>
+              <option value="Foreigner">降（フォーリナー）</option>
+              <option value="Pretender">詐（プリテンダー）</option>
+              <option value="Beast">獣（ビースト）</option>
+            </select>
           </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">
-            <span style="font-size:9px;color:#666;align-self:center;">レアリティ:</span>
-            <button class="tool-btn rar-chip active-chip" data-rar="" onclick="setRarFilter(this)">全</button>
-            <button class="tool-btn rar-chip" data-rar="5" onclick="setRarFilter(this)">★5</button>
-            <button class="tool-btn rar-chip" data-rar="4" onclick="setRarFilter(this)">★4</button>
-            <button class="tool-btn rar-chip" data-rar="3" onclick="setRarFilter(this)">★3</button>
-            <button class="tool-btn rar-chip" data-rar="2" onclick="setRarFilter(this)">★2</button>
-            <button class="tool-btn rar-chip" data-rar="1" onclick="setRarFilter(this)">★1</button>
+          <div class="filter-row">
+            <span class="filter-label">レアリティ:</span>
+            <div class="chip-group">
+              <button class="tool-btn rar-chip active-chip" data-rar="" onclick="setRarFilter(this)">全</button>
+              <button class="tool-btn rar-chip" data-rar="5" onclick="setRarFilter(this)">★5</button>
+              <button class="tool-btn rar-chip" data-rar="4" onclick="setRarFilter(this)">★4</button>
+              <button class="tool-btn rar-chip" data-rar="3" onclick="setRarFilter(this)">★3</button>
+              <button class="tool-btn rar-chip" data-rar="2" onclick="setRarFilter(this)">★2</button>
+              <button class="tool-btn rar-chip" data-rar="1" onclick="setRarFilter(this)">★1</button>
+            </div>
           </div>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;" id="npLevelRow">
-            <span style="font-size:9px;color:#666;align-self:center;">宝具Lv:</span>
-            <button class="tool-btn rar-chip np-level-chip" data-np-level="1" onclick="setNpLevel(this)">1</button>
-            <button class="tool-btn rar-chip np-level-chip" data-np-level="2" onclick="setNpLevel(this)">2</button>
-            <button class="tool-btn rar-chip np-level-chip" data-np-level="3" onclick="setNpLevel(this)">3</button>
-            <button class="tool-btn rar-chip np-level-chip" data-np-level="4" onclick="setNpLevel(this)">4</button>
-            <button class="tool-btn rar-chip active-chip np-level-chip" data-np-level="5" onclick="setNpLevel(this)">5</button>
+          <div class="filter-row" id="npLevelRow">
+            <span class="filter-label">宝具Lv:</span>
+            <div class="chip-group">
+              <button class="tool-btn rar-chip np-level-chip" data-np-level="1" onclick="setNpLevel(this)">1</button>
+              <button class="tool-btn rar-chip np-level-chip" data-np-level="2" onclick="setNpLevel(this)">2</button>
+              <button class="tool-btn rar-chip np-level-chip" data-np-level="3" onclick="setNpLevel(this)">3</button>
+              <button class="tool-btn rar-chip np-level-chip" data-np-level="4" onclick="setNpLevel(this)">4</button>
+              <button class="tool-btn rar-chip active-chip np-level-chip" data-np-level="5" onclick="setNpLevel(this)">5</button>
+            </div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px;font-size:10px;">
             <label>Lv: <select id="popLv" style="height:18px;font-size:10px;border:1px solid #aaa;border-radius:2px;padding:0 2px;">
@@ -3979,6 +4034,13 @@ function setClsFilter(btn) {
   APP.filterCls = btn.dataset.cls||'';
   document.querySelectorAll('.cls-chip').forEach(b=>b.classList.remove('active-chip'));
   btn.classList.add('active-chip');
+  rebuildSvList();
+}
+// クラスフィルタを select 経由でセットする (Mobile 版: ボタン 16 個 → ドロップダウン化)。
+// 既存の setClsFilter() と同じ役割。 button の active 状態管理は select 自身の value に
+// 集約されるので、 ここでは APP.filterCls の更新と rebuildSvList のみ行う。
+function setClsFilterFromSelect(selectEl) {
+  APP.filterCls = (selectEl && selectEl.value) || '';
   rebuildSvList();
 }
 function setRarFilter(btn) {
