@@ -1272,6 +1272,8 @@ textarea{
                   style="margin-top:4px;width:100%;font-size:11px;">撃破率計算</button>
                 <button class="tool-btn" onclick="openNpStarModalForRow('')"
                   style="margin-top:4px;width:100%;font-size:11px;">NP・スター計算</button>
+                <button class="tool-btn" onclick="copyAvgDmgForRow('', this)"
+                  style="margin-top:4px;width:100%;font-size:11px;" title="トータルダメージの平均値をクリップボードにコピー">📋 クリップボードにコピー</button>
               </td>
             </tr>
           </tbody>
@@ -7429,6 +7431,7 @@ function cloneRow(sourceRow, direction = 'down') {
       h.replace(/openBuffDetail\('([^']+)'/g, (m, fid) => `openBuffDetail('${fid}${suffix}'`)
        .replace(/openKoModalForRow\('[^']*'\)/,    `openKoModalForRow('${suffix}')`)
        .replace(/openNpStarModalForRow\('[^']*'\)/, `openNpStarModalForRow('${suffix}')`)
+       .replace(/copyAvgDmgForRow\('[^']*',\s*this\)/, `copyAvgDmgForRow('${suffix}', this)`)
     );
   });
 
@@ -7553,6 +7556,76 @@ function swapRows(rowA, rowB) {
   } else {
     parent.insertBefore(rowB, rowA);
     parent.insertBefore(rowA, nextB);
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// 計算結果コピー
+//
+// 該当行のトータルダメージ平均値 (#dTav_R{N}) をクリップボードにコピーする。
+// クリップボード API が使えない環境向けに、 textarea 経由のフォールバックも実装。
+// 成功時はボタン文言を一時的に「✓ コピー済み」 に変えてフィードバック。
+// ════════════════════════════════════════════════════════════
+function copyAvgDmgForRow(suffix, btnEl) {
+  const sfx = suffix || '';
+  const avgEl = document.getElementById('dTav' + sfx);
+  if (!avgEl) {
+    alert('トータルダメージが見つかりませんでした。');
+    return;
+  }
+  // 表示テキストからカンマを除去 (例: "12,345" → "12345")
+  const text = (avgEl.textContent || '0').replace(/,/g, '').trim();
+
+  const flashOk = () => {
+    if (!btnEl) return;
+    const orig = btnEl.textContent;
+    btnEl.textContent = '✓ コピー済み';
+    btnEl.style.background = '#d6f5d6';
+    setTimeout(() => {
+      btnEl.textContent = orig;
+      btnEl.style.background = '';
+    }, 1200);
+  };
+  const flashFail = () => {
+    if (!btnEl) return;
+    const orig = btnEl.textContent;
+    btnEl.textContent = '✗ コピー失敗';
+    btnEl.style.background = '#f5d6d6';
+    setTimeout(() => {
+      btnEl.textContent = orig;
+      btnEl.style.background = '';
+    }, 1600);
+  };
+
+  // 第一選択: navigator.clipboard.writeText (HTTPS 環境で動く。 GitHub Pages は HTTPS)
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flashOk).catch(() => {
+      // フォールバック
+      if (legacyCopyToClipboard(text)) flashOk();
+      else flashFail();
+    });
+    return;
+  }
+  // 第二選択: 旧 API (document.execCommand('copy'))
+  if (legacyCopyToClipboard(text)) flashOk();
+  else flashFail();
+}
+
+function legacyCopyToClipboard(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.setAttribute('readonly', '');
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    return false;
   }
 }
 
