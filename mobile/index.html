@@ -8579,7 +8579,7 @@ function buildMobileTransposedView() {
   mobileTable.className = 'mobile-table';
   mobileView.appendChild(mobileTable);
 
-  // 表示する項目の順序を定義 (ユーザー要件: 攻撃バフ系を上、 デバフ系を下、 結果は末尾)
+  // 表示する項目の順序を定義 (PC 版の td インデックス順に並べる)
   // 各エントリは { tdIndex, label, section, rowClass?(行全体に付与する色クラス),
   //                isMemo?, isPosBuff?, isResult? }
   // PC 版の <tr data-row-suffix=""> の td 順序に対応 (確認済み)。
@@ -8592,24 +8592,22 @@ function buildMobileTransposedView() {
     { tdIndex: 3,  label: 'ATK',            section: 'basic' },
     { tdIndex: 4,  label: '宝具/種類/倍率', section: 'basic' },
 
-    // ── 攻撃系バフ (上方、 左相当) ──
-    { tdIndex: 5,  label: '攻撃バフ/防御デバフ', section: 'attack' },
+    // ── バフ・デバフ (PC 版の td 順) ──
+    { tdIndex: 5,  label: '攻撃バフ/防御デバフ', section: 'buff' },
     // Bバフ/Aバフ/Qバフ にはカード色背景を付与
-    { tdIndex: 6,  label: 'Bバフ/デバフ',   section: 'attack', rowClass: 'col-buster' },
-    { tdIndex: 7,  label: 'Aバフ/デバフ',   section: 'attack', rowClass: 'col-arts' },
-    { tdIndex: 8,  label: 'Qバフ/デバフ',   section: 'attack', rowClass: 'col-quick' },
-    { tdIndex: 9,  label: 'カード威力 B/A/Q', section: 'attack' },
-    { tdIndex: 10, label: 'クリバフ',       section: 'attack' },
-    { tdIndex: 11, label: 'クリバフ B/A/Q', section: 'attack' },
-    { tdIndex: 13, label: 'EXバフ',         section: 'attack' },
-    { tdIndex: 14, label: '特攻威力バフ',   section: 'attack' },
-    { tdIndex: 15, label: '宝具特攻威力',   section: 'attack' },
-    { tdIndex: 17, label: '足跡 B/A/Q',     section: 'attack' },
-
-    // ── デバフ系 (敵側の耐性ダウンを含む。 下方、 右相当) ──
-    { tdIndex: 12, label: '宝具威力/耐性減', section: 'debuff' },
-    { tdIndex: 16, label: '固定ダメージ',   section: 'debuff' },
-    { tdIndex: 18, label: '特殊耐性',       section: 'debuff' },
+    { tdIndex: 6,  label: 'Bバフ/デバフ',   section: 'buff', rowClass: 'col-buster' },
+    { tdIndex: 7,  label: 'Aバフ/デバフ',   section: 'buff', rowClass: 'col-arts' },
+    { tdIndex: 8,  label: 'Qバフ/デバフ',   section: 'buff', rowClass: 'col-quick' },
+    { tdIndex: 9,  label: 'カード威力 B/A/Q', section: 'buff' },
+    { tdIndex: 10, label: 'クリバフ',       section: 'buff' },
+    { tdIndex: 11, label: 'クリバフ B/A/Q', section: 'buff' },
+    { tdIndex: 12, label: '宝具威力/耐性減', section: 'buff' },
+    { tdIndex: 13, label: 'EXバフ',         section: 'buff' },
+    { tdIndex: 14, label: '特攻威力バフ',   section: 'buff' },
+    { tdIndex: 15, label: '宝具特攻威力',   section: 'buff' },
+    { tdIndex: 16, label: '固定ダメージ',   section: 'buff' },
+    { tdIndex: 17, label: '足跡 B/A/Q',     section: 'buff' },
+    { tdIndex: 18, label: '特殊耐性',       section: 'buff' },
 
     // ── 位置別追加バフ (デフォルト非表示、 表示切替メニューで ON 可能) ──
     // PC 版では td[19] 〜 td[46] が位置別追加バフ (4 位置 × 7 種類 ≒ 28 項目)
