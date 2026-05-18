@@ -8434,6 +8434,12 @@ try {
   // 復元処理の後にも再適用する仕組みを用意 (ensureFormAutocompleteOff)。
   ensureFormAutocompleteOff();
 
+  // iOS Chrome / Safari の "form recovery" 機能で textarea の中身がブラウザ再起動後も
+  // 残る現象に対応 (input/select は autocomplete=off でブロック済みだが textarea は
+  // OS のフォーム復元機能の方が優先される場合があるため明示クリア)。
+  // 起動時の 1 回だけ実行することで、 ユーザーが「保存」 → 「読込」 した内容は影響を受けない。
+  resetTextareasOnStartup();
+
   // 初期表示を 5 行にする。 1 行だけだとユーザーが「複数行計算ができる」 ことに
   // 気付きにくいというフィードバックを受けて、 起動時に空行を 4 つ追加して
   // 「行を増やせる」 ことが視覚的にわかるようにする。 ユーザー操作 (コピー / インポート) で
@@ -8466,6 +8472,23 @@ function ensureFormAutocompleteOff() {
       if (el.tagName !== 'SELECT' && !el.hasAttribute('autocorrect')) el.setAttribute('autocorrect', 'off');
       if (el.tagName !== 'SELECT' && !el.hasAttribute('autocapitalize')) el.setAttribute('autocapitalize', 'off');
       if (el.tagName !== 'SELECT' && !el.hasAttribute('spellcheck')) el.setAttribute('spellcheck', 'false');
+    });
+  } catch (e) { /* swallow */ }
+}
+
+// 起動時のみ、 全 textarea を空にリセット。
+// iOS Chrome は textarea の中身を form recovery 機能でブラウザ再起動後も保持
+// する仕様があり、 autocomplete=off では防ぎきれないため。 input/select は
+// autocomplete=off で消えるが textarea だけ残るとユーザー視点で不一致になるので揃える。
+// ※ この関数は起動初期化の 1 回だけ呼ばれる。 ユーザーの「保存」/「読込」/CSV インポート/
+//   visibilitychange での自動復元 はそれぞれ後段で applyRowData により textarea に
+//   値を書き戻すので、 これらの動作には影響しない。
+function resetTextareasOnStartup() {
+  try {
+    document.querySelectorAll('textarea').forEach(el => {
+      el.value = '';
+      // defaultValue も更新しておくと「フォームリセット」 でも空に戻る
+      el.defaultValue = '';
     });
   } catch (e) { /* swallow */ }
 }
