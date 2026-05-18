@@ -6991,6 +6991,9 @@ function applyRowData(targetRow, rowData) {
 function loadFromLocal() {
   const json = localStorage.getItem(LS_KEY);
   _importingData = true;
+  // ユーザーが「読込」 を選択した時点で、 textarea 自動クリアを停止する
+  // (読み込んだメモがクリアされないように)
+  if (typeof lockTextareaClearing === 'function') lockTextareaClearing();
   try { _loadFromLocalImpl(); } finally { _importingData = false; }
 }
 function _loadFromLocalImpl() {
@@ -7299,6 +7302,8 @@ function parseCsv(text) {
 
 async function importCsv(file) {
   _importingData = true;
+  // CSV インポートで textarea (メモ) に書き込む可能性があるので、 自動クリアを停止
+  if (typeof lockTextareaClearing === 'function') lockTextareaClearing();
   try {
   let text = await file.text();
   // BOM除去
@@ -8434,12 +8439,6 @@ try {
   // 復元処理の後にも再適用する仕組みを用意 (ensureFormAutocompleteOff)。
   ensureFormAutocompleteOff();
 
-  // iOS Chrome / Safari の "form recovery" 機能で textarea の中身がブラウザ再起動後も
-  // 残る現象に対応 (input/select は autocomplete=off でブロック済みだが textarea は
-  // OS のフォーム復元機能の方が優先される場合があるため明示クリア)。
-  // 起動時の 1 回だけ実行することで、 ユーザーが「保存」 → 「読込」 した内容は影響を受けない。
-  resetTextareasOnStartup();
-
   // 初期表示を 5 行にする。 1 行だけだとユーザーが「複数行計算ができる」 ことに
   // 気付きにくいというフィードバックを受けて、 起動時に空行を 4 つ追加して
   // 「行を増やせる」 ことが視覚的にわかるようにする。 ユーザー操作 (コピー / インポート) で
@@ -8455,6 +8454,14 @@ try {
   }
   // cloneRow 後にも autocomplete=off を再適用 (新規行に対して)
   ensureFormAutocompleteOff();
+
+  // iOS Chrome / Safari の "form recovery" 機能で textarea の中身がブラウザ再起動後も
+  // 残る現象に対応 (input/select は autocomplete=off でブロック済みだが textarea は
+  // OS のフォーム復元機能の方が優先される場合があるため明示クリア)。
+  // cloneRow ×4 の「後」 に呼ぶ理由: ① 複製された 5 列分の textarea もまとめてクリア対象に
+  // 含める ② この処理で万一エラーが出ても、 先に 5 列表示が確保されているので、
+  // ユーザーから見て致命的な「1 列だけ」 状態にならない。
+  resetTextareasOnStartup();
 } catch (e) {
   console.error('App initialization failed:', e, e && e.stack);
 } finally {
@@ -8477,20 +8484,66 @@ function ensureFormAutocompleteOff() {
 }
 
 // 起動時のみ、 全 textarea を空にリセット。
-// iOS Chrome は textarea の中身を form recovery 機能でブラウザ再起動後も保持
-// する仕様があり、 autocomplete=off では防ぎきれないため。 input/select は
+// iOS Chrome / Safari は textarea の中身を form recovery 機能でブラウザ再起動後も
+// 保持する仕様があり、 autocomplete=off では防ぎきれない。 input/select は
 // autocomplete=off で消えるが textarea だけ残るとユーザー視点で不一致になるので揃える。
-// ※ この関数は起動初期化の 1 回だけ呼ばれる。 ユーザーの「保存」/「読込」/CSV インポート/
-//   visibilitychange での自動復元 はそれぞれ後段で applyRowData により textarea に
-//   値を書き戻すので、 これらの動作には影響しない。
-function resetTextareasOnStartup() {
+//
+// iOS Safari の form recovery は JS 起動と並走することがあり、 起動直後に 1 回
+// クリアするだけでは「クリア → ブラウザが復元」 で残ってしまうケースがある。
+// 対策として 0/120/350ms の 3 タイミングでクリアし、 350ms 経過後は通常運用に戻す。
+// ※ ユーザーが「読込」「インポート」「ブラウザ復帰時の自動復元」 で textarea に
+//   値を書いた場合は _textareaClearLocked = true でクリア禁止に切り替わるため、
+//   意図的な復元は壊さない。
+// 注: `var` を使うのは TDZ (Temporal Dead Zone) を回避するため。 この変数は
+// 関数定義より下に書かれているが、 関数自体は起動コードから (let の場合の
+// 初期化前に) 呼ばれる可能性があるため、 ホイスト時に undefined 初期化される
+// `var` を使う。 undefined は falsy なので初期値 false と同じ意味で機能する。
+var _textareaClearLocked = false;
+
+function _clearAllTextareasIfAllowed() {
+  if (_textareaClearLocked) return;
   try {
     document.querySelectorAll('textarea').forEach(el => {
       el.value = '';
-      // defaultValue も更新しておくと「フォームリセット」 でも空に戻る
       el.defaultValue = '';
     });
   } catch (e) { /* swallow */ }
+}
+
+function resetTextareasOnStartup() {
+  // 1 回目: 起動コードから直接呼ばれる時点 (DOM 構築直後)
+  _clearAllTextareasIfAllowed();
+  // 2 回目以降: load イベント以降の遅延タイミングで再クリア
+  // (Safari の form recovery が load 後に値を上書きする現象に対応)
+  const scheduleClears = () => {
+    setTimeout(_clearAllTextareasIfAllowed, 0);
+    setTimeout(_clearAllTextareasIfAllowed, 120);
+    setTimeout(() => {
+      _clearAllTextareasIfAllowed();
+      // 350ms 後は「初期化期間」 終了 → 以降はユーザー操作・明示的復元を尊重
+      _textareaClearLocked = true;
+    }, 350);
+  };
+  if (document.readyState === 'complete') {
+    scheduleClears();
+  } else {
+    window.addEventListener('load', scheduleClears, { once: true });
+  }
+
+  // ユーザーが textarea にタイプし始めたら即座にクリアを禁止する
+  // (350ms の初期化期間中にユーザーが入力を始めるケースの保険)
+  document.addEventListener('input', e => {
+    if (e.target && e.target.tagName === 'TEXTAREA') {
+      _textareaClearLocked = true;
+    }
+  }, { capture: true, once: false });
+}
+
+// 「読込」「インポート」「visibilitychange での自動復元」 などで明示的に textarea に
+// 値を書く処理は、 この関数を呼んで自動クリアを停止する。
+// applyRowData の中で textarea にメモを書く際の保険として使う。
+function lockTextareaClearing() {
+  _textareaClearLocked = true;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -8585,6 +8638,10 @@ function autoRestoreSessionImpl() {
       return;  // sessionStorage 不可
     }
     if (!raw) return;  // 保存データなし
+
+    // ブラウザ復帰時の自動復元で textarea にメモを書き戻す可能性があるので
+    // 自動クリアを停止 (ただし保存データに何も入っていない場合はクリアしてよい)
+    if (typeof lockTextareaClearing === 'function') lockTextareaClearing();
 
     let savedPayload;
     try { savedPayload = JSON.parse(raw); }
