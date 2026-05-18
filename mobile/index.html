@@ -8462,6 +8462,14 @@ try {
   // 含める ② この処理で万一エラーが出ても、 先に 5 列表示が確保されているので、
   // ユーザーから見て致命的な「1 列だけ」 状態にならない。
   resetTextareasOnStartup();
+
+  // iOS Chrome 等で、 アドレスバーの動的表示・縮小の過程でビューポート高さが変動し、
+  // 起動時の scroll 位置が「先頭でない位置」 で固定されてしまう現象がある (Safari では
+  // 起きないが Chrome で確認)。 load 完了後にページ先頭へ強制スクロールして揃える。
+  // setTimeout でわずかに遅延させるのは、 ブラウザのアドレスバー折り畳み完了を待つため。
+  window.addEventListener('load', () => {
+    setTimeout(() => { window.scrollTo(0, 0); }, 50);
+  }, { once: true });
 } catch (e) {
   console.error('App initialization failed:', e, e && e.stack);
 } finally {
