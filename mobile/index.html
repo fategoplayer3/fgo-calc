@@ -3982,6 +3982,15 @@ function applyServantStats(opts) {
     setSelectByNumericValue('clsAff', defaultAff);
   }
 
+  // iOS Chrome / Safari の form recovery がサーヴァントモーダル開閉等のタイミングで
+  // 遅延発火し、 attrAff (= サーヴァントからは自動決定できない敵側の属性相性) の
+  // selectedIndex を -1 にすることがある。 applyServantStats は clsAff/clsMod は
+  // 必ず更新するが attrAff は仕様上触らないため、 ここで空欄になった select を
+  // defaultSelected (1.0 等) に戻して UI の一貫性を保つ。
+  if (typeof ensureSelectsHaveDefaultSelection === 'function') {
+    ensureSelectsHaveDefaultSelection();
+  }
+
   recalcRow(_rowCtx);
 }
 
@@ -8463,12 +8472,22 @@ try {
   // ユーザーから見て致命的な「1 列だけ」 状態にならない。
   resetTextareasOnStartup();
 
+  // iOS Safari/Chrome の form recovery が select の selectedIndex を -1 (空欄) に
+  // することがあるので、 起動時に異常な状態を検出して defaultSelected に復元する。
+  ensureSelectsHaveDefaultSelection();
+
   // iOS Chrome 等で、 アドレスバーの動的表示・縮小の過程でビューポート高さが変動し、
   // 起動時の scroll 位置が「先頭でない位置」 で固定されてしまう現象がある (Safari では
   // 起きないが Chrome で確認)。 load 完了後にページ先頭へ強制スクロールして揃える。
   // setTimeout でわずかに遅延させるのは、 ブラウザのアドレスバー折り畳み完了を待つため。
   window.addEventListener('load', () => {
     setTimeout(() => { window.scrollTo(0, 0); }, 50);
+    // iOS Chrome の form recovery は load 後に遅延発火することがあるため、
+    // 複数のタイミングで select の空欄復元を試みる。
+    // (ユーザーが手動で値を変更した場合は selectedIndex !== -1 なので影響なし)
+    setTimeout(ensureSelectsHaveDefaultSelection, 100);
+    setTimeout(ensureSelectsHaveDefaultSelection, 500);
+    setTimeout(ensureSelectsHaveDefaultSelection, 1500);
   }, { once: true });
 } catch (e) {
   console.error('App initialization failed:', e, e && e.stack);
@@ -8487,6 +8506,27 @@ function ensureFormAutocompleteOff() {
       if (el.tagName !== 'SELECT' && !el.hasAttribute('autocorrect')) el.setAttribute('autocorrect', 'off');
       if (el.tagName !== 'SELECT' && !el.hasAttribute('autocapitalize')) el.setAttribute('autocapitalize', 'off');
       if (el.tagName !== 'SELECT' && !el.hasAttribute('spellcheck')) el.setAttribute('spellcheck', 'false');
+    });
+  } catch (e) { /* swallow */ }
+}
+
+// selectedIndex = -1 (= 何も選択されていない空欄状態) になっている select を見つけ、
+// HTML 上の <option ... selected> (defaultSelected) に戻す。
+//
+// 背景: iOS Safari/Chrome の form recovery 機能が select の selectedIndex を内部で
+// -1 にするケースが観測されている。 計算機の UI 上、 ユーザーが「空欄」 を選ぶ操作は
+// 存在しないため、 selectedIndex = -1 は常に異常状態とみなして安全に復元できる。
+// 復元できない場合 (defaultSelected option が無い) は selectedIndex = 0 にフォールバック。
+function ensureSelectsHaveDefaultSelection() {
+  try {
+    document.querySelectorAll('select').forEach(sel => {
+      if (sel.selectedIndex !== -1) return;  // 正常 → スキップ
+      if (!sel.options || sel.options.length === 0) return;  // option が無い (動的生成中等)
+      let defaultIdx = -1;
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].defaultSelected) { defaultIdx = i; break; }
+      }
+      sel.selectedIndex = defaultIdx >= 0 ? defaultIdx : 0;
     });
   } catch (e) { /* swallow */ }
 }
@@ -8718,6 +8758,8 @@ function installVisibilityRecovery() {
         autoRestoreSessionImpl();
         // autocomplete を再適用 (ブラウザが復帰時に外す可能性に備える)
         ensureFormAutocompleteOff();
+        // form recovery で select の selectedIndex が -1 になる現象に対応
+        ensureSelectsHaveDefaultSelection();
         // 画像復元のフェイルセーフ
         ensureServantImages();
       }, 80);
@@ -8730,6 +8772,7 @@ function installVisibilityRecovery() {
       setTimeout(() => {
         autoRestoreSessionImpl();
         ensureFormAutocompleteOff();
+        ensureSelectsHaveDefaultSelection();
         ensureServantImages();
       }, 80);
     }
