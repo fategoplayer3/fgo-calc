@@ -4533,12 +4533,12 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   // クリティカル威力: 各色ごとに(criBuf + criBufX)の合計を500%上限でclamp
   // 注: criBuf は回数制対応（位置別有効値）+ 位置別追加対応、criBufB/A/Q は対象外（常時値）
   const _criBuf  = (gcEff('criBuf')  + addPos('criBuf'))  / 100;
-  const _criBufB = gc('criBufB') / 100;
-  const _criBufA = gc('criBufA') / 100;
-  const _criBufQ = gc('criBufQ') / 100;
+  const _criBufB = gcEff('criBufB') / 100;
+  const _criBufA = gcEff('criBufA') / 100;
+  const _criBufQ = gcEff('criBufQ') / 100;
   // クリ耐性ダウン: クリバフと加算される (敵側のデバフ)。 上限値なし (atwiki 6588 参照)。
   // 500% 上限の clamp を通った後に加算するため、 上限外で寄与する。
-  const _criResistDown = gc('criResistDown') / 100;
+  const _criResistDown = gcEff('criResistDown') / 100;
   const CRI_CAP = 5.0; // 500% = 6.0倍上限
   const criBufForB = Math.min(_criBuf + _criBufB, CRI_CAP) + _criResistDown;
   const criBufForA = Math.min(_criBuf + _criBufA, CRI_CAP) + _criResistDown;
@@ -5680,9 +5680,10 @@ function _buffDetailUpdateTotal() {
   document.getElementById('buffDetailTotal').textContent = `${fmt}${suffix}`;
 }
 // 回数制バフ（「回」列）を表示するフィールドの基底IDホワイトリスト。
-// 攻撃バフ・防御デバフ・カラー別バフ/デバフ・クリバフ（全色共通）・固定ダメージ・特殊耐性のみ。
-// カード威力バフB/A/Q、クリバフB/A/Q、宝具威力、EXバフ、特攻威力等は対象外。
+// 攻撃バフ・防御デバフ・カラー別バフ/デバフ・クリバフ (全色共通および色別)・固定ダメージ・特殊耐性のみ。
+// カード威力バフB/A/Q、宝具威力、EXバフ、特攻威力等は対象外。
 // 特殊耐性は敵側の被弾回数制 (例: 「最初の 3 回被弾まで耐性 50%」) に対応するため含める。
+// criBufB/A/Q (色別クリバフ) も回数制バフを持つことが判明したため含める (該当色のクリ攻撃時に消費)。
 // ※「列」 は基本原理として独立計算するため、 回数カウントは 1 列内 (1st/2nd/3rd/EX) で完結する。
 const BUFF_COUNT_FIELD_IDS = new Set([
   'atkBuf', 'defDebuf',
@@ -5690,6 +5691,8 @@ const BUFF_COUNT_FIELD_IDS = new Set([
   'aBuf', 'aDebuf',
   'qBuf', 'qDebuf',
   'criBuf',
+  'criBufB', 'criBufA', 'criBufQ',  // 色別クリバフも回数制対応
+  'criResistDown',  // クリ耐性ダウンも回数制対応 (現状該当サーヴァントはいないが将来のため)
   'fixedDmg',  // 固定ダメージも回数制対応 (例: 与ダメージプラス系の効果ターン制限)
   'specialResist',  // 特殊耐性も回数制対応 (例: 「N 回被弾まで耐性 X%」 ギミック)
 ]);
@@ -5764,6 +5767,13 @@ const COUNT_CONSUME_CONDITION = {
   qBuf:     (card)   => card === 'Q',
   qDebuf:  (card)    => card === 'Q',
   criBuf:   (_card, isCrit) => !!isCrit,
+  // 色別クリバフ: 該当色のカード + クリ攻撃時のみ適用・消費。
+  criBufB:  (card, isCrit) => card === 'B' && !!isCrit,
+  criBufA:  (card, isCrit) => card === 'A' && !!isCrit,
+  criBufQ:  (card, isCrit) => card === 'Q' && !!isCrit,
+  // クリ耐性ダウン: 敵側のクリ耐性減で、 自分側のクリ攻撃時にのみ効果がある。
+  // 通常攻撃 (= 非クリ) では無関係 → 消費されない。 criBuf と同じ条件。
+  criResistDown: (_card, isCrit) => !!isCrit,
   // 固定ダメージ: カード種別やクリ有無に関わらず攻撃すれば消費。
   // 「クリ無し」 でも通常攻撃で固定ダメージは乗るので true。
   // 「クリ 0」 (攻撃しない) のスロットは computeEffectiveBuffsByCardPos が
