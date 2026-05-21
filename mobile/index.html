@@ -84,6 +84,17 @@
     /* クラス相性/補正/属性相性 + 宝具特攻威力共通: 数字幅を確保しつつ最小限に。
        select は矢印 (~16px) を appearance:none で消すことで さらに幅を縮められる。 */
     .w-cls{width:44px}
+    /* 宝具特攻威力 (datalist 付き input) のドロップダウン矢印を非表示にする。
+       矢印 (▼) は Chrome/Edge/Safari がデフォルトで表示する ::-webkit-calendar-picker-indicator。
+       これを消しても候補リスト自体は input フォーカス時に引き続き表示される。
+       属性セレクタ [id^="npSpBuf"] にすることで、 cloneRow で複製された npSpBuf_R2, npSpBuf_R3
+       等の input にも適用される。 PC 版と挙動を揃えるため Mobile 版にも同じ CSS を入れる
+       (幅調整は不要、 Mobile 版は w-cls 44px のまま)。 */
+    input[id^="npSpBuf"]::-webkit-calendar-picker-indicator {
+      display: none !important;
+      -webkit-appearance: none;
+      opacity: 0;
+    }
     /* クラス相性スタック内の select は既存 tri-stack を流用しつつ、 余白を詰めて高さを抑える。
        矢印 (▼) を非表示にして数字 (0.5/1.5/0.95 等) のみ表示。 */
     .class-aff-stack select { font-size:10px; padding:1px 1px; min-height:18px; box-sizing:border-box; width:100%;
@@ -1159,7 +1170,7 @@ textarea{
               </td>
               <td><input type="number" id="exBuf" value="0" aria-label="EXバフ" oninput="recalc()" onclick="openBuffDetail('exBuf','EXバフ',event)" readonly style="cursor:pointer;" /></td>
               <td><input type="number" id="spBuf" value="0" aria-label="特攻威力バフ" oninput="recalc()" onclick="openBuffDetail('spBuf','特攻威力バフ',event)" readonly style="cursor:pointer;" /></td>
-              <td><input type="number" id="npSpBuf" value="100" aria-label="宝具特攻威力" oninput="recalc()" /></td>
+              <td><input type="number" id="npSpBuf" value="100" aria-label="宝具特攻威力" oninput="recalc()" list="npSpBufValues" /></td>
               <td><input type="number" id="fixedDmg" value="0" aria-label="固定ダメージ" oninput="recalc()" onclick="openBuffDetail('fixedDmg','固定ダメージ',event)" readonly style="cursor:pointer;" /></td>
               <td>
                 <div class="tri-stack">
@@ -9378,5 +9389,52 @@ function rebuildMobileView() {
 // 修正: 適用ボタン側で getRowServant() を使って行コンテキスト依存で適用する (下記の applyServantBtn ハンドラ参照)。
 
 </script>
+
+<!-- 宝具特攻威力 (npSpBuf) の入力候補。 input list="npSpBufValues" から参照される。
+     提案候補のみで、 自由入力も引き続き可能。 cloneRow で複製される行 (R2/R3...) の
+     input も同じ list を参照すれば共有できるため、 ここに 1 つだけ定義する。
+     値の根拠:
+     - 100: 特攻なし (デフォルト)
+     - 120/125/130/140/150/160/165/170/175/180: 一般的な特攻倍率
+     - 162.5/187.5: ユーザー報告 (「結構な数のサーヴァントが持つ」 とのこと)
+     - 200/210/220: モードレッド系 (OC 5 段階で 180→220)
+     - 225/250/275/300: バーサーカー宮本武蔵系 (OC 5 段階で 200→300)
+     - 115/145/205/235: ビショーネ系 (100+15×N, N=0〜10 の毒数特攻)
+       既存値と合算で 100/115/130/145/160/175/190/205/220/235/250 が揃う
+     - 237.5: ユーザー報告 + atwiki 299 (該当サーヴァントあり)
+     - 上限について: 確認できる範囲で宝具特攻倍率の最大値は 300 (= バーサーカー宮本武蔵 OC5)。
+       atwiki 等にある「上限 500%」 は別概念 (宝具バフ合算の上限) なので混同しないこと。
+     ※ 出典のない推測値は意図的に入れない方針。 不足が判明したら都度追加する。 -->
+<datalist id="npSpBufValues">
+  <option value="100">
+  <option value="110">
+  <option value="115">
+  <option value="120">
+  <option value="125">
+  <option value="130">
+  <option value="140">
+  <option value="145">
+  <option value="150">
+  <option value="160">
+  <option value="162.5">
+  <option value="165">
+  <option value="170">
+  <option value="175">
+  <option value="180">
+  <option value="185">
+  <option value="187.5">
+  <option value="190">
+  <option value="200">
+  <option value="205">
+  <option value="210">
+  <option value="220">
+  <option value="225">
+  <option value="235">
+  <option value="237.5">
+  <option value="250">
+  <option value="275">
+  <option value="300">
+</datalist>
+
 </body>
 </html>
