@@ -617,7 +617,7 @@ textarea{
                   <input class="col-quick" type="number" id="footQ" value="0" aria-label="Q足跡" oninput="recalc()" />
                 </div>
               </td>
-              <td><input type="number" id="specialResist" value="0" aria-label="特殊耐性" oninput="recalc()" /></td>
+              <td><input type="number" id="specialResist" value="0" aria-label="特殊耐性" oninput="recalc()" onclick="openBuffDetail('specialResist','特殊耐性',event)" readonly style="cursor:pointer;" title="敵側の特殊耐性 (クリックで内訳を設定)。 1 列内で被弾回数による減算を扱う場合は「回」 列に N を入れる (= 最初の N 回攻撃にのみ適用)" /></td>
               <td class="col-pos-buff">
                 <div class="dual-stack">
                   <input type="number" class="pos-buff-input" id="atkBufP1" value="0" aria-label="攻撃バフ1st位置別追加" oninput="recalc()" />
@@ -3059,7 +3059,7 @@ const ALL_BUFF_FIELD_IDS = [
   'cardBufB', 'cardBufA', 'cardBufQ',
   'criBuf', 'criResistDown', 'criBufB', 'criBufA', 'criBufQ',
   'npBuf', 'npResDown', 'exBuf', 'spBuf', 'npSpBuf',
-  'fixedDmg',
+  'fixedDmg', 'specialResist',
 ];
 
 function resetAllBuffFields() {
@@ -3788,8 +3788,9 @@ function calcNpDmg(pos, firstType, effectiveBuffs) {
   // 位置別追加バフ (フェーズ4-B): メイン値に位置別 input の値を加算
   const addPos = (fid) => getPosAdd(fid, _pos);
 
-  // 特殊耐性 (位置別追加対応): 敵側耐性に位置別追加分を加算してから / 100
-  const resist  = (g('specialResist') + addPos('specialResist')) / 100;
+  // 特殊耐性 (位置別追加対応 + 回数制対応): 敵側耐性に位置別追加分を加算してから / 100
+  // gcEff で回数制バフを位置別有効値として取得 (例:「3 回被弾まで耐性 50%」 → 4 回目で 0)
+  const resist  = (gcEff('specialResist') + addPos('specialResist')) / 100;
 
   const atkBuf    = (gcEff('atkBuf')   + addPos('atkBuf'))   / 100;
   const defDebuf  = (gcEff('defDebuf') + addPos('defDebuf')) / 100;
@@ -3923,8 +3924,8 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   const clsMod   = +gs('clsMod') || 1.0;
   const clsAff   = +gs('clsAff') || 1.0;
   const attrAff  = +gs('attrAff') || 1.0;
-  // 特殊耐性 (位置別追加対応)
-  const resist   = (g('specialResist') + addPos('specialResist')) / 100;
+  // 特殊耐性 (位置別追加対応 + 回数制対応)
+  const resist   = (gcEff('specialResist') + addPos('specialResist')) / 100;
 
   const atkBuf   = (gcEff('atkBuf')   + addPos('atkBuf'))   / 100;
   const defDebuf = (gcEff('defDebuf') + addPos('defDebuf')) / 100;
@@ -4262,8 +4263,8 @@ function calcExDmg(firstType, c1, c2, c3, isNpChain, effectiveBuffs) {
   // 位置別追加バフ (フェーズ4-B): EX 位置 (pos=3 → Pe)
   const addPosEx = (fid) => getPosAdd(fid, EX_POS);
 
-  // 特殊耐性 (位置別追加対応)
-  const resist = (g('specialResist') + addPosEx('specialResist')) / 100;
+  // 特殊耐性 (位置別追加対応 + 回数制対応): gcEffEx で EX 位置の有効値を取得
+  const resist = (gcEffEx('specialResist') + addPosEx('specialResist')) / 100;
 
   const atkBuf = (gcEffEx('atkBuf') + addPosEx('atkBuf')) / 100;
   const defDebuf = (gcEffEx('defDebuf') + addPosEx('defDebuf')) / 100;
@@ -5088,8 +5089,10 @@ function _buffDetailUpdateTotal() {
   document.getElementById('buffDetailTotal').textContent = `${fmt}${suffix}`;
 }
 // 回数制バフ（「回」列）を表示するフィールドの基底IDホワイトリスト。
-// 攻撃バフ・防御デバフ・カラー別バフ/デバフ・クリバフ（全色共通）・固定ダメージのみ。
+// 攻撃バフ・防御デバフ・カラー別バフ/デバフ・クリバフ（全色共通）・固定ダメージ・特殊耐性のみ。
 // カード威力バフB/A/Q、クリバフB/A/Q、宝具威力、EXバフ、特攻威力等は対象外。
+// 特殊耐性は敵側の被弾回数制 (例: 「最初の 3 回被弾まで耐性 50%」) に対応するため含める。
+// ※「列」 は基本原理として独立計算するため、 回数カウントは 1 列内 (1st/2nd/3rd/EX) で完結する。
 const BUFF_COUNT_FIELD_IDS = new Set([
   'atkBuf', 'defDebuf',
   'bBuf', 'bDebuf',
@@ -5097,6 +5100,7 @@ const BUFF_COUNT_FIELD_IDS = new Set([
   'qBuf', 'qDebuf',
   'criBuf',
   'fixedDmg',  // 固定ダメージも回数制対応 (例: 与ダメージプラス系の効果ターン制限)
+  'specialResist',  // 特殊耐性も回数制対応 (例: 「N 回被弾まで耐性 X%」 ギミック)
 ]);
 
 function _isCountSupportedField(fieldId) {
