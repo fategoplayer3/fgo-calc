@@ -5758,6 +5758,11 @@ const COUNT_CONSUME_CONDITION = {
   // 「クリ 0」 (攻撃しない) のスロットは computeEffectiveBuffsByCardPos が
   // slot.active=false で先に消費スキップするので、 ここでは常に true でよい。
   fixedDmg: ()       => true,
+  // 特殊耐性: 敵側の被弾回数で減算するため、 カード色やクリ有無に依らず
+  // 「攻撃が当たれば」 消費する。 「クリ 0」 (攻撃しない) スロットは
+  // computeEffectiveBuffsByCardPos が active=false で先に消費スキップするため、
+  // ここでは常に true で問題ない。
+  specialResist: () => true,
 };
 
 // 各バフフィールドについて、4つのカード位置 (0=1st,1=2nd,2=3rd,3=EX) で
@@ -5859,6 +5864,14 @@ function _buffDetailAddRow(label = '', value = '', fixedLabel = false, count = '
 function _escapeAttrSafe(s) {
   return String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
+// 「バフではない」 フィールド判定。 specialResist は敵側の耐性値で、 概念的にバフ・パッシブバフを
+// 持たないので、 タイトル・1 行目固定行・placeholder などを通常バフと別扱いにする。
+// 将来追加対応する場合はここに足す (例: ['specialResist', 'newField'].includes(base))。
+function _isNonBuffField(fieldId) {
+  const base = String(fieldId || '').replace(/_R\d+$/, '');
+  return base === 'specialResist';
+}
+
 function openBuffDetail(fieldId, label, event) {
   event && event.stopPropagation();
   _buffDetailTarget = fieldId;
@@ -5870,7 +5883,7 @@ function openBuffDetail(fieldId, label, event) {
   // 「バフではない」 フィールド判定: 特殊耐性は敵側の耐性値で、 概念的にバフ・パッシブバフを
   // 持たない。 タイトルからの「— バフ詳細入力」 表記、 1 行目の「パッシブバフ」 行、 ラベル欄の
   // 「スキル・礼装など」 placeholder を、 それぞれ専用文言に置き換える。
-  const _isNonBuff = (baseFieldIdForLabel === 'specialResist');
+  const _isNonBuff = _isNonBuffField(fieldId);
   document.getElementById('buffDetailTitle').textContent = _isNonBuff ? label : `${label} — バフ詳細入力`;
   // 固定ダメージは % ではないので、 値ヘッダ・説明文を切り替える
   const _isFD = _isFixedDamageField(fieldId);
@@ -5950,6 +5963,14 @@ function openBuffDetail(fieldId, label, event) {
   if (!_isNonBuff) {
     store[0].label = 'パッシブバフ';
     store[0].fixed = true;
+  } else {
+    // 特殊耐性は全行を自由入力に。 過去バージョン (modal を開く前の _buffDetailApply で
+    // 先頭行に fixed:true が書き込まれていた壊れたデータ) を読み込み時に自動修復する。
+    // ラベルに「パッシブバフ」 が残っていれば空文字に。
+    for (let i = 0; i < store.length; i++) {
+      store[i].fixed = false;
+      if (store[i].label === 'パッシブバフ') store[i].label = '';
+    }
   }
   // 旧フォーマット (一時的に「固定ダメージN」 ラベルで保存されていたデータ) との互換: 空文字に戻す
   if (_isFixedDamageField(fieldId)) {
@@ -5982,11 +6003,14 @@ function _buffDetailApply() {
   if (!_buffDetailTarget) return;
   _buffPresetMenuToggle(false);  // プリセットメニューが開いていれば閉じる
   const rows = [...document.querySelectorAll('#buffDetailRows tr')];
+  // 先頭行を固定 (パッシブバフ) として保存するかどうかは、 対象フィールドが「バフ系」 か否かで判定。
+  // specialResist のような「バフではない」 フィールドでは先頭行も自由入力なので fixed:false で保存する。
+  const _isNonBuff = _isNonBuffField(_buffDetailTarget);
   _buffDetailStore[_buffDetailTarget] = rows.map((tr, i) => ({
     label: tr.querySelector('.bd-lbl')?.value || '',
     value: tr.querySelector('.bd-val')?.value || '',
     count: tr.querySelector('.bd-cnt')?.value || '',  // 回数制バフの残使用回数（空欄=ターン制）
-    fixed: i === 0 // 先頭行は常に固定
+    fixed: i === 0 && !_isNonBuff  // 先頭行は通常 fixed:true (パッシブバフ)、 _isNonBuff なら fixed:false
   }));
   const rawTotal = _buffDetailSum();
   const total = _buffDetailBoostMap[_buffDetailTarget] ? rawTotal * 2 : rawTotal;
@@ -7229,12 +7253,15 @@ function applyBuffDetailsForRow(suffix, obj) {
     if (fid === '_boost') continue;
     const arr = obj[fid];
     if (!Array.isArray(arr)) continue;
+    // specialResist 等の「バフではない」 フィールドは先頭行が「パッシブバフ」 固定でないので、
+    // ラベルのデフォルト値 (パッシブバフ) と fixed フラグの設定を分岐する。
+    const _isNonBuff = _isNonBuffField(fid);
     const full = Array.from({ length: BUFF_DETAIL_ROWS }, (_, i) => {
       const entry = arr[i];
-      const label = (entry && entry[0]) || (i === 0 ? 'パッシブバフ' : '');
+      const label = (entry && entry[0]) || (i === 0 && !_isNonBuff ? 'パッシブバフ' : '');
       const value = (entry && entry[1]) || '';
       const count = (entry && entry[2]) || '';  // 旧フォーマット（2要素）は空文字扱い
-      return { label, value, count, fixed: i === 0 };
+      return { label, value, count, fixed: i === 0 && !_isNonBuff };
     });
     _buffDetailStore[fid + sfx] = full;
   }
