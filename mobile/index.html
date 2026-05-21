@@ -5867,7 +5867,11 @@ function openBuffDetail(fieldId, label, event) {
   if (typeof _buffDetailFieldLabels !== 'undefined') {
     _buffDetailFieldLabels[baseFieldIdForLabel] = label;
   }
-  document.getElementById('buffDetailTitle').textContent = `${label} — バフ詳細入力`;
+  // 「バフではない」 フィールド判定: 特殊耐性は敵側の耐性値で、 概念的にバフ・パッシブバフを
+  // 持たない。 タイトルからの「— バフ詳細入力」 表記、 1 行目の「パッシブバフ」 行、 ラベル欄の
+  // 「スキル・礼装など」 placeholder を、 それぞれ専用文言に置き換える。
+  const _isNonBuff = (baseFieldIdForLabel === 'specialResist');
+  document.getElementById('buffDetailTitle').textContent = _isNonBuff ? label : `${label} — バフ詳細入力`;
   // 固定ダメージは % ではないので、 値ヘッダ・説明文を切り替える
   const _isFD = _isFixedDamageField(fieldId);
   const _bdValHeader = document.getElementById('bdValHeader');
@@ -5931,17 +5935,22 @@ function openBuffDetail(fieldId, label, event) {
   tbody.innerHTML = '';
 
   // ストアを初期化（未開封のフィールドは空行で初期化）
+  // 特殊耐性 (_isNonBuff) はパッシブバフ概念がないので、 全行をユーザー自由入力 (fixed:false) に。
   if (!_buffDetailStore[fieldId]) {
-    _buffDetailStore[fieldId] = [
-      { label:'パッシブバフ', value:'', fixed:true },
-      ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
-    ];
+    _buffDetailStore[fieldId] = _isNonBuff
+      ? Array(BUFF_DETAIL_ROWS).fill(null).map(() => ({ label:'', value:'', fixed:false }))
+      : [
+          { label:'パッシブバフ', value:'', fixed:true },
+          ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
+        ];
   }
 
-  // 先頭行は必ず「パッシブバフ」固定
+  // 先頭行は必ず「パッシブバフ」固定 — ただし _isNonBuff (特殊耐性) はパッシブバフを持たない。
   const store = _buffDetailStore[fieldId];
-  store[0].label = 'パッシブバフ';
-  store[0].fixed = true;
+  if (!_isNonBuff) {
+    store[0].label = 'パッシブバフ';
+    store[0].fixed = true;
+  }
   // 旧フォーマット (一時的に「固定ダメージN」 ラベルで保存されていたデータ) との互換: 空文字に戻す
   if (_isFixedDamageField(fieldId)) {
     for (let i = 1; i < store.length; i++) {
@@ -5953,6 +5962,13 @@ function openBuffDetail(fieldId, label, event) {
 
   store.forEach(r => _buffDetailAddRow(r.label, r.value, r.fixed, r.count || ''));
   _buffDetailUpdateTotal();
+  // ラベル欄の placeholder を切り替え: 特殊耐性は「特殊耐性名など」、 それ以外はデフォルト「スキル・礼装など」 のまま。
+  // readonly のラベル (パッシブバフ固定行) は変更しない。
+  if (_isNonBuff) {
+    document.querySelectorAll('#buffDetailRows .bd-lbl').forEach(el => {
+      if (!el.readOnly) el.placeholder = '特殊耐性名など';
+    });
+  }
   // ブーストボタンは宝具威力バフ（npBuf）のみ表示
   // 行コピー時に fieldId は 'npBuf_R2', 'npBuf_R3' ... となるため、
   // 末尾の _R\d+ サフィックスを除いた基底 ID で判定する。
