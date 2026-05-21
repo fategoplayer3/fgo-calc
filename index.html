@@ -7397,7 +7397,7 @@ async function openNpStarModalForRow(suffix) {
   set('ns_cri_1st', cri1);
   set('ns_cri_2nd', cri2);
   set('ns_cri_3rd', cri3);
-  set('ns_cri_ex',  'Y');  // EX クリは常時「有」（モデルサイト準拠）
+  set('ns_cri_ex',  getRowVal('cardEx') === '0' ? 'zero' : 'Y');  // ホームの cardEx ('有'/'0') を引き継ぎ。 '0' (EX 攻撃なし) なら NP・スター獲得もゼロ扱い。
   set('ns_np_enemy', '100');
   set('ns_sr_enemy', '0');
 
