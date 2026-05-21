@@ -7961,6 +7961,33 @@ try {
 // CSV インポート後の行 (APP.servant が空) では何も起きないという問題があった。
 // 修正: 適用ボタン側で getRowServant() を使って行コンテキスト依存で適用する (下記の applyServantBtn ハンドラ参照)。
 
+// ════════════════════════════════════════════════════════════
+// Service Worker 登録 (キャッシュによる起動高速化)
+// ════════════════════════════════════════════════════════════
+// 約 10MB の self-contained HTML を 2 回目以降のアクセスで再ダウンロードしないよう、
+// Service Worker (./sw.js) でキャッシュを管理する。
+// 2 回目以降のアクセスは完全オフラインで動作可能。
+//
+// 登録失敗 (= HTTPS でない、 SW 非対応ブラウザ等) の場合は通常のブラウザキャッシュで
+// 動作するので、 機能が壊れることはない (= 安全なフォールバック)。
+// load イベント後に登録するのは、 メイン処理の起動を遅らせないため。
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        // 登録成功
+        // 新バージョンが検出された場合は、 次回起動時に自動で反映される (Stale-While-Revalidate)。
+        if (reg && reg.scope) {
+          console.log('[SW] Registered:', reg.scope);
+        }
+      })
+      .catch(err => {
+        // SW 登録失敗 → 通常のブラウザキャッシュで動作 (= 致命的ではない)
+        console.warn('[SW] Registration failed:', err);
+      });
+  });
+}
+
 </script>
 
 <!-- 宝具特攻威力 (npSpBuf) の入力候補。 input list="npSpBufValues" から参照される。
