@@ -9481,6 +9481,39 @@ async function _captureCalcTable() {
       backgroundColor: '#ffffff',
       useCORS: true,
       logging: false,
+      // クローンされた DOM だけを編集 (= 元のページの textarea は触らない)。
+      // html2canvas は <textarea> の改行 (\n) を保持できないため、 メモ欄に複数行
+      // 入力されていても 1 行に潰されてしまう。 対策として textarea を同サイズの
+      // div (white-space: pre-wrap) に差し替えて改行を維持する。
+      onclone: (clonedDoc) => {
+        try {
+          const textareas = clonedDoc.querySelectorAll('textarea');
+          textareas.forEach(ta => {
+            const cs = clonedDoc.defaultView.getComputedStyle(ta);
+            const div = clonedDoc.createElement('div');
+            div.textContent = ta.value || '';
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.wordWrap = 'break-word';
+            div.style.overflow = 'hidden';
+            div.style.boxSizing = 'border-box';
+            div.style.width = ta.offsetWidth + 'px';
+            div.style.height = ta.offsetHeight + 'px';
+            div.style.fontFamily = cs.fontFamily;
+            div.style.fontSize = cs.fontSize;
+            div.style.fontWeight = cs.fontWeight;
+            div.style.lineHeight = cs.lineHeight;
+            div.style.color = cs.color;
+            div.style.background = cs.backgroundColor;
+            div.style.padding = cs.padding;
+            div.style.border = cs.border;
+            div.style.borderRadius = cs.borderRadius;
+            div.style.textAlign = cs.textAlign;
+            ta.parentNode.replaceChild(div, ta);
+          });
+        } catch (e) {
+          console.warn('onclone textarea replacement failed:', e);
+        }
+      },
     });
 
     // Mobile 版は OS を問わず「新しいタブで画像を表示」 方式に統一。
