@@ -1005,6 +1005,12 @@ textarea{
           <div class="drop-item" data-action="toggle-pos-buff" id="togglePosBuffItem">☐ 位置別追加バフを表示</div>
         </div>
       </div>
+      <div class="menu">
+        <!-- 計算テーブル (Mobile 版は #mobileView) を JPEG 画像にして保存。 単発実行ボタン。
+             html2canvas ライブラリは初回押下時に CDN から動的ロードする (= 起動時負荷ゼロ)。 -->
+        <button class="menu-btn" id="screenshotBtn" type="button"
+                title="計算結果を JPEG 画像として保存">📷 画像保存</button>
+      </div>
       <!-- PC 版へのアイコンボタン (../ で親階層 = PC 版を指す。 同一 localStorage 共有で
            PC で「保存」 → モバイルで「読込」 状態同期可能) -->
       <div class="menu" style="margin-left:auto;">
@@ -9415,6 +9421,94 @@ function rebuildMobileView() {
 // 旧仕様では change で即座に APP.servant を再構築していたが、 _rowCtx 不在によって他行に影響したり、
 // CSV インポート後の行 (APP.servant が空) では何も起きないという問題があった。
 // 修正: 適用ボタン側で getRowServant() を使って行コンテキスト依存で適用する (下記の applyServantBtn ハンドラ参照)。
+
+// ════════════════════════════════════════════════════════════
+// 「📷 画像保存」 機能 (計算テーブル → JPEG ダウンロード)
+// ════════════════════════════════════════════════════════════
+// 計算結果を JPEG 画像として保存する機能。
+// html2canvas ライブラリは起動時には読み込まず、 ボタン初回押下時に CDN から動的ロードする
+// (= 起動時の負荷ゼロ、 普段使わないユーザーには影響なし)。
+// 一度ロードされたらブラウザキャッシュに入るので、 以降のセッションでも高速。
+// Mobile 版では実際に表示されているのは #mobileView なので、 そちらを優先的に対象とする。
+// ────────────────────────────────────────────────────────────
+let _h2cPromise = null;
+function _loadHtml2Canvas() {
+  if (_h2cPromise) return _h2cPromise;
+  if (typeof window.html2canvas === 'function') {
+    _h2cPromise = Promise.resolve(window.html2canvas);
+    return _h2cPromise;
+  }
+  _h2cPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script.onload = () => {
+      if (typeof window.html2canvas === 'function') resolve(window.html2canvas);
+      else reject(new Error('html2canvas loaded but global function not found'));
+    };
+    script.onerror = () => reject(new Error('Failed to load html2canvas from CDN'));
+    document.head.appendChild(script);
+  });
+  _h2cPromise.catch(() => { _h2cPromise = null; });
+  return _h2cPromise;
+}
+
+async function _captureCalcTable() {
+  const btn = document.getElementById('screenshotBtn');
+  if (!btn) return;
+  const origText = btn.textContent;
+  if (btn._flashTimerId) { clearTimeout(btn._flashTimerId); btn._flashTimerId = null; }
+  btn.disabled = true;
+  btn.textContent = '🔄 生成中...';
+
+  try {
+    const html2canvas = await _loadHtml2Canvas();
+    // キャプチャ対象を厳密に選ぶ:
+    // 1. #mobileView 内の .mobile-table を最優先 (= 実コンテンツ幅、 余白なし)
+    //    #mobileView 自体をキャプチャすると、 ラッパー (#mobileView) が親の幅まで
+    //    広がっているため、 PC ブラウザで見た時に右側に大きな余白が入る。
+    // 2. なければ #mobileView (フォールバック)
+    // 3. それもなければ #calcTable (PC 版互換のフォールバック、 Mobile 版では基本到達しない)
+    const target = document.querySelector('#mobileView .mobile-table')
+                || document.getElementById('mobileView')
+                || document.getElementById('calcTable');
+    if (!target) throw new Error('キャプチャ対象が見つかりません');
+
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+    });
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const link = document.createElement('a');
+    const ts = new Date().toISOString().slice(0, 10);
+    link.download = 'fgo-calc-' + ts + '.jpg';
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    btn.textContent = '✓ 保存しました';
+  } catch (err) {
+    console.error('Screenshot failed:', err);
+    btn.textContent = '❌ 失敗';
+    if (!navigator.onLine) {
+      alert('画像保存にはインターネット接続が必要です (初回のみ)。\n\n一度オンラインで「画像保存」ボタンを使えば、ライブラリがブラウザにキャッシュされ、以降はオフラインでも使えます。');
+    }
+  } finally {
+    btn._flashTimerId = setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled = false;
+      btn._flashTimerId = null;
+    }, 2000);
+  }
+}
+
+window.addEventListener('load', () => {
+  const btn = document.getElementById('screenshotBtn');
+  if (btn) btn.addEventListener('click', _captureCalcTable);
+});
 
 // ════════════════════════════════════════════════════════════
 // Service Worker 登録 (キャッシュによる起動高速化)
