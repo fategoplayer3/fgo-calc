@@ -420,6 +420,24 @@ textarea{
 .mobile-link-text {
   font-size: 12px;
 }
+
+/* ─────────────────────────────────────────────
+   小画面 (iPhone 等の Mobile デバイスで PC 版を開いた場合) のヘッダ調整。
+   PC 版を Mobile デバイスから操作することは想定外だが、 開いた時に
+   ヘッダボタンが折り返して見栄えが悪くなる問題への対処。
+   - タイトルフォントを縮小 (12px → 11px)
+   - 「モバイル版」 テキストを非表示にして「📱」 アイコンのみに
+   閾値 600px は一般的な「スマホ / タブレット境界」 で、 iPhone 全機種
+   (Plus/Pro Max 含む) はこれ以下の幅。
+   ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .title {
+    font-size: 11px !important;
+  }
+  .mobile-link-text {
+    display: none !important;
+  }
+}
 </style>
 
 </head>
