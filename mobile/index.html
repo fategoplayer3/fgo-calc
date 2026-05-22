@@ -9502,6 +9502,35 @@ async function _captureCalcTable() {
     console.warn('Pre-screenshot autoSave failed:', e);
   }
 
+  // ★ ボタン押下と同時に空のタブを先に開く (Safari ポップアップブロック対策)。
+  // Safari は厳格で、 await を挟んだ後の window.open を「ユーザー操作から離れた」
+  // と判定してブロックする。 ユーザージェスチャー (= タップ) の直接の文脈下で
+  // window.open を呼ぶことで、 Safari でも確実に新しいタブが開く。
+  // 後で画像が生成できたら、 既に開いてあるこのタブに blob URL を流し込む。
+  const newTab = window.open('about:blank', '_blank');
+  if (!newTab) {
+    // ポップアップブロックされた場合 (= 設定で完全に無効化されている)
+    btn.textContent = '❌';
+    alert('画像を新しいタブで開けませんでした。\nブラウザのポップアップブロック設定を確認してください。');
+    btn._flashTimerId = setTimeout(() => {
+      btn.textContent = origText;
+      btn.disabled = false;
+      btn._flashTimerId = null;
+    }, 2000);
+    return;
+  }
+
+  // 開いたタブに「生成中...」 表示 (= ユーザーへのフィードバック)
+  try {
+    newTab.document.title = '画像を生成中...';
+    newTab.document.body.style.cssText =
+      'margin:0;padding:60px 20px;text-align:center;background:#222;color:#fff;'
+      + 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:16px;';
+    newTab.document.body.textContent = '画像を生成しています...';
+  } catch (e) {
+    // about:blank へのアクセスが失敗するブラウザがあるかも → ローディング表示なしで続行
+  }
+
   try {
     const html2canvas = await _loadHtml2Canvas();
     // キャプチャ対象を厳密に選ぶ:
@@ -9562,20 +9591,22 @@ async function _captureCalcTable() {
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
     if (!blob) throw new Error('画像 Blob の生成に失敗');
 
+    // 既に開いてあるタブに画像を流し込む
     const blobUrl = URL.createObjectURL(blob);
-    const opened = window.open(blobUrl, '_blank');
-    if (!opened) {
-      // ポップアップブロックされた場合 → ユーザーに案内
-      URL.revokeObjectURL(blobUrl);
-      alert('画像を新しいタブで開けませんでした。\nブラウザのポップアップブロック設定を確認してください。');
-      throw new Error('window.open に失敗');
-    }
+    newTab.location.href = blobUrl;
     // しばらく経ってから URL を解放 (新しいタブで読み終わるまで保持)
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
     btn.textContent = '✓';
   } catch (err) {
     console.error('Screenshot failed:', err);
     btn.textContent = '❌';
+    // 開いてあるタブにエラー表示
+    try {
+      newTab.document.body.textContent =
+        '画像生成に失敗しました。 計算機タブに戻って再度お試しください。';
+    } catch (e) {
+      // about:blank への書き込み失敗 → 無視
+    }
     if (!navigator.onLine) {
       alert('画像保存にはインターネット接続が必要です (初回のみ)。\n\n一度オンラインで画像保存ボタンを使えば、ライブラリがブラウザにキャッシュされ、以降はオフラインでも使えます。');
     }
