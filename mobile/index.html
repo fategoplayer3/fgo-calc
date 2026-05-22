@@ -9487,19 +9487,25 @@ async function _captureCalcTable() {
   btn.disabled = true;
   btn.textContent = '🔄';
 
-  // 画像生成前に現在の入力状態を保存する。 iOS Safari/Chrome では html2canvas の
-  // メモリ消費 + window.open で新しいタブを開いた直後に、 バックグラウンドの
-  // 元タブがメモリ解放で破棄されることがある。 タブが破棄されると sessionStorage も
-  // 消えるので、 localStorage のバックアップキーにも書き込んでおき、 起動時に
-  // autoRestoreSessionImpl がそちらからも復元できるようにする。
+  // 画像生成前に現在の入力状態を localStorage にバックアップする。
+  // iOS Safari/Chrome では html2canvas のメモリ消費 + window.open で新しいタブを開いた
+  // 直後に、 バックグラウンドの元タブがメモリ解放で破棄されることがある。 タブが破棄
+  // されると sessionStorage も消えるので、 localStorage バックアップを書いておく。
+  //
+  // 重要: ここで autoSaveSessionImpl() を呼ぶと内部で restoreInputsToPcTable +
+  // rebuildMobileView が走り、 iOS Safari で mobile-view の sticky 列が崩れる
+  // (position:sticky + table-layout:fixed + 動的 DOM 再構築の既知バグ)。 そのため
+  // DOM に触らず、 既に visibilitychange で書かれている sessionStorage の内容を
+  // そのまま localStorage にコピーするだけにする。
+  // sessionStorage は通常の入力 → タブ切替 (visibilitychange='hidden') で常時更新
+  // されているため、 直近の操作 → 即画像保存というケースを除けば最新が入っている。
   try {
-    if (typeof autoSaveSessionImpl === 'function') autoSaveSessionImpl();
     const sessionData = sessionStorage.getItem(AUTOSAVE_SS_KEY);
     if (sessionData) {
       localStorage.setItem(AUTOSAVE_LS_BACKUP_KEY, sessionData);
     }
   } catch (e) {
-    console.warn('Pre-screenshot autoSave failed:', e);
+    console.warn('Pre-screenshot localStorage backup failed:', e);
   }
 
   // ★ ボタン押下と同時に空のタブを先に開く (Safari ポップアップブロック対策)。
