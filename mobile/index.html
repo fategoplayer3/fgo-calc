@@ -8756,6 +8756,11 @@ window.addEventListener('load', () => {
 // 復元処理は既存の _loadFromLocalImpl をそのまま流用 (LS_KEY に一時書き戻し)。
 // ────────────────────────────────────────────────────────
 const AUTOSAVE_SS_KEY = 'fgoMobileAutoSession_v1';
+// タブ破棄対策バックアップキー (画像保存ボタン押下時に sessionStorage と並行して localStorage にも保存)。
+// iOS Safari/Chrome ではメモリプレッシャーで突発的にタブが破棄されることがあり、
+// その場合 sessionStorage は失われるが localStorage は永続なので復元できる。
+// 使い切ったら削除する (= 残しっぱなしにしない)。
+const AUTOSAVE_LS_BACKUP_KEY = 'fgoMobileAutoSessionBackup_v1';
 
 function _collectFilteredPayload() {
   const rows = [...document.querySelectorAll('#calcTable tbody tr')];
@@ -8788,10 +8793,22 @@ function autoSaveSessionImpl() {
 function autoRestoreSessionImpl() {
   try {
     let raw;
+    let usedBackup = false;
     try {
       raw = sessionStorage.getItem(AUTOSAVE_SS_KEY);
     } catch (e) {
-      return;  // sessionStorage 不可
+      // sessionStorage 不可 → 後続の localStorage バックアップ確認に進む
+    }
+    // sessionStorage に無い場合は localStorage のバックアップを確認
+    // (iOS のタブ破棄で sessionStorage が消えたケースのリカバリ)
+    if (!raw) {
+      try {
+        raw = localStorage.getItem(AUTOSAVE_LS_BACKUP_KEY);
+        if (raw) usedBackup = true;
+      } catch (e) {
+        // localStorage も不可 → 復元不能
+        return;
+      }
     }
     if (!raw) return;  // 保存データなし
 
@@ -8848,6 +8865,13 @@ function autoRestoreSessionImpl() {
 
     // mobile-view を再構築 (PC tr が更新されたので)
     try { rebuildMobileView(); } catch (e) {}
+
+    // localStorage バックアップを使った場合は使い切り (= 削除)。
+    // 残しっぱなしにすると、 後で sessionStorage が新しい状態になっても
+    // 「タブ復元時に古い localStorage バックアップを使ってしまう」 リスクがある。
+    if (usedBackup) {
+      try { localStorage.removeItem(AUTOSAVE_LS_BACKUP_KEY); } catch (e) {}
+    }
   } catch (e) {
     console.warn('autoRestoreSession failed:', e);
   }
@@ -9462,6 +9486,21 @@ async function _captureCalcTable() {
   if (btn._flashTimerId) { clearTimeout(btn._flashTimerId); btn._flashTimerId = null; }
   btn.disabled = true;
   btn.textContent = '🔄';
+
+  // 画像生成前に現在の入力状態を保存する。 iOS Safari/Chrome では html2canvas の
+  // メモリ消費 + window.open で新しいタブを開いた直後に、 バックグラウンドの
+  // 元タブがメモリ解放で破棄されることがある。 タブが破棄されると sessionStorage も
+  // 消えるので、 localStorage のバックアップキーにも書き込んでおき、 起動時に
+  // autoRestoreSessionImpl がそちらからも復元できるようにする。
+  try {
+    if (typeof autoSaveSessionImpl === 'function') autoSaveSessionImpl();
+    const sessionData = sessionStorage.getItem(AUTOSAVE_SS_KEY);
+    if (sessionData) {
+      localStorage.setItem(AUTOSAVE_LS_BACKUP_KEY, sessionData);
+    }
+  } catch (e) {
+    console.warn('Pre-screenshot autoSave failed:', e);
+  }
 
   try {
     const html2canvas = await _loadHtml2Canvas();
