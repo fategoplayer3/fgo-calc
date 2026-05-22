@@ -8059,6 +8059,44 @@ async function _captureCalcTable() {
       backgroundColor: '#ffffff',
       useCORS: true,
       logging: false,
+      // クローンされた DOM だけを編集 (= 元のページの textarea は触らない)。
+      // html2canvas は <textarea> の改行 (\n) を保持できないため、 メモ欄に複数行
+      // 入力されていても 1 行に潰されてしまう。 対策として textarea を同サイズの
+      // div (white-space: pre-wrap) に差し替えて改行を維持する。
+      onclone: (clonedDoc) => {
+        try {
+          const textareas = clonedDoc.querySelectorAll('textarea');
+          textareas.forEach(ta => {
+            // ta は cloned 側 → 元の DOM の対応 textarea から実寸を取りたいが、
+            // cloned 側でも layout が走っているので offsetWidth/Height が使える。
+            const cs = clonedDoc.defaultView.getComputedStyle(ta);
+            const div = clonedDoc.createElement('div');
+            div.textContent = ta.value || '';
+            // 改行・連続空白を維持し、 長い行は折り返す
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.wordWrap = 'break-word';
+            div.style.overflow = 'hidden';
+            div.style.boxSizing = 'border-box';
+            div.style.width = ta.offsetWidth + 'px';
+            div.style.height = ta.offsetHeight + 'px';
+            // 元の textarea のフォント・色・余白等を継承
+            div.style.fontFamily = cs.fontFamily;
+            div.style.fontSize = cs.fontSize;
+            div.style.fontWeight = cs.fontWeight;
+            div.style.lineHeight = cs.lineHeight;
+            div.style.color = cs.color;
+            div.style.background = cs.backgroundColor;
+            div.style.padding = cs.padding;
+            div.style.border = cs.border;
+            div.style.borderRadius = cs.borderRadius;
+            div.style.textAlign = cs.textAlign;
+            ta.parentNode.replaceChild(div, ta);
+          });
+        } catch (e) {
+          // onclone で失敗してもキャプチャ自体は続行 (= 改行は失われるが画像は得られる)
+          console.warn('onclone textarea replacement failed:', e);
+        }
+      },
     });
 
     // JPEG quality 0.85 でダウンロード
