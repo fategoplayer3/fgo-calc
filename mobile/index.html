@@ -102,13 +102,14 @@
     /* ユーザー入力マーカー: 薄い黄色背景でクラス相性/属性相性を強調 (サーヴァント自動入力のクラス補正と区別) */
     .user-input-mark { background:#fffaf0 !important; }
     /* 1st/2nd/3rd セル (action-stack) の select も狭めに調整 (w-csel 34px に合わせる) */
-    /* WebKit (Safari/iPhone) は appearance:none でも select 内部の矢印用スペースが残るため、
-       text-align:center を指定しても値が左寄りに見える。 対策として padding-left を増やして
-       右側の見えない矢印スペースと相殺し、 視覚的に中央に持ってくる。 (14px は試行錯誤の結果) */
-    .action-stack select { font-size:10px; padding:0 0 0 14px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; text-align-last:center; }
-    .ex-stack select { font-size:10px; padding:0 0 0 14px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; text-align-last:center; }
-    /* 宝具種類 (B/A/Q カード色) も同じく中央表示。 親 .w-mnp の text-align:left を上書き。 */
-    .np-card-display { padding-left:14px !important; padding-right:0 !important; text-align:center !important; text-align-last:center !important; }
+    /* WebKit (Safari/iPhone) は appearance:none でも select 内部の矢印用スペースが残る
+       既知バグのため、 text-align:center / text-align-last:center を指定しても値が左寄りに
+       見える。 padding-left で相殺する試みも効果なかったため諦め、 シンプルな指定に。
+       (Chrome/Firefox 等では中央揃えが効くので CSS 自体は残しておく) */
+    .action-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; text-align-last:center; }
+    .ex-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; text-align-last:center; }
+    /* 宝具種類 (B/A/Q カード色) も同じ。 親 .w-mnp の text-align:left を上書きするだけ。 */
+    .np-card-display { text-align:center !important; text-align-last:center !important; }
     /* カード色グループ列 (カード威力バフ/B/A/Q、クリバフ/B/A/Q、足跡/B/A/Q): ラベル縦長で狭くしつつ、
        足跡 500 のような3桁数字が見切れないよう 42px に調整 */
     .w-cardgrp{width:42px}
@@ -155,8 +156,8 @@
     .tri-stack{display:grid;grid-template-rows:repeat(3,1fr);gap:1px}
     .mini-lbl{font-size:10px;color:var(--muted);line-height:1;text-align:left;padding-left:2px}
     .action-stack{display:grid;grid-template-rows:repeat(2,1fr);gap:1px}
-    .action-stack select{padding:0 0 0 14px;font-size:10px;text-align:center;text-align-last:center}
-    .ex-stack select{padding:0 0 0 14px;font-size:10px;text-align:center;text-align-last:center}
+    .action-stack select{padding:0 1px;font-size:10px;text-align:center;text-align-last:center}
+    .ex-stack select{padding:0 1px;font-size:10px;text-align:center;text-align-last:center}
     .damage-stack{display:flex;flex-direction:column;gap:0;align-items:flex-end;font-family:Consolas,monospace;line-height:1.1;padding-right:1px}
     .damage-stack span{font-size:10px}
     .damage-stack .mid{font-size:13px;font-weight:700}
