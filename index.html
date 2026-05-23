@@ -8034,32 +8034,81 @@ try {
 // ════════════════════════════════════════════════════════════
 // table 幅補正 (WebKit / Safari 対策)
 // ════════════════════════════════════════════════════════════
-// CSS の width: max-content は WebKit (Safari / iPhone) で table-layout:fixed と
-// 組み合わせた時に正しく適用されず、 table が親要素の幅まで膨張してしまう。
-// 対策として JavaScript で実際の列幅合計を計算し、 table.style.width に inline で
-// 設定する。 Blink (Chrome/Edge) では既に CSS で正しく動作するが、 inline style で
-// 同じ値を上書きするだけなので影響なし。
-// 呼び出しタイミング:
-// - window.load 後 (= 初回起動時、 全ての th が render 完了してから)
-// - メモ列の表示切替後 (= 列の数が変わる)
-// - 位置別追加バフ列の表示切替後 (= 列の数が変わる)
+// CSS の width: max-content / display:inline-table / display:inline-block での
+// 親要素対策が WebKit (Safari / iPhone) で効かないケースが報告された。
+// 確実な対処として、 各 cell の width / min-width / max-width を JavaScript で
+// inline style として強制設定する。 CSS のクラス指定 (w-xxx) と同じ値を inline
+// として書き込むことで、 ブラウザの table-layout 計算が指定値を尊重するように促す。
 // ────────────────────────────────────────────────────────────
+const _CELL_WIDTHS = {
+  'w-xxs':   34,
+  'w-target': 48,
+  'w-memo':  110,
+  'w-xs':     40,
+  'w-card':   22,
+  'w-csel':   34,
+  'w-s':      50,
+  'w-m':      48,
+  'w-l':      76,
+  'w-mnp':    60,
+  'w-cls':    44,
+  'w-cardgrp': 42,
+  'w-tdmg':  100,
+  'w-npsp':   50,
+};
+
 function fixTableWidth() {
   try {
     const table = document.getElementById('calcTable');
     if (!table) return;
-    // 一旦 inline width をクリアして、 CSS 側で計算された自然な列幅を読み取る
-    table.style.width = '';
-    // thead の最初の行の th 幅を合計 (= 列幅の合計)
     const headerRow = table.querySelector('thead tr');
     if (!headerRow) return;
+
+    // 各 th に width / min-width / max-width を inline 強制設定。
+    // tbody の対応 td にも反映するため、 td にも同じ width を設定 (= colgroup 代わり)。
     let totalWidth = 0;
-    for (const cell of headerRow.cells) {
-      // display:none の cell (hide-memo や col-pos-buff の非表示状態) は除外
+    let visibleCount = 0;
+    const colWidths = [];  // 各列の幅を記録 (tbody の td に反映するため)
+
+    for (let i = 0; i < headerRow.cells.length; i++) {
+      const cell = headerRow.cells[i];
       const cs = window.getComputedStyle(cell);
-      if (cs.display === 'none') continue;
-      totalWidth += cell.offsetWidth;
+      if (cs.display === 'none') {
+        colWidths.push(null);
+        continue;
+      }
+      // クラスから width 値を取得
+      let w = 0;
+      for (const cls of cell.classList) {
+        if (_CELL_WIDTHS[cls]) { w = _CELL_WIDTHS[cls]; break; }
+      }
+      if (w === 0) w = 40;  // クラスがない場合のフォールバック
+      // inline で強制設定 (= ブラウザの table-layout 計算より優先される)
+      cell.style.width    = w + 'px';
+      cell.style.minWidth = w + 'px';
+      cell.style.maxWidth = w + 'px';
+      cell.style.boxSizing = 'content-box';
+      colWidths.push(w);
+      totalWidth += w + 4;  // border 2px + padding 2px
+      visibleCount++;
     }
+
+    // tbody の各行の td にも同じ width を反映 (= 各列が確実に揃う)
+    const bodyRows = table.querySelectorAll('tbody tr');
+    bodyRows.forEach(tr => {
+      // tbody の td は thead の th と同じ列順
+      for (let i = 0; i < tr.cells.length && i < colWidths.length; i++) {
+        const td = tr.cells[i];
+        const w = colWidths[i];
+        if (w == null) continue;  // 非表示列はスキップ
+        td.style.width    = w + 'px';
+        td.style.minWidth = w + 'px';
+        td.style.maxWidth = w + 'px';
+        td.style.boxSizing = 'content-box';
+      }
+    });
+
+    // table 全体の幅も明示的に inline 設定
     if (totalWidth > 0) {
       table.style.width = totalWidth + 'px';
     }
@@ -8068,9 +8117,8 @@ function fixTableWidth() {
   }
 }
 
-// 起動時に 1 回呼ぶ (= 全 CSS / 画像が読み込まれた後)
+// 起動時に呼ぶ
 window.addEventListener('load', () => {
-  // requestAnimationFrame で次フレームに延期 (= 起動時の table 構築完了を待つ)
   requestAnimationFrame(() => fixTableWidth());
 });
 
