@@ -102,8 +102,8 @@
     /* ユーザー入力マーカー: 薄い黄色背景でクラス相性/属性相性を強調 (サーヴァント自動入力のクラス補正と区別) */
     .user-input-mark { background:#fffaf0 !important; }
     /* 1st/2nd/3rd セル (action-stack) の select も狭めに調整 (w-csel 34px に合わせる) */
-    .action-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; }
-    .ex-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; }
+    .action-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; }
+    .ex-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; }
     /* カード色グループ列 (カード威力バフ/B/A/Q、クリバフ/B/A/Q、足跡/B/A/Q): ラベル縦長で狭くしつつ、
        足跡 500 のような3桁数字が見切れないよう 42px に調整 */
     .w-cardgrp{width:42px}
@@ -150,8 +150,8 @@
     .tri-stack{display:grid;grid-template-rows:repeat(3,1fr);gap:1px}
     .mini-lbl{font-size:10px;color:var(--muted);line-height:1;text-align:left;padding-left:2px}
     .action-stack{display:grid;grid-template-rows:repeat(2,1fr);gap:1px}
-    .action-stack select{padding:0 1px;font-size:10px}
-    .ex-stack select{padding:0 1px;font-size:10px}
+    .action-stack select{padding:0 1px;font-size:10px;text-align:center}
+    .ex-stack select{padding:0 1px;font-size:10px;text-align:center}
     .damage-stack{display:flex;flex-direction:column;gap:0;align-items:flex-end;font-family:Consolas,monospace;line-height:1.1;padding-right:1px}
     .damage-stack span{font-size:10px}
     .damage-stack .mid{font-size:13px;font-weight:700}
