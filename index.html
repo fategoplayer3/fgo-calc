@@ -86,7 +86,7 @@
        背景は inherit ではなく不透明色を明示 (透明だと右スクロール時に後続セルが透けて「残像」のように見える) */
     .sticky-left  {position:sticky;left:0;     z-index:3; background:#ffffff;}
     .sticky-left-2{position:sticky;left:34px;  z-index:3; background:#ffffff;}
-    .sticky-left-3{position:sticky;left:82px;  z-index:3; background:#ffffff;}
+    .sticky-left-3{position:sticky;left:74px;  z-index:3; background:#ffffff;}
     /* thead 内の sticky 列は上下方向の sticky (top:0) と重なるので z-index を上げ、
        背景色も thead th と同じグラデーションに合わせる (透けると右の列名が透けて見える) */
     thead .sticky-left, thead .sticky-left-2, thead .sticky-left-3 {
@@ -102,7 +102,7 @@
     tbody tr:nth-child(odd) .sticky-left-3 { background:#ffffff; }
     /* sticky 列の右端に薄い境界線を表示して、 スクロール領域との分離を視覚化 */
     .sticky-left-3 { box-shadow: 1px 0 0 #d0d0d0; }
-    .w-target{width:48px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:36px}.w-card{width:22px}.w-csel{width:34px}.w-s{width:50px}.w-m{width:48px}.w-l{width:76px}.w-mnp{width:60px}
+    .w-target{width:40px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:36px}.w-card{width:22px}.w-csel{width:28px}.w-s{width:50px}.w-m{width:44px}.w-l{width:72px}.w-mnp{width:56px}
     /* クラス相性/補正/属性相性 + 宝具特攻威力共通: 数字幅を確保しつつ最小限に。
        select は矢印 (~16px) を appearance:none で消すことで さらに幅を縮められる。 */
     .w-cls{width:44px}
@@ -131,7 +131,7 @@
     .ex-stack select { font-size:10px; padding:0 1px; min-height:18px; box-sizing:border-box; width:100%; min-width:0; text-align:center; }
     /* カード色グループ列 (カード威力バフ/B/A/Q、クリバフ/B/A/Q、足跡/B/A/Q): ラベル縦長で狭くしつつ、
        足跡 500 のような3桁数字が見切れないよう 42px に調整 */
-    .w-cardgrp{width:38px}
+    .w-cardgrp{width:34px}
     /* 目標ダメージ列: 「NP・スター計算」(7文字) ボタンが折り返さないよう幅とボタンスタイルを調整。
        既存 min-width 制約を上書きして input/button 共に 100% に揃え、 ボタンは白space:nowrap で 1 行固定 */
     .w-tdmg{width:100px}
@@ -142,7 +142,7 @@
        宝具名は見切れる前提 (タイトル属性で全文確認可能、 倍率も含めすべて左寄せ)。
        td に min-width / max-width を同値で指定して、 サーヴァント選択前後 (—/長い宝具名) で
        列幅が変動しないように完全固定する。 */
-    td.w-mnp, th.w-mnp { min-width:60px; max-width:60px; }
+    td.w-mnp, th.w-mnp { min-width:56px; max-width:56px; }
     .w-mnp .field-stack { gap:2px; min-width:0; }
     .w-mnp select, .w-mnp input { font-size:10px; padding:2px 1px; min-height:22px; box-sizing:border-box; width:100%; min-width:0; max-width:100%; text-align:left; }
     .w-mnp select { -webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:none; padding-right:1px; text-overflow:ellipsis; overflow:hidden; }
@@ -593,7 +593,7 @@ textarea{
               <th class="w-csel" rowspan="2">1st<br>/クリ</th>
               <th class="w-csel" rowspan="2">2nd<br>/クリ</th>
               <th class="w-csel" rowspan="2">3rd<br>/クリ</th>
-              <th class="w-xs" rowspan="2">EX</th>
+              <th class="w-csel" rowspan="2">EX</th>
               <th class="w-l">1stダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
               <th class="w-l">2ndダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
               <th class="w-l">3rdダメージ<br><span class="muted">最低 / 平均 / 最大</span></th>
@@ -4884,8 +4884,11 @@ function applyPositionBuffColumnVisibility(visible) {
   // メニュー項目のチェックマーク表示更新
   const item = document.getElementById('togglePosBuffItem');
   if (item) item.textContent = (visible ? '☑ ' : '☐ ') + '位置別追加バフを表示';
-  // 列表示切替で table の合計幅が変わる → fixTableWidth で WebKit 用に再計算
-  if (typeof fixTableWidth === 'function') fixTableWidth();
+  // 列表示切替で table の合計幅が変わる → fixTableWidth で WebKit 用に再計算。
+  // 起動時の TDZ エラーは try-catch で握りつぶし、 window.load 時の呼び出しに任せる。
+  try {
+    if (typeof fixTableWidth === 'function') fixTableWidth();
+  } catch (e) { /* 起動時 TDZ エラーを無視 */ }
 }
 function togglePositionBuffColumns() {
   const cur = _isPosBuffVisible();
@@ -4924,8 +4927,13 @@ function applyMemoColumnVisibility(visible) {
   }
   const item = document.getElementById('toggleMemoItem');
   if (item) item.textContent = (visible ? '☑ ' : '☐ ') + 'メモ列を表示';
-  // 列表示切替で table の合計幅が変わる → fixTableWidth で WebKit 用に再計算
-  if (typeof fixTableWidth === 'function') fixTableWidth();
+  // 列表示切替で table の合計幅が変わる → fixTableWidth で WebKit 用に再計算。
+  // ただし起動時の初回呼び出しでは _CELL_WIDTHS (const) がまだ初期化されておらず
+  // TDZ (Temporal Dead Zone) エラーになるため try-catch で握りつぶす。
+  // 起動完了後は window.load イベントで fixTableWidth が呼ばれて補正される。
+  try {
+    if (typeof fixTableWidth === 'function') fixTableWidth();
+  } catch (e) { /* 起動時 TDZ エラーを無視。 window.load の呼び出しで補正される */ }
 }
 function toggleMemoColumn() {
   const next = !_isMemoVisible();
@@ -8054,17 +8062,17 @@ try {
 // ────────────────────────────────────────────────────────────
 const _CELL_WIDTHS = {
   'w-xxs':   34,
-  'w-target': 48,
+  'w-target': 40,  // 旧 48 → 40 (画像 36px にピッタリ収まる、 2026/5/23)
   'w-memo':  110,
   'w-xs':     36,  // 旧 40 → 36 (3桁の値しか入らない列の縮小、 2026/5/23)
   'w-card':   22,
-  'w-csel':   34,
+  'w-csel':   28,  // 旧 34 → 28 (1st/2nd/3rd/EX クリ列、 1 文字 N/B/A/Q/有/0 のみ、 2026/5/23)
   'w-s':      50,
-  'w-m':      48,
-  'w-l':      76,
-  'w-mnp':    60,
+  'w-m':      44,  // 旧 48 → 44 (ATK 列、 5桁でも収まる、 2026/5/23)
+  'w-l':      72,  // 旧 76 → 72 (ダメージ列、 7桁カンマ区切りでも収まる、 2026/5/23)
+  'w-mnp':    56,  // 旧 60 → 56 (宝具/種類/倍率、 ellipsis 省略あり、 2026/5/23)
   'w-cls':    44,
-  'w-cardgrp': 38,  // 旧 42 → 38 (B/A/Q 縦並びの 3 桁値列の縮小、 2026/5/23)
+  'w-cardgrp': 34,  // 旧 42→38→34 (B/A/Q 縦並びの 3 桁値列の縮小、 2026/5/23)
   'w-tdmg':  100,
   'w-npsp':   50,
 };
@@ -8135,6 +8143,11 @@ function fixTableWidth() {
       table.style.width = totalWidth + 'px';
     }
   } catch (e) {
+    // _CELL_WIDTHS (const) は起動順序の都合で applyMemoColumnVisibility 初回実行時には
+    // まだ宣言前なので TDZ (Temporal Dead Zone) エラーが発生する。 これは想定内のため
+    // 警告を出さずに silent return する。 window.load イベントで再度呼ばれるので、
+    // その時には正常動作する。
+    if (e instanceof ReferenceError && /_CELL_WIDTHS/.test(e.message || '')) return;
     console.warn('fixTableWidth failed:', e);
   }
 }
