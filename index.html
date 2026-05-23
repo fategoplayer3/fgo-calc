@@ -53,11 +53,13 @@
     .main{padding:4px 4px 6px 0}
     .table-wrap{border:1px solid var(--line-dark);background:var(--panel);overflow:auto;box-shadow:var(--shadow);margin-left:0}
     table{
-      /* WebKit (Safari / iPhone) は標準の width: max-content の解釈が不完全で、
-         table-layout:fixed と組み合わせると親要素の幅まで膨張してしまう。
-         旧プレフィックス -webkit-max-content を併記する。 加えて JavaScript で
-         実際の合計幅を計算して inline style として明示的に設定する処理を入れて
-         いる (fixTableWidth)。 これにより全ブラウザで意図した幅になる。 */
+      /* WebKit (Safari / iPhone) は table の width:max-content を正しく解釈せず、
+         親 (.table-wrap) の幅まで膨張してしまう。
+         対策: display:inline-table を使う。 これは「inline 要素扱いの table」 で、
+         親の幅まで広がらず、 内容に合わせた幅で描画される。 全モダンブラウザで動作。
+         JavaScript 側でも fixTableWidth で念のため inline style を設定している。 */
+      display: -webkit-inline-table;
+      display: inline-table;
       width: -webkit-max-content;
       width: -moz-max-content;
       width: max-content;
