@@ -2,7 +2,14 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- maximum-scale=1.0 は iOS Safari/Chrome (= 全 iOS ブラウザは WebKit ベース) で
+       input にフォーカスした時の自動ズーム (= input.font-size < 16px だと OS が
+       「文字が小さくて入力できない」 と判断して拡大する標準挙動) を抑制するための指定。
+       計算機は数値入力が中心で input のフォントが小さく、 バフ詳細入力モーダル等を
+       開いた時に画面が勝手に拡大されてユーザー体験を損なう問題があった。
+       副作用: ユーザーがピンチアウトでの拡大ができなくなる。 計算機の用途では
+       拡大ニーズは少ないため、 自動 zoom 抑制を優先する。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>FGOダメージ計算機</title>
   <style>
     /* 起動時に cloneRow で 1 行から 3 行へ展開する瞬間がチラつくのを防ぐ。
