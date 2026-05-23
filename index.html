@@ -52,7 +52,19 @@
     .toolbar .spacer{width:1px;height:16px;background:#cfcfcf;margin:0 3px}
     .main{padding:4px 4px 6px 0}
     .table-wrap{border:1px solid var(--line-dark);background:var(--panel);overflow:auto;box-shadow:var(--shadow);margin-left:0}
-    table{width:max-content;border-collapse:collapse;table-layout:fixed;background:#fff}
+    table{
+      /* WebKit (Safari / iPhone) は標準の width: max-content の解釈が不完全で、
+         table-layout:fixed と組み合わせると親要素の幅まで膨張してしまう。
+         旧プレフィックス -webkit-max-content を併記することで Safari でも
+         「内容の合計幅」 として正しく計算される。
+         (= Blink エンジンの Chrome/Edge は標準の max-content を使う) */
+      width: -webkit-max-content;
+      width: -moz-max-content;
+      width: max-content;
+      border-collapse:collapse;
+      table-layout:fixed;
+      background:#fff;
+    }
     thead th{background:linear-gradient(#f5f5f5,#e5e5e5);border:1px solid var(--line);color:#222;padding:2px;text-align:center;vertical-align:middle;font-weight:700;line-height:1.15;white-space:normal;font-size:11px;overflow:hidden}
     tbody td{border:1px solid var(--line);padding:1px;text-align:center;vertical-align:middle;background:#fff;overflow:hidden}
     tbody tr:nth-child(even) td{background:#fcfcfc}
