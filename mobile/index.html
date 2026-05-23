@@ -9550,6 +9550,17 @@ async function _captureCalcTable() {
     // about:blank へのアクセスが失敗するブラウザがあるかも → ローディング表示なしで続行
   }
 
+  // ★ sticky 列対策: ユーザーが画面を横スクロールした状態で画像保存ボタンを押すと、
+  // sticky 要素 (= 項目名の左固定列) が「画面上の現在位置」 で固定描画されるため、
+  // スクロール量だけ右にずれた位置の画像が生成されてしまう。
+  // キャプチャ前に #mobileView の横スクロール位置を 0 にリセットし、 finally 句で
+  // 元の位置に戻すことで、 画像は常に「sticky 列が左端」 の整った状態になる。
+  const scrollContainer = document.getElementById('mobileView');
+  const _origScrollLeft = scrollContainer ? scrollContainer.scrollLeft : 0;
+  if (scrollContainer && _origScrollLeft !== 0) {
+    scrollContainer.scrollLeft = 0;
+  }
+
   try {
     const html2canvas = await _loadHtml2Canvas();
     // キャプチャ対象を厳密に選ぶ:
@@ -9630,6 +9641,11 @@ async function _captureCalcTable() {
       alert('画像保存にはインターネット接続が必要です (初回のみ)。\n\n一度オンラインで画像保存ボタンを使えば、ライブラリがブラウザにキャッシュされ、以降はオフラインでも使えます。');
     }
   } finally {
+    // ★ sticky 列対策: キャプチャ前にリセットした横スクロール位置を元に戻す。
+    // ユーザーの視点では、 ボタン押下 → 一瞬で元のスクロール位置 (= ユーザーが見ていた箇所) に戻る。
+    if (scrollContainer && scrollContainer.scrollLeft !== _origScrollLeft) {
+      scrollContainer.scrollLeft = _origScrollLeft;
+    }
     btn._flashTimerId = setTimeout(() => {
       btn.textContent = origText;
       btn.disabled = false;
