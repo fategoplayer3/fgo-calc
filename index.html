@@ -408,10 +408,18 @@ textarea{
   height: 100px !important; /* さらに1段階縮小 */
   min-height: 100px !important;
 }
-.np-field, .np-type, .np-multiplier,
-#npTypeSelect, #npRateSelect{
-  width: 150px !important; /* もう少し拡大 */
+.np-field, .np-type, .np-multiplier {
+  /* これらの class は将来用 / 別画面用。 cell 内の select は親 td (.w-mnp=56px) に
+     収める必要があるので、 ここでは width 指定を入れない (= 共通の width:100% が効く)。 */
 }
+/*
+ * 旧コードは #npTypeSelect, #npRateSelect に width:150px !important を強制していたが、
+ * これは 1 行目 (= suffix なし) の id にだけ適用されて cell 幅 56px を大幅にはみ出し、
+ * 隣接する #npCardDisplay (= 宝具種類 B/A/Q select) を画面的に覆い隠してしまっていた。
+ * 2 行目以降は id が npTypeSelect_R2 等で異なるため対象外、 共通の width:100% が効き
+ * 56px に収まる。 結果として「1 行目だけ npCardDisplay の表示が空に見える」 という
+ * 不具合になっていた。 cell 幅縮小に整合させるため、 ここでの強制指定を削除する。
+ */
 </style>
 
 
