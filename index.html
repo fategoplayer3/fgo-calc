@@ -55,9 +55,9 @@
     table{
       /* WebKit (Safari / iPhone) は標準の width: max-content の解釈が不完全で、
          table-layout:fixed と組み合わせると親要素の幅まで膨張してしまう。
-         旧プレフィックス -webkit-max-content を併記することで Safari でも
-         「内容の合計幅」 として正しく計算される。
-         (= Blink エンジンの Chrome/Edge は標準の max-content を使う) */
+         旧プレフィックス -webkit-max-content を併記する。 加えて JavaScript で
+         実際の合計幅を計算して inline style として明示的に設定する処理を入れて
+         いる (fixTableWidth)。 これにより全ブラウザで意図した幅になる。 */
       width: -webkit-max-content;
       width: -moz-max-content;
       width: max-content;
@@ -4860,6 +4860,8 @@ function applyPositionBuffColumnVisibility(visible) {
   // メニュー項目のチェックマーク表示更新
   const item = document.getElementById('togglePosBuffItem');
   if (item) item.textContent = (visible ? '☑ ' : '☐ ') + '位置別追加バフを表示';
+  // 列表示切替で table の合計幅が変わる → fixTableWidth で WebKit 用に再計算
+  if (typeof fixTableWidth === 'function') fixTableWidth();
 }
 function togglePositionBuffColumns() {
   const cur = _isPosBuffVisible();
@@ -4898,6 +4900,8 @@ function applyMemoColumnVisibility(visible) {
   }
   const item = document.getElementById('toggleMemoItem');
   if (item) item.textContent = (visible ? '☑ ' : '☐ ') + 'メモ列を表示';
+  // 列表示切替で table の合計幅が変わる → fixTableWidth で WebKit 用に再計算
+  if (typeof fixTableWidth === 'function') fixTableWidth();
 }
 function toggleMemoColumn() {
   const next = !_isMemoVisible();
@@ -8014,6 +8018,49 @@ try {
 // 旧仕様では change で即座に APP.servant を再構築していたが、 _rowCtx 不在によって他行に影響したり、
 // CSV インポート後の行 (APP.servant が空) では何も起きないという問題があった。
 // 修正: 適用ボタン側で getRowServant() を使って行コンテキスト依存で適用する (下記の applyServantBtn ハンドラ参照)。
+
+// ════════════════════════════════════════════════════════════
+// table 幅補正 (WebKit / Safari 対策)
+// ════════════════════════════════════════════════════════════
+// CSS の width: max-content は WebKit (Safari / iPhone) で table-layout:fixed と
+// 組み合わせた時に正しく適用されず、 table が親要素の幅まで膨張してしまう。
+// 対策として JavaScript で実際の列幅合計を計算し、 table.style.width に inline で
+// 設定する。 Blink (Chrome/Edge) では既に CSS で正しく動作するが、 inline style で
+// 同じ値を上書きするだけなので影響なし。
+// 呼び出しタイミング:
+// - window.load 後 (= 初回起動時、 全ての th が render 完了してから)
+// - メモ列の表示切替後 (= 列の数が変わる)
+// - 位置別追加バフ列の表示切替後 (= 列の数が変わる)
+// ────────────────────────────────────────────────────────────
+function fixTableWidth() {
+  try {
+    const table = document.getElementById('calcTable');
+    if (!table) return;
+    // 一旦 inline width をクリアして、 CSS 側で計算された自然な列幅を読み取る
+    table.style.width = '';
+    // thead の最初の行の th 幅を合計 (= 列幅の合計)
+    const headerRow = table.querySelector('thead tr');
+    if (!headerRow) return;
+    let totalWidth = 0;
+    for (const cell of headerRow.cells) {
+      // display:none の cell (hide-memo や col-pos-buff の非表示状態) は除外
+      const cs = window.getComputedStyle(cell);
+      if (cs.display === 'none') continue;
+      totalWidth += cell.offsetWidth;
+    }
+    if (totalWidth > 0) {
+      table.style.width = totalWidth + 'px';
+    }
+  } catch (e) {
+    console.warn('fixTableWidth failed:', e);
+  }
+}
+
+// 起動時に 1 回呼ぶ (= 全 CSS / 画像が読み込まれた後)
+window.addEventListener('load', () => {
+  // requestAnimationFrame で次フレームに延期 (= 起動時の table 構築完了を待つ)
+  requestAnimationFrame(() => fixTableWidth());
+});
 
 // ════════════════════════════════════════════════════════════
 // 「📷 画像保存」 機能 (計算テーブル → JPEG ダウンロード)
