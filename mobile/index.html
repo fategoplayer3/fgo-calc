@@ -410,11 +410,27 @@ textarea{
   border: 1px solid var(--line-dark);                /* tool-btn と同じ濃さで統一 */
   border-radius: 3px;
   background: linear-gradient(#fafafa, #e7e7e7);     /* tool-btn と同じグラデーションで統一 */
-  color: #333;
+  /* color は明示しない: iOS Safari は button のデフォルト文字色を青系にレンダリング
+     するが、 select は黒のまま。 周囲のボタン (撃破率計算等) と色を揃えるため、
+     -webkit-system-blue 相当を指定して同じ青系に統一する。 他のブラウザ (Chrome/
+     Firefox 等) では通常の黒で問題なし。 */
+  color: -apple-system-blue;
   cursor: pointer;
 }
 .target-preset-select:hover {
   background: linear-gradient(#ffffff, #efefef);     /* hover 時はわずかに明るく */
+}
+
+/* モーダル内のボタン (JSON保存 / CSV保存 / ファイル読込) は、 全体に効いている
+   .menu-btn, .tool-btn { padding: 4px 8px !important } の左右 padding が大きすぎて
+   「📥 ファイル読込」 が幅に収まらず改行されてしまう。 専用ルールで padding を縮小
+   + white-space:nowrap で改行禁止にする。 */
+#targetPresetModal .tool-btn {
+  padding: 6px 3px !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  height: auto !important;
+  min-height: 32px !important;
 }
 
 /* プリセット編集モーダル内の表 (PC 版と同じスタイル) */
