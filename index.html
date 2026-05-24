@@ -446,8 +446,11 @@ textarea{
 .target-preset-select {
   width: 100%;
   margin-top: 2px;
-  font-size: 11px;
-  padding: 2px 4px;
+  /* iPhone Safari で select 内部に矢印スペースが残るため、 セル幅 (= w-tdmg 100px)
+     に収まりにくい。 font-size を 11 → 10px、 padding を 0 にして「▼ プリセット」
+     が見切れないように調整。 */
+  font-size: 10px;
+  padding: 2px 0;
   border: 1px solid var(--line-dark);                /* tool-btn と同じ濃さで統一 */
   border-radius: 3px;
   background: linear-gradient(#fafafa, #e7e7e7);     /* tool-btn と同じグラデーションで統一 */
