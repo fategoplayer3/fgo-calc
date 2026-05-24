@@ -451,12 +451,25 @@ textarea{
   border: 1px solid var(--line-dark);                /* tool-btn と同じ濃さで統一 */
   border-radius: 3px;
   background: linear-gradient(#fafafa, #e7e7e7);     /* tool-btn と同じグラデーションで統一 */
-  color: #333;
+  /* color は -apple-system-blue で iOS Safari の button デフォルト色と統一。
+     他のブラウザでは black 相当にフォールバックする (= 通常通り見える)。 */
+  color: -apple-system-blue;
   cursor: pointer;
   /* select 矢印は既に全体で非表示にしているので、 ここでは追加指定不要 */
 }
 .target-preset-select:hover {
   background: linear-gradient(#ffffff, #efefef);     /* hover 時はわずかに明るく (= tool-btn と同等) */
+}
+
+/* モーダル内のボタン (JSON保存 / CSV保存 / ファイル読込) の padding 調整。
+   既存の .tool-btn の padding と合わせて文字が改行されないよう、 専用ルールで
+   padding を縮小 + white-space:nowrap で改行禁止。 */
+#targetPresetModal .tool-btn {
+  padding: 6px 3px !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  height: auto !important;
+  min-height: 32px !important;
 }
 
 /* プリセット編集モーダル内の表 */
