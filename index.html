@@ -448,15 +448,15 @@ textarea{
   margin-top: 2px;
   font-size: 11px;
   padding: 2px 4px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--line-dark);                /* tool-btn と同じ濃さで統一 */
   border-radius: 3px;
-  background: #f8f8f8;
+  background: linear-gradient(#fafafa, #e7e7e7);     /* tool-btn と同じグラデーションで統一 */
   color: #333;
   cursor: pointer;
   /* select 矢印は既に全体で非表示にしているので、 ここでは追加指定不要 */
 }
 .target-preset-select:hover {
-  background: #f0f0f0;
+  background: linear-gradient(#ffffff, #efefef);     /* hover 時はわずかに明るく (= tool-btn と同等) */
 }
 
 /* プリセット編集モーダル内の表 */
