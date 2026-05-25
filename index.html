@@ -4983,10 +4983,12 @@ function recalc() {
   const _d3raw = (c3 === 'NP')
     ? (zero3 ? ZERO_SLOT : npDmgResult)
     : (zero3 ? ZERO_SLOT : calcOneDmg(2, c3, first, crit3, bChain, _phase3EffectiveBuffs));
-  // 「全」 フラグが立っている場合はダメージを半減 (× 0.5)
-  const d1 = all1 ? _halveSlot(_d1raw) : _d1raw;
-  const d2 = all2 ? _halveSlot(_d2raw) : _d2raw;
-  const d3 = all3 ? _halveSlot(_d3raw) : _d3raw;
+  // 「全」/「半」 フラグが立っている場合はダメージを半減 (× 0.5)。
+  // ただし NP (宝具) は全体攻撃クリ仕様の影響を受けないので、 半減しない。
+  // (= 「全」「半」 は通常カードの全体攻撃クリ・非クリ仕様用)
+  const d1 = (c1 !== 'NP' && all1) ? _halveSlot(_d1raw) : _d1raw;
+  const d2 = (c2 !== 'NP' && all2) ? _halveSlot(_d2raw) : _d2raw;
+  const d3 = (c3 !== 'NP' && all3) ? _halveSlot(_d3raw) : _d3raw;
   // EX のマイティチェイン判定: NP を宝具カード色に変換して渡す
   const npLetter = getCurrentNpCardLetter();
   const ec1 = c1 === 'NP' ? npLetter : c1;
