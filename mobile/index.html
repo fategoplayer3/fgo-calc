@@ -212,9 +212,16 @@
     .np-star-table input.ns-hit:last-child,.np-star-table input.ns-buff:last-child{margin-right:0}
     .np-star-table select.ns-card,.np-star-table select.ns-cri{width:23%;display:inline-block;margin-right:1.5%}
     .np-star-table .ns-ex-fixed{display:inline-block;width:23%;text-align:center;padding:5px 0;background:#eef0f3;border:1px solid var(--line);border-radius:3px;color:#666;font-weight:600;font-size:12px;cursor:default;vertical-align:middle}
-    .np-star-table input.ns-b,.np-star-table input.ns-b:focus{background:#fff7f8}
-    .np-star-table input.ns-a,.np-star-table input.ns-a:focus{background:#f7fbff}
-    .np-star-table input.ns-q,.np-star-table input.ns-q:focus{background:#f7fcf6}
+    /* B/A/Q (ns-hit/ns-buff) や 1st/2nd/3rd/EX (ns-card/ns-cri/ns-ex-fixed) は ns-flex で等幅 1 行に */
+    .np-star-table .ns-flex{display:flex;gap:4px;width:100%;align-items:stretch}
+    .np-star-table .ns-flex > input,
+    .np-star-table .ns-flex > select,
+    .np-star-table .ns-flex > .ns-ex-fixed{flex:1 1 0;min-width:0;width:auto;margin:0}
+    .np-star-table .ns-flex > .ns-ex-fixed{display:flex;align-items:center;justify-content:center;padding:0 4px}
+    /* B/A/Q カラー (= ホームの col-buster/col-arts/col-quick と同色) */
+    .np-star-table input.ns-b,.np-star-table input.ns-b:focus{background:#ffe7ea}
+    .np-star-table input.ns-a,.np-star-table input.ns-a:focus{background:#e7f3ff}
+    .np-star-table input.ns-q,.np-star-table input.ns-q:focus{background:#ebf9ea}
     .np-star-result-table th{background:#eef3fa;width:80px}
     .np-star-result-table td:last-child{background:#fafbfc;font-weight:600}
 
@@ -230,17 +237,20 @@
     .np-damage-table,.np-damage-result-table{border-collapse:collapse;width:100%;font-size:12px}
     .np-damage-table th,.np-damage-result-table th{background:#f5f8fc;border:1px solid var(--line);padding:5px 6px;text-align:center;font-weight:600;color:#2a4a7a;white-space:nowrap;line-height:1.3}
     .np-damage-table td,.np-damage-result-table td{border:1px solid var(--line);padding:4px 5px;background:#fff;font-family:Consolas,monospace}
-    .np-damage-table input,.np-damage-table select{width:100%;padding:3px 5px;border:1px solid var(--line);border-radius:3px;font-family:Consolas,monospace;font-size:11px;text-align:right}
+    .np-damage-table input,.np-damage-table select{width:100%;padding:3px 5px;border:1px solid var(--line);border-radius:3px;font-family:Consolas,monospace;font-size:11px;text-align:right;box-sizing:border-box}
     .np-damage-table select{text-align:left}
-    .np-damage-table input.nd-hit{width:31%;display:inline-block;margin-right:1.5%}
-    .np-damage-table input.nd-hit:last-child{margin-right:0}
-    .np-damage-table input.nd-b,.np-damage-table input.nd-b:focus{background:#fff7f8}
-    .np-damage-table input.nd-a,.np-damage-table input.nd-a:focus{background:#f7fbff}
-    .np-damage-table input.nd-q,.np-damage-table input.nd-q:focus{background:#f7fcf6}
-    .np-damage-table select.nd-card,.np-damage-table select.nd-cri{width:31%;display:inline-block;margin-right:1.5%}
-    .np-damage-table select.nd-card:last-child,.np-damage-table select.nd-cri:last-child{margin-right:0}
-    .np-damage-result-table th{background:#eef3fa;width:80px;text-align:center}
-    .np-damage-result-table td{text-align:center;font-weight:600;font-size:12px}
+    /* B/A/Q ヒット数欄・カード選択・攻撃有無: 3 つを 1 行で並べる (= flex で確実に収める) */
+    .np-damage-table .nd-triple{display:flex;gap:4px;width:100%}
+    .np-damage-table .nd-triple > input,
+    .np-damage-table .nd-triple > select{flex:1 1 0;min-width:0;width:auto;margin:0}
+    /* B/A/Q カラー (= ホームの col-buster/col-arts/col-quick と同色) */
+    .np-damage-table th{width:38%}
+    .np-damage-table input.nd-b,.np-damage-table input.nd-b:focus{background:#ffe7ea}
+    .np-damage-table input.nd-a,.np-damage-table input.nd-a:focus{background:#e7f3ff}
+    .np-damage-table input.nd-q,.np-damage-table input.nd-q:focus{background:#ebf9ea}
+    /* 結果テーブル (Mobile 版: iPhone 横幅 380px に収めるため label 列を狭く + padding 圧縮) */
+    .np-damage-result-table th{background:#eef3fa;width:56px;text-align:center;padding:4px 3px;font-size:11px}
+    .np-damage-result-table td{text-align:center;font-weight:600;font-size:11px;padding:4px 3px}
     .np-damage-result-table td:last-child{background:#fafbfc;font-weight:700;color:#2a4a7a}
 
     /* サーヴァント選択モーダルを「被ダメ NP 計算用」 として開いた時:
@@ -995,23 +1005,34 @@ textarea{
     height: 30px !important;
     box-sizing: border-box !important;
   }
-  /* B/A/Q 3 連入力 (ns-hit / ns-buff) は 3 等分のまま */
-  .np-star-table input.ns-hit,
-  .np-star-table input.ns-buff {
-    width: 31% !important;
-    display: inline-block !important;
+  /* B/A/Q 3 連入力・カード/クリ 4 連 (1st/2nd/3rd/EX) は ns-flex で等幅 1 行確保
+     (= 旧 width:31%/23% + inline-block だと OS の select 矢印幅などで折り返してしまう) */
+  .np-star-table .ns-flex {
+    display: flex !important;
+    gap: 4px !important;
+    width: 100% !important;
+    align-items: stretch !important;
   }
-  /* カード/クリ 4 連 (1st/2nd/3rd/EX) も 4 等分のまま */
-  .np-star-table select.ns-card,
-  .np-star-table select.ns-cri {
-    width: 23% !important;
+  .np-star-table .ns-flex > input,
+  .np-star-table .ns-flex > select,
+  .np-star-table .ns-flex > .ns-ex-fixed {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .np-star-table .ns-flex > select.ns-card,
+  .np-star-table .ns-flex > select.ns-cri {
     font-size: 12px !important;
     padding: 4px 2px !important;
   }
-  .np-star-table .ns-ex-fixed {
-    width: 23% !important;
+  .np-star-table .ns-flex > .ns-ex-fixed {
     font-size: 11px !important;
-    padding: 5px 0 !important;
+    padding: 0 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   /* 結果テーブル: 6 列 (ラベル + 1st/2nd/3rd/EX/トータル) を iPhone 15 縦持ち
@@ -1220,7 +1241,7 @@ textarea{
               <th class="w-xs col-arts" rowspan="2">Aバフ<br>/デバフ</th>
               <th class="w-xs col-quick" rowspan="2">Qバフ<br>/デバフ</th>
               <th class="w-cardgrp" rowspan="2">ｶｰﾄﾞ<br>威力<br>/B<br>/A<br>/Q</th>
-              <th class="w-xs" rowspan="2" title="クリバフ (上段) と クリ耐性ダウン (下段) を合算してクリティカル威力倍率に反映">クリ<br>バフ/<br>耐減</th>
+              <th class="w-xs" rowspan="2">クリ<br>バフ/<br>耐減</th>
               <th class="w-cardgrp" rowspan="2">クリ<br>バフ<br>/B<br>/A<br>/Q</th>
               <th class="w-xs" rowspan="2">宝具<br>威力<br>/耐性減</th>
               <th class="w-xs" rowspan="2">EX<br>バフ</th>
@@ -1228,7 +1249,7 @@ textarea{
               <th class="w-cls" rowspan="2">宝具<br>特攻<br>威力</th>
               <th class="w-xs" rowspan="2">固定<br>ダメ</th>
               <th class="w-cardgrp" rowspan="2">足跡<br>/B<br>/A<br>/Q</th>
-              <th class="w-xs" rowspan="2" title="上=特殊耐性 (敵側、 ダメージ軽減)、 下=特殊威力 (味方側、 ORT 戦等の特殊バフ)">特殊<br>耐性<br>/<br>特殊<br>威力</th>
+              <th class="w-xs" rowspan="2">特殊<br>耐性<br>/<br>特殊<br>威力</th>
               <th class="w-xs col-pos-buff" rowspan="2" title="1st 位置別追加バフ：上=攻バフ、下=防デバフ">攻<br>/防<br>1st</th>
               <th class="w-xs col-pos-buff" rowspan="2" title="2nd 位置別追加バフ：上=攻バフ、下=防デバフ">攻<br>/防<br>2nd</th>
               <th class="w-xs col-pos-buff" rowspan="2" title="3rd 位置別追加バフ：上=攻バフ、下=防デバフ">攻<br>/防<br>3rd</th>
@@ -1336,9 +1357,9 @@ textarea{
               </td>
               <td>
                 <div class="tri-stack">
-                  <input class="col-buster" type="number" id="criBufB" value="0" aria-label="Bクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufB','B クリバフ',event)" readonly style="cursor:pointer;" />
-                  <input class="col-arts" type="number" id="criBufA" value="0" aria-label="Aクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufA','A クリバフ',event)" readonly style="cursor:pointer;" />
-                  <input class="col-quick" type="number" id="criBufQ" value="0" aria-label="Qクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufQ','Q クリバフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-buster" type="number" id="criBufB" value="0" aria-label="Bクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufB','Bクリバフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-arts" type="number" id="criBufA" value="0" aria-label="Aクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufA','Aクリバフ',event)" readonly style="cursor:pointer;" />
+                  <input class="col-quick" type="number" id="criBufQ" value="0" aria-label="Qクリバフ" oninput="recalc()" onclick="openBuffDetail('criBufQ','Qクリバフ',event)" readonly style="cursor:pointer;" />
                 </div>
               </td>
               <td>
@@ -1686,9 +1707,11 @@ textarea{
             <tr>
               <th>ヒット数<br>/B/A/Q</th>
               <td colspan="3">
-                <input type="number" id="ns_b_hit" value="0" class="ns-hit ns-b">
-                <input type="number" id="ns_a_hit" value="0" class="ns-hit ns-a">
-                <input type="number" id="ns_q_hit" value="0" class="ns-hit ns-q">
+                <div class="ns-flex">
+                  <input type="number" id="ns_b_hit" value="0" class="ns-hit ns-b">
+                  <input type="number" id="ns_a_hit" value="0" class="ns-hit ns-a">
+                  <input type="number" id="ns_q_hit" value="0" class="ns-hit ns-q">
+                </div>
               </td>
             </tr>
             <tr>
@@ -1704,17 +1727,21 @@ textarea{
             <tr>
               <th>カードバフ<br>/B/A/Q</th>
               <td colspan="3">
-                <input type="number" id="ns_b_card_buff" value="0" class="ns-buff ns-b">
-                <input type="number" id="ns_a_card_buff" value="0" class="ns-buff ns-a">
-                <input type="number" id="ns_q_card_buff" value="0" class="ns-buff ns-q">
+                <div class="ns-flex">
+                  <input type="number" id="ns_b_card_buff" value="0" class="ns-buff ns-b">
+                  <input type="number" id="ns_a_card_buff" value="0" class="ns-buff ns-a">
+                  <input type="number" id="ns_q_card_buff" value="0" class="ns-buff ns-q">
+                </div>
               </td>
             </tr>
             <tr>
               <th>カードデバフ<br>/B/A/Q</th>
               <td colspan="3">
-                <input type="number" id="ns_b_card_debuff" value="0" class="ns-buff ns-b">
-                <input type="number" id="ns_a_card_debuff" value="0" class="ns-buff ns-a">
-                <input type="number" id="ns_q_card_debuff" value="0" class="ns-buff ns-q">
+                <div class="ns-flex">
+                  <input type="number" id="ns_b_card_debuff" value="0" class="ns-buff ns-b">
+                  <input type="number" id="ns_a_card_debuff" value="0" class="ns-buff ns-a">
+                  <input type="number" id="ns_q_card_debuff" value="0" class="ns-buff ns-q">
+                </div>
               </td>
             </tr>
             <tr>
@@ -1766,19 +1793,23 @@ textarea{
             <tr>
               <th>カード選択<br>1st/2nd/3rd/EX</th>
               <td colspan="3">
-                <select id="ns_card_1st" class="ns-card"><option value="NP">N</option><option value="B">B</option><option value="A">A</option><option value="Q">Q</option></select>
-                <select id="ns_card_2nd" class="ns-card"><option value="NP">N</option><option value="B">B</option><option value="A">A</option><option value="Q">Q</option></select>
-                <select id="ns_card_3rd" class="ns-card"><option value="NP">N</option><option value="B">B</option><option value="A">A</option><option value="Q">Q</option></select>
-                <span class="ns-ex-fixed" title="EX(エクストラアタック)は固定">EX</span>
+                <div class="ns-flex">
+                  <select id="ns_card_1st" class="ns-card"><option value="NP">N</option><option value="B">B</option><option value="A">A</option><option value="Q">Q</option></select>
+                  <select id="ns_card_2nd" class="ns-card"><option value="NP">N</option><option value="B">B</option><option value="A">A</option><option value="Q">Q</option></select>
+                  <select id="ns_card_3rd" class="ns-card"><option value="NP">N</option><option value="B">B</option><option value="A">A</option><option value="Q">Q</option></select>
+                  <span class="ns-ex-fixed" title="EX(エクストラアタック)は固定">EX</span>
+                </div>
               </td>
             </tr>
             <tr>
               <th>クリティカル<br>1st/2nd/3rd/EX</th>
               <td colspan="3">
-                <select id="ns_cri_1st" class="ns-cri"><option value="Y">有</option><option value="N" selected>無</option><option value="zero">0</option></select>
-                <select id="ns_cri_2nd" class="ns-cri"><option value="Y">有</option><option value="N" selected>無</option><option value="zero">0</option></select>
-                <select id="ns_cri_3rd" class="ns-cri"><option value="Y">有</option><option value="N" selected>無</option><option value="zero">0</option></select>
-                <select id="ns_cri_ex"  class="ns-cri"><option value="Y" selected>有(EX)</option><option value="zero">0(EX)</option></select>
+                <div class="ns-flex">
+                  <select id="ns_cri_1st" class="ns-cri"><option value="Y">有</option><option value="N" selected>無</option><option value="zero">0</option></select>
+                  <select id="ns_cri_2nd" class="ns-cri"><option value="Y">有</option><option value="N" selected>無</option><option value="zero">0</option></select>
+                  <select id="ns_cri_3rd" class="ns-cri"><option value="Y">有</option><option value="N" selected>無</option><option value="zero">0</option></select>
+                  <select id="ns_cri_ex"  class="ns-cri"><option value="Y" selected>有(EX)</option><option value="zero">0(EX)</option></select>
+                </div>
               </td>
             </tr>
           </table>
@@ -1830,15 +1861,19 @@ textarea{
           <table class="np-damage-table">
             <tr>
               <th>ヒット数<br>/B/A/Q</th>
-              <td colspan="3">
-                <input type="number" id="nd_b_hit" value="1" min="0" step="1" class="nd-hit nd-b" oninput="recalcNpDamage()">
-                <input type="number" id="nd_a_hit" value="1" min="0" step="1" class="nd-hit nd-a" oninput="recalcNpDamage()">
-                <input type="number" id="nd_q_hit" value="1" min="0" step="1" class="nd-hit nd-q" oninput="recalcNpDamage()">
+              <td>
+                <div class="nd-triple">
+                  <input type="number" id="nd_b_hit" value="1" min="0" step="1" class="nd-hit nd-b" oninput="recalcNpDamage()">
+                  <input type="number" id="nd_a_hit" value="1" min="0" step="1" class="nd-hit nd-a" oninput="recalcNpDamage()">
+                  <input type="number" id="nd_q_hit" value="1" min="0" step="1" class="nd-hit nd-q" oninput="recalcNpDamage()">
+                </div>
               </td>
             </tr>
             <tr>
               <th>ヒット数<br>宝具</th>
               <td><input type="number" id="nd_np_hit" value="1" min="0" step="1" oninput="recalcNpDamage()"></td>
+            </tr>
+            <tr>
               <th>NP敵補正<br>(攻撃側クラス)</th>
               <td>
                 <select id="nd_na_enemy" onchange="recalcNpDamage()">
@@ -1867,30 +1902,34 @@ textarea{
             </tr>
             <tr>
               <th>カード選択<br>1st/2nd/3rd</th>
-              <td colspan="3">
-                <select id="nd_card_1st" class="nd-card" onchange="recalcNpDamage()">
-                  <option value="NP">N</option><option value="B">B</option><option value="A" selected>A</option><option value="Q">Q</option>
-                </select>
-                <select id="nd_card_2nd" class="nd-card" onchange="recalcNpDamage()">
-                  <option value="NP">N</option><option value="B">B</option><option value="A" selected>A</option><option value="Q">Q</option>
-                </select>
-                <select id="nd_card_3rd" class="nd-card" onchange="recalcNpDamage()">
-                  <option value="NP">N</option><option value="B">B</option><option value="A" selected>A</option><option value="Q">Q</option>
-                </select>
+              <td>
+                <div class="nd-triple">
+                  <select id="nd_card_1st" class="nd-card" onchange="recalcNpDamage()">
+                    <option value="NP">N</option><option value="B">B</option><option value="A" selected>A</option><option value="Q">Q</option>
+                  </select>
+                  <select id="nd_card_2nd" class="nd-card" onchange="recalcNpDamage()">
+                    <option value="NP">N</option><option value="B">B</option><option value="A" selected>A</option><option value="Q">Q</option>
+                  </select>
+                  <select id="nd_card_3rd" class="nd-card" onchange="recalcNpDamage()">
+                    <option value="NP">N</option><option value="B">B</option><option value="A" selected>A</option><option value="Q">Q</option>
+                  </select>
+                </div>
               </td>
             </tr>
             <tr>
               <th>攻撃有無<br>1st/2nd/3rd</th>
-              <td colspan="3">
-                <select id="nd_cri_1st" class="nd-cri" onchange="recalcNpDamage()">
-                  <option value="Y" selected>有</option><option value="N">無</option>
-                </select>
-                <select id="nd_cri_2nd" class="nd-cri" onchange="recalcNpDamage()">
-                  <option value="Y" selected>有</option><option value="N">無</option>
-                </select>
-                <select id="nd_cri_3rd" class="nd-cri" onchange="recalcNpDamage()">
-                  <option value="Y" selected>有</option><option value="N">無</option>
-                </select>
+              <td>
+                <div class="nd-triple">
+                  <select id="nd_cri_1st" class="nd-cri" onchange="recalcNpDamage()">
+                    <option value="Y" selected>有</option><option value="N">無</option>
+                  </select>
+                  <select id="nd_cri_2nd" class="nd-cri" onchange="recalcNpDamage()">
+                    <option value="Y" selected>有</option><option value="N">無</option>
+                  </select>
+                  <select id="nd_cri_3rd" class="nd-cri" onchange="recalcNpDamage()">
+                    <option value="Y" selected>有</option><option value="N">無</option>
+                  </select>
+                </div>
               </td>
             </tr>
           </table>
@@ -1906,12 +1945,12 @@ textarea{
             <tr>
               <th>被ダメ時<br>NP獲得率</th>
               <td><input type="number" id="nd_nd" value="3" step="0.01" min="0" oninput="recalcNpDamage()"></td>
-              <th></th>
-              <td></td>
             </tr>
             <tr>
               <th>NP獲得量<br>バフ (%)</th>
               <td><input type="number" id="nd_na_buff" value="0" step="0.1" oninput="recalcNpDamage()"></td>
+            </tr>
+            <tr>
               <th>被ダメ時<br>NP獲得量バフ (%)</th>
               <td><input type="number" id="nd_nd_buff" value="0" step="0.1" oninput="recalcNpDamage()"></td>
             </tr>
@@ -6114,9 +6153,9 @@ const BUFF_CAP_HINTS = {
   qBuf:     '上限: 400%',  qDebuf:   '上限なし',
   cardBufB: '上限: 400%',  cardBufA: '上限: 400%',  cardBufQ: '上限: 400%',
   criBuf:   '上限: 各色合計500%',
-  criBufB:  '上限: criBuf+criBufB合計500%',
-  criBufA:  '上限: criBuf+criBufA合計500%',
-  criBufQ:  '上限: criBuf+criBufQ合計500%',
+  criBufB:  '上限: クリバフ+Bクリバフ合計500%',
+  criBufA:  '上限: クリバフ+Aクリバフ合計500%',
+  criBufQ:  '上限: クリバフ+Qクリバフ合計500%',
   npBuf:    '上限: 500%',
   spBuf:    '上限: 1000%',
   exBuf:    '上限なし',
