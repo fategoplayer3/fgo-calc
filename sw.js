@@ -16,7 +16,7 @@
 // ユーザーの ブラウザに新しい内容が確実に届く。
 // ════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'fgo-calc-pc-v20260526-1';
+const CACHE_NAME = 'fgo-calc-pc-v20260526-2';
 
 // install: 即座に新 SW を有効化
 self.addEventListener('install', () => {
