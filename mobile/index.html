@@ -1672,6 +1672,7 @@ textarea{
             「管理」ウィンドウでは名前変更・削除や JSON/CSV でのバックアップ・他端末への移行が可能です。
           </li>
           <li>スペース・イシュタルやプトレマイオスのように宝具を換装できるサーヴァントは宝具名の部分をタップして別の宝具に切り替えることが可能です。</li>
+          <li><strong>被ダメージ計算モード</strong>: 各列の「操作」 ボタン → メニュー最下部の「☐ 被ダメージ計算」 をタップすると、 その列が「敵から受けるダメージ」 を計算するモードに切り替わります (背景が薄赤に変化)。 もう一度タップで通常モードに戻ります。</li>
         </ol>
         <div class="how-to-title" style="margin-top:14px;">注意点</div>
         <ol class="how-to-list">
@@ -3089,6 +3090,70 @@ function collectPassiveSkillsFromServant(d) {
   (d.classPassives || []).forEach(pushSkill);
 
   return picked;
+}
+
+// 内部ヘルパー: パッシブから特定 buff type の合計値 (% 表示) を抽出。
+function _extractPassiveBuffSum(sv, buffType) {
+  if (!sv) return 0;
+  try {
+    const passives = collectPassiveSkillsFromServant(sv);
+    let total = 0;
+    for (const skill of passives) {
+      const functions = Array.isArray(skill.functions) ? skill.functions : [];
+      for (const fn of functions) {
+        const buffs = Array.isArray(fn.buffs) ? fn.buffs : [];
+        const svals = Array.isArray(fn.svals) ? fn.svals : [];
+        const sval = svals[0] || {};
+        const rawVal = +(sval.Value ?? sval.value ?? 0) || 0;
+        if (!rawVal) continue;
+        for (const buff of buffs) {
+          if (String(buff.type || '') === buffType) {
+            total += rawVal * 0.1;
+          }
+        }
+      }
+    }
+    return total;
+  } catch (e) {
+    console.warn('Passive buff extraction failed:', buffType, e);
+    return 0;
+  }
+}
+
+// 通常 NP獲得量アップ (= upDropnp)
+function _extractPassiveNpGainBuff(sv) {
+  return _extractPassiveBuffSum(sv, 'upDropnp');
+}
+
+// 被ダメ時 NP獲得量アップ (= upDamagedropnp)。 アヴェンジャー全員の 「復讐者」 +20% 等。
+function _extractPassiveNpDefBuff(sv) {
+  return _extractPassiveBuffSum(sv, 'upDamagedropnp');
+}
+
+// デバッグ用: window._debugClassPassives() でブラウザ devtools から呼び出し可能
+if (typeof window !== 'undefined') {
+  window._debugClassPassives = function(sv) {
+    sv = sv || (typeof getRowServant === 'function' ? getRowServant() : (typeof APP !== 'undefined' ? APP.servant : null));
+    if (!sv) { console.log('No servant selected. Try selecting one first.'); return; }
+    console.group('Servant:', sv.name, '(cno=', sv.collectionNo, ')');
+    const passives = collectPassiveSkillsFromServant(sv);
+    console.log('Total passive skills found:', passives.length);
+    for (const skill of passives) {
+      console.group('Skill:', skill.name || '(no name)');
+      for (const fn of (skill.functions || [])) {
+        const sval = (fn.svals || [])[0] || {};
+        const rawVal = +(sval.Value ?? sval.value ?? 0) || 0;
+        for (const buff of (fn.buffs || [])) {
+          console.log('  buff.type=', buff.type, '  Value=', rawVal, '  name=', buff.name);
+        }
+      }
+      console.groupEnd();
+    }
+    console.log('---');
+    console.log('_extractPassiveNpGainBuff =', _extractPassiveNpGainBuff(sv));
+    console.log('_extractPassiveNpDefBuff =', _extractPassiveNpDefBuff(sv));
+    console.groupEnd();
+  };
 }
 
 const CLS_MAP = {
@@ -4927,7 +4992,10 @@ function calcNpDmg(pos, firstType, effectiveBuffs) {
   const npSpMult = g('npSpBuf') / 100;
 
   // 固定ダメージ (位置別追加対応 + 回数制対応): gcEff で残回数を消費しながら取得
-  const fixedDmg = gcEff('fixedDmg') + addPos('fixedDmg');
+  // 注: 補助宝具 (npRate=0) の場合、 攻撃自体が成立しないため 固定ダメージも適用しない。
+  // これがないと「ダメージ倍率0のサーヴァントの N カード」 が 0 ではなく 固定ダメージの値を出力してしまう。
+  const _rawFixedDmg = gcEff('fixedDmg') + addPos('fixedDmg');
+  const fixedDmg = (npRate > 0) ? _rawFixedDmg : 0;
 
 // ── カード倍率: カード色基本倍率のみ（NP は先頭ボーナスを受けない）──
   const NP_CARD_BASE = { B: 1.5, A: 1.0, Q: 0.8 };
@@ -5609,12 +5677,17 @@ function recalc() {
   //     ここでの effective[NP位置] 値はあくまで残回数消費を進めるためだけに計算される。
   // - クリ=0 (zero) のスロットも active=false。攻撃しないので消費しない。
   // - EX は cardEx==='有' のとき active=true、isCrit=false (EX攻撃にクリ判定なし)。
+  // 補助宝具 (npRate=0) は攻撃が成立しないため、 NP スロットでは回数制バフを消費させない。
+  // active=false にすると computeEffectiveBuffsByCardPos が 該当ポジションの消費をスキップする。
+  const _npRateForSlots = (typeof getCurrentNpMultiplier === 'function')
+                          ? getCurrentNpMultiplier() : 0;
+  const _npActive = (_npRateForSlots > 0);
   const _phase3Slots = [
-    c1 === 'NP' ? { card:npLetterForChain, isCrit:false, active:true }
+    c1 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive }
                 : { card:c1, isCrit:crit1, active:!zero1 },
-    c2 === 'NP' ? { card:npLetterForChain, isCrit:false, active:true }
+    c2 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive }
                 : { card:c2, isCrit:crit2, active:!zero2 },
-    c3 === 'NP' ? { card:npLetterForChain, isCrit:false, active:true }
+    c3 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive }
                 : { card:c3, isCrit:crit3, active:!zero3 },
     { card:'EX', isCrit:false, active:exOn },
   ];
@@ -8793,9 +8866,18 @@ async function openNpStarModalForRow(suffix) {
   const card1 = cardConv(getRowVal('card1')) || 'NP';
   const card2 = cardConv(getRowVal('card2')) || 'B';
   const card3 = cardConv(getRowVal('card3')) || 'B';
-  const cri1  = getRowVal('crit1') === '有' ? 'Y' : (getRowVal('crit1') === '0' ? 'zero' : 'N');
-  const cri2  = getRowVal('crit2') === '有' ? 'Y' : (getRowVal('crit2') === '0' ? 'zero' : 'N');
-  const cri3  = getRowVal('crit3') === '有' ? 'Y' : (getRowVal('crit3') === '0' ? 'zero' : 'N');
+  // crit 変換:
+  //   '0' → 'zero' (攻撃なし)
+  //   '有' / '全' (= 全体攻撃クリ) → 'Y' (クリ扱い)
+  //   '無' / '半' (= 全体攻撃 非クリ) / 空 → 'N' (非クリ扱い)
+  const critConv = v => {
+    if (v === '0') return 'zero';
+    if (v === '有' || v === '全') return 'Y';
+    return 'N';
+  };
+  const cri1 = critConv(getRowVal('crit1'));
+  const cri2 = critConv(getRowVal('crit2'));
+  const cri3 = critConv(getRowVal('crit3'));
 
   // 値セット
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
@@ -8816,8 +8898,8 @@ async function openNpStarModalForRow(suffix) {
   set('ns_a_card_debuff', parseFloat(getRowVal('aDebuf')) || 0);
   set('ns_q_card_debuff', parseFloat(getRowVal('qDebuf')) || 0);
   set('ns_ex_card_buff',  parseFloat(getRowVal('exBuf')) || 0);
-  // NP/SR バフは行に該当する入力なし → 常に 0 から開始（モーダル内で編集可）
-  set('ns_na_buff', 0);
+  // NP/SR バフ: NP獲得量バフ は サーヴァントのパッシブ (upDropnp = NP獲得量アップ) を初期値として自動入力。
+  set('ns_na_buff', _extractPassiveNpGainBuff(sv));
   set('ns_sr_buff', 0);
   set('ns_card_1st', card1);
   set('ns_card_2nd', card2);
@@ -8929,6 +9011,12 @@ async function openNpDamageModalForRow(suffix) {
   _npDamageState.receiverId = null;
   document.getElementById('npDamageEnemyName').textContent = '未選択';
   document.getElementById('npDamageReceiverName').textContent = '未選択';
+  // NP獲得量バフ / 被ダメ時 NP獲得量バフ は受け手のパッシブから入る (= _npDamageApplyReceiver 内で上書き)。
+  // 被ダメ列モード (= 受け手未適用) では 0 のまま残す。
+  const _ndNaBuffEl = document.getElementById('nd_na_buff');
+  if (_ndNaBuffEl) _ndNaBuffEl.value = '0';
+  const _ndNdBuffEl = document.getElementById('nd_nd_buff');
+  if (_ndNdBuffEl) _ndNdBuffEl.value = '0';
 
   // 被ダメ計算モード行から開いた場合: 行サーヴァントは Enemy 側 (攻撃側)、 受け手は空。
   const _tbodyForDef = document.querySelector('#calcTable tbody');
@@ -8942,6 +9030,23 @@ async function openNpDamageModalForRow(suffix) {
       _npDamageApplyReceiver(sv);
     }
   }
+
+  // ホーム画面 (= 列) のカード選択 / 攻撃有無を モーダルに追随させる。
+  // 'N' (NP slot) → 'NP'、 crit '0' → 'N' (攻撃しない)、 それ以外 → 'Y' (攻撃する)
+  const _getRowValForNd = (id) => {
+    const el = sfx ? (document.getElementById(id + sfx) || document.getElementById(id))
+                   : document.getElementById(id);
+    return el ? (el.value || '') : '';
+  };
+  const _cardConv = v => (v === 'N' ? 'NP' : v);
+  const _critConv = v => (v === '0' ? 'N' : 'Y');
+  const _setNd = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+  _setNd('nd_card_1st', _cardConv(_getRowValForNd('card1')) || 'NP');
+  _setNd('nd_card_2nd', _cardConv(_getRowValForNd('card2')) || 'B');
+  _setNd('nd_card_3rd', _cardConv(_getRowValForNd('card3')) || 'B');
+  _setNd('nd_cri_1st', _critConv(_getRowValForNd('crit1')));
+  _setNd('nd_cri_2nd', _critConv(_getRowValForNd('crit2')));
+  _setNd('nd_cri_3rd', _critConv(_getRowValForNd('crit3')));
 
   document.getElementById('npDamageModal').style.display = 'flex';
   recalcNpDamage();
@@ -8964,6 +9069,15 @@ function _npDamageApplyReceiver(sv) {
   if (Array.isArray(defArr) && defArr.length > 0 && Number.isFinite(defArr[0])) {
     document.getElementById('nd_nd').value = (defArr[0] / 100).toFixed(2).replace(/\.?0+$/, '');
   }
+
+  // NP獲得量バフ: パッシブの upDropnp (NP獲得量アップ) を初期値として自動入力。
+  const _fmtBuff = v => (v === Math.floor(v)) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+  const naBuffEl = document.getElementById('nd_na_buff');
+  if (naBuffEl) naBuffEl.value = _fmtBuff(_extractPassiveNpGainBuff(sv));
+
+  // 被ダメ時 NP獲得量バフ: パッシブの upDamagedropnp (例: アヴェンジャーの「復讐者」 +20%) を自動入力。
+  const ndBuffEl = document.getElementById('nd_nd_buff');
+  if (ndBuffEl) ndBuffEl.value = _fmtBuff(_extractPassiveNpDefBuff(sv));
 }
 
 function _npDamageApplyEnemy(sv) {
