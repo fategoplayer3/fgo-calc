@@ -11,7 +11,7 @@
 // 重要: ファイル更新時は必ず CACHE_NAME のバージョン番号を増やすこと。
 // ════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'fgo-calc-mobile-v20260526-1';
+const CACHE_NAME = 'fgo-calc-mobile-v20260526-2';
 
 // install: 即座に新 SW を有効化
 self.addEventListener('install', () => {
