@@ -7687,6 +7687,14 @@ function saveToLocal() {
     const mm = (rowData.memo || '').trim();
     return ak !== 0 || mm;  // ATK が 0 でない、 または memo がある → 保存
   });
+  // 全行が空 (= payload が []) の場合は LS を上書きしない (= 既存データを保護)。
+  // 被ダメージ計算モード トグル時の自動保存等で、 まだサーヴァント未選択の状態が
+  // 既存の保存データを破壊する事故を防ぐ。
+  if (payload.length === 0) {
+    const btn = document.querySelector('.drop-item[data-action="save"]');
+    if (btn) { const orig = btn.textContent; btn.textContent = '保存対象なし'; setTimeout(() => btn.textContent = orig, 1500); }
+    return;
+  }
   localStorage.setItem(LS_KEY, JSON.stringify(payload));
   // 一時的な保存完了メッセージ
   const btn = document.querySelector('.drop-item[data-action="save"]');
