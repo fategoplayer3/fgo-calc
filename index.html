@@ -213,6 +213,39 @@
     .row-actions{display:flex;flex-direction:column;gap:1px;height:100%;min-height:108px}
     .ellipsis-btn{width:100%;height:100%;min-height:108px;flex:1;border:1px solid #a8a8a8;background:linear-gradient(#fff,#f1f1f1);border-radius:2px;cursor:pointer;font:700 13px/1 var(--font);color:#555;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0}
     .ellipsis-btn:hover{background:linear-gradient(#fff,#e9eefb);border-color:#8ca7dd}
+
+    /* ════════════════════════════════════════
+       被ダメージ計算モード (行ごとの defenseMode='1')
+       - 行背景を薄赤に
+       - 操作ボタンを赤系に + 表記を「被弾」 に (= JS で span 書換)
+       - 対象列: 敵サーヴァントの SVG プレースホルダー画像を表示
+         (サーヴァント選択時は通常通り img.src が背景の上にオーバーレイ)
+       - 目標ダメージ列の input/button/select を非表示
+       - カード威力/B/A/Q、 EXバフ、 足跡/B/A/Q、 EX 関連セル をグレーアウト
+         (= 敵攻撃ではこれらが適用されないため。 セル class="def-disabled-cell" で指定)
+       - 位置別追加バフセル (col-pos-buff) も 被ダメ時はグレーアウト
+       ──────────────────────────────────────── */
+    tr.row-defense > td{background-color:#fef0f1 !important}
+    tr.row-defense .ellipsis-btn{background:linear-gradient(#fff,#ffe2e5);border-color:#d8a0a8;color:#c0392b;font-size:11px;gap:2px}
+    tr.row-defense .ellipsis-btn:hover{background:linear-gradient(#fff,#ffd0d3);border-color:#c08080}
+    tr.row-defense .target-btn{background:#fff5f6;border:1px dashed #d8a0a8}
+    tr.row-defense .target-face{
+      background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzVhMmEyYSIvPjx0ZXh0IHg9IjUwIiB5PSI3MyIgZm9udC1zaXplPSI2MiIgZmlsbD0iI2ZmZTRlNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiIGZvbnQtZmFtaWx5PSJzZXJpZiI+5pW1PC90ZXh0Pjwvc3ZnPg==');
+      background-size:cover;background-color:transparent;opacity:1
+    }
+    /* 被ダメ時に非表示にする要素 (= NP・スター計算 / 被ダメージNP計算 ボタン)。
+       目標ダメージ入力 / 撃破率計算 / プリセット は被ダメ時も使えるので表示維持。 */
+    tr.row-defense .defense-hidden{display:none !important}
+    tr.row-defense td.def-disabled-cell,
+    tr.row-defense td.col-pos-buff{
+      background:#e0e0e0 !important;
+      opacity:0.55;
+      pointer-events:none
+    }
+    /* サーヴァント選択モーダルを「被ダメ対象 (エネミー) 選択」 として開いた時:
+       Lv / フォウ / 礼装 / グランド (= popOptionsRow) を非表示。
+       宝具レベル (= npLevelRow) は 表示のまま (敵宝具レベルが必要なため)。 */
+    body.defense-target-pick-mode #popOptionsRow{display:none !important}
     .action-menu{position:absolute;display:none;min-width:120px;background:#fff;border:1px solid var(--line-dark);box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:60}
     .action-menu.open{display:block}
     .action-item{padding:7px 10px;white-space:nowrap;cursor:pointer;font-size:11px}
@@ -816,7 +849,7 @@ textarea{
                   <input type="number" id="qDebuf" value="0" aria-label="Qデバフ" oninput="recalc()" onclick="openBuffDetail('qDebuf','Qデバフ',event)" readonly style="cursor:pointer;" />
                 </div>
               </td>
-              <td>
+              <td class="def-disabled-cell">
                 <div class="tri-stack">
                   <input class="col-buster" type="number" id="cardBufB" value="0" aria-label="Bカード威力バフ" oninput="recalc()" onclick="openBuffDetail('cardBufB','B カード威力バフ',event)" readonly style="cursor:pointer;" />
                   <input class="col-arts" type="number" id="cardBufA" value="0" aria-label="Aカード威力バフ" oninput="recalc()" onclick="openBuffDetail('cardBufA','A カード威力バフ',event)" readonly style="cursor:pointer;" />
@@ -842,11 +875,11 @@ textarea{
                   <input type="number" id="npResDown" value="0" aria-label="宝具耐性ダウン" oninput="recalc()" onclick="openBuffDetail('npResDown','宝具威力耐性減',event)" readonly style="cursor:pointer;" title="上限不明" />
                 </div>
               </td>
-              <td><input type="number" id="exBuf" value="0" aria-label="EXバフ" oninput="recalc()" onclick="openBuffDetail('exBuf','EXバフ',event)" readonly style="cursor:pointer;" /></td>
+              <td class="def-disabled-cell"><input type="number" id="exBuf" value="0" aria-label="EXバフ" oninput="recalc()" onclick="openBuffDetail('exBuf','EXバフ',event)" readonly style="cursor:pointer;" /></td>
               <td><input type="number" id="spBuf" value="0" aria-label="特攻威力バフ" oninput="recalc()" onclick="openBuffDetail('spBuf','特攻威力バフ',event)" readonly style="cursor:pointer;" /></td>
               <td><input type="number" id="npSpBuf" value="100" aria-label="宝具特攻威力" oninput="recalc()" list="npSpBufValues" /></td>
               <td><input type="number" id="fixedDmg" value="0" aria-label="固定ダメージ" oninput="recalc()" onclick="openBuffDetail('fixedDmg','固定ダメージ',event)" readonly style="cursor:pointer;" /></td>
-              <td>
+              <td class="def-disabled-cell">
                 <div class="tri-stack">
                   <input class="col-buster" type="number" id="footB" value="0" aria-label="B足跡" oninput="recalc()" />
                   <input class="col-arts" type="number" id="footA" value="0" aria-label="A足跡" oninput="recalc()" />
@@ -1020,7 +1053,7 @@ textarea{
                   </select>
                 </div>
               </td>
-              <td>
+              <td class="def-disabled-cell">
                 <div class="ex-stack">
                   <select id="cardEx" aria-label="EX有無" onchange="recalc()">
                     <option selected>有</option>
@@ -1032,7 +1065,7 @@ textarea{
               <td><div class="damage-stack"><span id="d1lo">0</span><span class="mid" id="d1av">0</span><span id="d1hi">0</span></div></td>
               <td><div class="damage-stack"><span id="d2lo">0</span><span class="mid" id="d2av">0</span><span id="d2hi">0</span></div></td>
               <td><div class="damage-stack"><span id="d3lo">0</span><span class="mid" id="d3av">0</span><span id="d3hi">0</span></div></td>
-              <td><div class="damage-stack"><span id="dElo">0</span><span class="mid" id="dEav">0</span><span id="dEhi">0</span></div></td>
+              <td class="def-disabled-cell"><div class="damage-stack"><span id="dElo">0</span><span class="mid" id="dEav">0</span><span id="dEhi">0</span></div></td>
               <td><div class="damage-stack total"><span id="dTlo">0</span><span class="mid" id="dTav">0</span><span id="dThi">0</span></div></td>
               <td class="w-tdmg" style="vertical-align:middle;text-align:center;">
                 <input type="number" id="targetDmg" value="" placeholder="例: 500000"
@@ -1040,7 +1073,7 @@ textarea{
                   style="width:100%;font-size:11px;padding:2px 3px;border:1px solid #ccc;border-radius:3px;text-align:right;background:var(--color-background-secondary);color:var(--color-text-primary);" />
                 <button class="tool-btn" onclick="openKoModalForRow('')"
                   style="margin-top:2px;width:100%;font-size:11px;">撃破率計算</button>
-                <button class="tool-btn" onclick="openNpStarModalForRow('')"
+                <button class="tool-btn defense-hidden" onclick="openNpStarModalForRow('')"
                   style="margin-top:2px;width:100%;font-size:11px;">NP・スター計算</button>
                 <button class="tool-btn" onclick="openNpDamageModalForRow('')"
                   style="margin-top:2px;width:100%;font-size:11px;">被ダメージNP計算</button>
@@ -1486,10 +1519,12 @@ textarea{
     <div class="action-item" data-action="copy-clipboard">📋 クリップボードにコピー</div>
     <div class="action-item" data-action="copy-up">↑にコピーして行追加</div>
     <div class="action-item" data-action="copy-down">↓にコピーして行追加</div>
+    <div class="action-item" data-action="add-empty">空行を追加</div>
     <div class="action-item" data-action="swap-up">↑ 入れ替え</div>
     <div class="action-item" data-action="swap-down">↓ 入れ替え</div>
     <div class="action-item" data-action="reset">リセット</div>
     <div class="action-item" data-action="delete" style="color:#c0392b;">行を削除</div>
+    <div class="action-item" data-action="toggle-defense" id="toggleDefenseItem" style="border-top:1px solid #eee;">☐ 被ダメージ計算</div>
   </div>
 
   <!-- ══ バフ詳細入力モーダル ══ -->
@@ -4235,6 +4270,22 @@ function getMightyTotalMult(pos, c1, c2, c3) {
 //           × (1 + npSpBuf)
 //   damage  = floor(baseDmg × rand[0.9~1.099]) + fixedDmg
 
+// ════════════════════════════════════════════════════════════
+// 被ダメージ計算モード判定ヘルパー
+// _rowCtx (現在計算中の行 suffix) を見て、 その行が row-defense クラスかチェック。
+// 被ダメ時は: カード位置補正 / 1stボーナス / バスターチェーン / 足跡 ATK /
+//             カード威力 B/A/Q / EXバフ / EXダメージ計算 を OFF にする。
+// (= 敵攻撃にはこれらの「攻撃チェーン文脈」 ボーナスが適用されないため)
+// ════════════════════════════════════════════════════════════
+function _isCurrentRowDefenseMode() {
+  const ctx = (typeof _rowCtx !== 'undefined') ? _rowCtx : '';
+  const sel = ctx
+    ? '#calcTable tbody tr[data-row-suffix="' + ctx + '"]'
+    : '#calcTable tbody tr[data-row-suffix=""]';
+  const row = document.querySelector(sel);
+  return !!(row && row.classList.contains('row-defense'));
+}
+
 function calcNpDmg(pos, firstType, effectiveBuffs) {
   const npCardLetter = getCurrentNpCardLetter(); // 'B' | 'A' | 'Q'
   const npRate = getCurrentNpMultiplier();        // 倍率小数 (例: 2400% → 24.0)
@@ -4263,22 +4314,25 @@ function calcNpDmg(pos, firstType, effectiveBuffs) {
   const defDebuf  = (gcEff('defDebuf') + addPos('defDebuf')) / 100;
   const atkDefBuf = 1 + atkBuf + defDebuf;
 
+  // 被ダメ計算モード判定: 被ダメ時は カード威力バフ (cardBufB/A/Q) を OFF
+  const _isDefNp = _isCurrentRowDefenseMode();
+
   // カードバフ部（NP のカード色に応じたバフを参照）
   // 注: bBuf/aBuf/qBuf/bDebuf/aDebuf/qDebuf は回数制対応 (gcEff) + 位置別追加 (addPos)、
-  //     cardBufB/A/Q は対象外 (常時値、gc)。
+  //     cardBufB/A/Q は対象外 (常時値、gc)。被ダメ時は cardBufB/A/Q を 0 に固定。
   let npCardColorBuf = 0, npCardColorDebuf = 0, npCardPowBuf = 0;
   if (npCardLetter === 'B') {
     npCardColorBuf   = (gcEff('bBuf')   + addPos('bBuf'))   / 100;
     npCardColorDebuf = (gcEff('bDebuf') + addPos('bDebuf')) / 100;
-    npCardPowBuf     = gc('cardBufB') / 100;
+    npCardPowBuf     = _isDefNp ? 0 : gc('cardBufB') / 100;
   } else if (npCardLetter === 'A') {
     npCardColorBuf   = (gcEff('aBuf')   + addPos('aBuf'))   / 100;
     npCardColorDebuf = (gcEff('aDebuf') + addPos('aDebuf')) / 100;
-    npCardPowBuf     = gc('cardBufA') / 100;
+    npCardPowBuf     = _isDefNp ? 0 : gc('cardBufA') / 100;
   } else if (npCardLetter === 'Q') {
     npCardColorBuf   = (gcEff('qBuf')   + addPos('qBuf'))   / 100;
     npCardColorDebuf = (gcEff('qDebuf') + addPos('qDebuf')) / 100;
-    npCardPowBuf     = gc('cardBufQ') / 100;
+    npCardPowBuf     = _isDefNp ? 0 : gc('cardBufQ') / 100;
   }
   const cardBufMult = 1 + npCardColorBuf + npCardColorDebuf + npCardPowBuf;
 
@@ -4386,8 +4440,19 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   // 位置別追加バフ (フェーズ4-B): メイン値に位置別 input の値を加算
   const addPos = (fid) => getPosAdd(fid, pos);
 
+  // 被ダメ計算モード判定 (Phase 2)
+  // 被ダメ時に OFF にするボーナス類:
+  //   - 足跡 ATK (footprintAtk)
+  //   - カード威力バフ (cardBufB/A/Q)
+  //   - カード位置補正 (positionMult)
+  //   - 1st ボーナス (firstBonus)
+  //   - バスターチェーン定数 (busterChainFlat)
+  //   - EX バフ (exBuf は通常カードでは元から 0 だが念のため)
+  const _isDef = _isCurrentRowDefenseMode();
+
   const baseAtk  = g('atk');
-  const footprintAtk = getFootprintAtk(cardType);
+  // 被ダメ時は 足跡 ATK 適用しない (= 敵に 足跡 概念なし)
+  const footprintAtk = _isDef ? 0 : getFootprintAtk(cardType);
   const atk      = baseAtk + footprintAtk;
   const clsMod   = +gs('clsMod') || 1.0;
   const clsAff   = +gs('clsAff') || 1.0;
@@ -4406,7 +4471,10 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   const scaledA = aBuf * 0.75;
   const scaledQ = qBuf * 0.75;
 
-  const cardBufB=gc('cardBufB')/100, cardBufA=gc('cardBufA')/100, cardBufQ=gc('cardBufQ')/100;
+  // カード威力バフ: 被ダメ時は 0 に固定 (= 入力欄グレーアウト + 計算でも無視)
+  const cardBufB=_isDef ? 0 : gc('cardBufB')/100,
+        cardBufA=_isDef ? 0 : gc('cardBufA')/100,
+        cardBufQ=_isDef ? 0 : gc('cardBufQ')/100;
   // クリティカル威力: 各色ごとに(criBuf + criBufX)の合計を500%上限でclamp
   // 注: criBuf は回数制対応（位置別有効値）+ 位置別追加対応、criBufB/A/Q は対象外（常時値）
   const _criBuf  = (gcEff('criBuf')  + addPos('criBuf'))  / 100;
@@ -4443,7 +4511,7 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   const _seqC2 = cardLetter('card2') === 'N' ? npLetterEarly : cardLetter('card2');
   const _seqC3 = cardLetter('card3') === 'N' ? npLetterEarly : cardLetter('card3');
   const isMightyChain = (_seqC1 !== _seqC2 && _seqC2 !== _seqC3 && _seqC3 !== _seqC1);
-  let firstBonus = (ft === 'B' || isMightyChain) ? 0.5 : 0;
+  let firstBonus = _isDef ? 0 : ((ft === 'B' || isMightyChain) ? 0.5 : 0);
   const bChainBonus = 0;
 
   let cardMult = 1.0;
@@ -4457,7 +4525,7 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   let critBuff = 0.0;
   let critMult = 1.0;
 
-  const positionMult = pos === 0 ? 1.0 : (pos === 1 ? 1.2 : 1.4);
+  const positionMult = _isDef ? 1.0 : (pos === 0 ? 1.0 : (pos === 1 ? 1.2 : 1.4));
   // マイティチェイン判定: N（宝具スロット）は宝具のカード色で代替（debug 用）
   const npLetter = getCurrentNpCardLetter();
   const seqC1 = cardLetter('card1') === 'N' ? npLetter : cardLetter('card1');
@@ -4563,7 +4631,7 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
     exMult *
     Math.max(1 + gcEff('spDmgBuf') / 100, 0.001);  // 特殊威力 (atwiki 304: max(1+UP_DAMAGE_SPECIAL, 0.001))
 
-  const busterChainFlat = (bChain && cardType === "B")
+  const busterChainFlat = (!_isDef && bChain && cardType === "B")
     ? (atk * 0.2)
     : 0;
 
@@ -5018,7 +5086,9 @@ function recalc() {
   const eFirst = first === 'NP' ? npLetter : first;
   // NP がチェーンに含まれるかどうかのフラグ（EX の同色ボーナス判定に使用）
   const isNpChain = (c1 === 'NP' || c2 === 'NP' || c3 === 'NP');
-  const _dEraw = exOn ? calcExDmg(eFirst, ec1, ec2, ec3, isNpChain, _phase3EffectiveBuffs) : {lo:0,av:0,hi:0,debug:{active:false,note:'EX無効'}};
+  // EX ダメージ: 被ダメ時は計算しない (= 敵攻撃に EX 概念なし)
+  const _isDefForEx = _isCurrentRowDefenseMode();
+  const _dEraw = (exOn && !_isDefForEx) ? calcExDmg(eFirst, ec1, ec2, ec3, isNpChain, _phase3EffectiveBuffs) : {lo:0,av:0,hi:0,debug:{active:false,note: _isDefForEx ? '被ダメ時は EX 攻撃なし' : 'EX無効'}};
   // EX も「全」 (cardEx === '全') の場合は半減
   const dE = allE ? _halveSlot(_dEraw) : _dEraw;
 
@@ -5368,6 +5438,76 @@ document.addEventListener('click', () => {
 });
 
 // ════════════════════════════════════════════════════════════
+// 被ダメージ計算モード: 行ごとの defense フラグの toggle
+// - 行に class="row-defense" を付与/除去
+// - 操作ボタンの span 表記を 「操/作」 ↔ 「被/弾」 に切替
+// - 視覚効果は CSS (tr.row-defense ...) で実現
+// ════════════════════════════════════════════════════════════
+function toggleRowDefenseMode(row, opts) {
+  opts = opts || {};
+  let isDefense;
+  if (opts.force === 'on') {
+    row.classList.add('row-defense');
+    isDefense = true;
+  } else if (opts.force === 'off') {
+    row.classList.remove('row-defense');
+    isDefense = false;
+  } else {
+    isDefense = row.classList.toggle('row-defense');
+  }
+  const btn = row.querySelector('.ellipsis-btn');
+  if (btn) {
+    if (isDefense) {
+      // 被ダメ時: 7 文字 (被ダメージ計算) を縦並びで表示。
+      // 通常モードの「操/作」 (2 spans, font 13px, gap 4px) より フォント縮小 + gap 詰めて
+      // 108px min-height に収める (= 7*11 + 6*2 = 89px)。
+      // 注: 「ー」 (長音符) は横棒のため縦書きで違和感が出る → 全角縦棒「｜」 で代用。
+      btn.innerHTML = '<span>被</span><span>ダ</span><span>メ</span><span>｜</span><span>ジ</span><span>計</span><span>算</span>';
+      btn.setAttribute('aria-label', '行操作 (被ダメージ計算モード)');
+    } else {
+      btn.innerHTML = '<span>操</span><span>作</span>';
+      btn.setAttribute('aria-label', '行操作');
+    }
+  }
+  // applyDefaults: action menu からの user toggle 時のみ true。
+  // データ復元 (applyRowData) / クローン (cloneRow) / リセット (resetRow) では false (= 既存値を保持)。
+  // 被ダメON → AAA / クリ無、 被ダメOFF → NBB / クリ有 (= 元の HTML defaults)
+  if (opts.applyDefaults) {
+    const sfx = row.dataset.rowSuffix || '';
+    const getEl = id => document.getElementById(id + sfx) || document.getElementById(id);
+    if (isDefense) {
+      ['card1', 'card2', 'card3'].forEach(id => {
+        const el = getEl(id);
+        if (el) {
+          el.value = 'A';
+          if (typeof _updateCardSelColor === 'function') _updateCardSelColor(el);
+        }
+      });
+      ['crit1', 'crit2', 'crit3'].forEach(id => {
+        const el = getEl(id);
+        if (el) el.value = '無';
+      });
+    } else {
+      const c1 = getEl('card1');
+      if (c1) { c1.value = 'N'; if (typeof _updateCardSelColor === 'function') _updateCardSelColor(c1); }
+      ['card2', 'card3'].forEach(id => {
+        const el = getEl(id);
+        if (el) {
+          el.value = 'B';
+          if (typeof _updateCardSelColor === 'function') _updateCardSelColor(el);
+        }
+      });
+      ['crit1', 'crit2', 'crit3'].forEach(id => {
+        const el = getEl(id);
+        if (el) el.value = '有';
+      });
+    }
+    if (typeof recalcRow === 'function') recalcRow(sfx);
+  }
+  return isDefense;
+}
+
+// ════════════════════════════════════════════════════════════
 // ROW ACTION MENU (イベント委譲・複数行対応)
 // ════════════════════════════════════════════════════════════
 const rowActionMenu = document.getElementById('rowActionMenu');
@@ -5378,6 +5518,12 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
   if (!btn) return;
   e.stopPropagation();
   _activeActionRow = btn.closest('tr');
+  // 被ダメ計算モードのチェックマーク更新
+  const _toggleItem = document.getElementById('toggleDefenseItem');
+  if (_toggleItem) {
+    const isDef = _activeActionRow.classList.contains('row-defense');
+    _toggleItem.textContent = (isDef ? '✓ ' : '☐ ') + '被ダメージ計算';
+  }
   const rect = btn.getBoundingClientRect();
   rowActionMenu.style.left = `${rect.left + window.scrollX + 2}px`;
   rowActionMenu.style.top  = `${rect.bottom + window.scrollY + 2}px`;
@@ -5397,12 +5543,17 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (idx > 0) swapRows(rows[idx - 1], row);
       } else if (action === 'swap-down') {
         if (idx < rows.length - 1) swapRows(row, rows[idx + 1]);
+      } else if (action === 'toggle-defense') {
+        toggleRowDefenseMode(row, { applyDefaults: true });
+        if (typeof saveToLocal === 'function') saveToLocal();
       } else if (action === 'reset') {
         resetRow(row);
       } else if (action === 'copy-up') {
         cloneRow(row, 'up');
       } else if (action === 'copy-down') {
         cloneRow(row, 'down');
+      } else if (action === 'add-empty') {
+        cloneRow(row, 'down', { empty: true });
       } else if (action === 'copy-clipboard') {
         // クリップボードコピー: copyAvgDmgForRow がメニュー項目に flashState で
         // 「✓ トータルをコピー」 を 2 秒表示する。 メニュー閉じを 1.5 秒遅らせて
@@ -5415,21 +5566,27 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         return;  // 通常の即時 close をスキップ
       } else if (action === 'delete') {
         const allRows = [...document.querySelectorAll('#calcTable tbody tr')];
-        // 元行（data-row-suffix=""）は削除不可 → リセットを促す
-        if ((row.dataset.rowSuffix || '') === '') {
-          alert('この行は削除できません。\n「リセット」で初期化できます。');
+        // 最後の 1 行 (= 残り 1 行) は削除不可。 これがないと計算機が空になり再構築が必要。
+        if (allRows.length <= 1) {
+          alert('最後の行は削除できません。\n「リセット」で初期化できます。');
           rowActionMenu.classList.remove('open');
           _activeActionRow = null;
           return;
         }
-        if (allRows.length > 1) {
-          const sfx = row.dataset.rowSuffix || '';
-          for (const key of Object.keys(_buffDetailStore)) {
-            if ((key.match(/(_R\d+)$/) || ['',''])[1] === sfx) delete _buffDetailStore[key];
-          }
-          if (sfx && APP.servantMap) delete APP.servantMap[sfx];
-          row.remove();
+        const sfx = row.dataset.rowSuffix || '';
+        for (const key of Object.keys(_buffDetailStore)) {
+          if ((key.match(/(_R\d+)$/) || ['',''])[1] === sfx) delete _buffDetailStore[key];
         }
+        if (sfx) {
+          // R 行: APP.servantMap から削除
+          if (APP.servantMap) delete APP.servantMap[sfx];
+        } else {
+          // 元行 (suffix='') 削除: APP.servant (default 参照) もクリア。
+          // 以降の cloneRow は _originalRowHtml をテンプレートとして利用するため、
+          // 元行が DOM 上に存在しなくても新規行の生成は引き続き可能。
+          APP.servant = null;
+        }
+        row.remove();
       }
     }
     rowActionMenu.classList.remove('open');
@@ -5482,6 +5639,20 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
   // クリックされた行のサフィックスを記録
   const targetTr = btn.closest('tr');
   _servantTargetSuffix = targetTr.dataset.rowSuffix || '';
+  // 被ダメージ計算モード行の場合: サーヴァント選択モーダルから Lv/フォウ/礼装/グランド を非表示にする
+  // (= 敵サーヴァントは Lv やステータスを必要としないため。 宝具レベルは残す)
+  if (targetTr.classList.contains('row-defense')) {
+    document.body.classList.add('defense-target-pick-mode');
+  } else {
+    document.body.classList.remove('defense-target-pick-mode');
+  }
+  // 被ダメ行のクラススコアはデフォルト OFF (= 敵サーヴァントには適用しないことが多い)。
+  // 通常行ではデフォルト ON (= 元の HTML 既定値)。
+  // 開くたびに上書きするため、 ユーザーが手動で逆にしてもモーダル再オープンで初期化される。
+  const classScoreCb = document.getElementById('classScore');
+  if (classScoreCb) {
+    classScoreCb.checked = !targetTr.classList.contains('row-defense');
+  }
   // モーダル開く時の保留状態リセット & 現在行のサーヴァントをプリセット
   _pendingServantId = null;
   const applyBtn = document.getElementById('applyServantBtn');
@@ -5507,6 +5678,8 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
 });
 closeBtn.addEventListener('click', () => {
   modal.classList.remove('open');
+  // 被ダメ対象 (エネミー) 選択モードのbody class を解除
+  document.body.classList.remove('defense-target-pick-mode');
   // 被ダメ NP モーダル用モードでサーヴァント選択を開いていた場合は、
   // モードを戻し、 被ダメ NP モーダルに戻る (= ユーザーがキャンセルしたケース)。
   if (_servantPickMode === 'np_damage_enemy' || _servantPickMode === 'np_damage_receiver') {
@@ -5594,8 +5767,10 @@ if (applyServantBtn) {
       }
       modal.classList.remove('open');
       _servantTargetSuffix = '';
+      document.body.classList.remove('defense-target-pick-mode');
     } else {
       // 別のサーヴァント → 通常経路 (バフリセット → 新規構築 → モーダルクローズは selectServantById 内で実行)
+      document.body.classList.remove('defense-target-pick-mode');
       selectServantById(_pendingServantId);
     }
   });
@@ -6783,6 +6958,8 @@ function collectRowData(row) {
     }
   }
   if (svId) data.servantId = svId;
+  // 被ダメージ計算モードフラグ (row-defense クラスから読取)
+  if (row.classList.contains('row-defense')) data.defenseMode = '1';
   return data;
 }
 
@@ -7045,6 +7222,11 @@ function applyRowData(targetRow, rowData) {
                  || document.getElementById(baseId);
     _updateCardSelColor(cardSel);
   });
+  // 被ダメージ計算モードフラグの復元 (rowData.defenseMode === '1' or true)
+  if (typeof toggleRowDefenseMode === 'function') {
+    const isDef = (rowData.defenseMode === '1' || rowData.defenseMode === 1 || rowData.defenseMode === true);
+    toggleRowDefenseMode(targetRow, { force: isDef ? 'on' : 'off' });
+  }
 }
 
 function loadFromLocal() {
@@ -7161,6 +7343,8 @@ const CSV_INPUT_FIELDS = [
   'spBufP1', 'spBufP2', 'spBufP3', 'spBufPe',
   'fixedDmgP1', 'fixedDmgP2', 'fixedDmgP3', 'fixedDmgPe',
   'specialResistP1', 'specialResistP2', 'specialResistP3', 'specialResistPe',
+  // 被ダメージ計算モードフラグ ('1' = 被ダメ / '' = 通常)
+  'defenseMode',
 ];
 const CSV_RESULT_FIELDS = [
   'd1lo','d1av','d1hi',
@@ -7461,60 +7645,91 @@ function recalcRow(suffix) {
 }
 
 // ── cloneRow: direction = 'up'|'down' (default 'down') ──
-function cloneRow(sourceRow, direction = 'down') {
+// opts.empty=true の場合: テンプレート (_originalRowHtml) から新規空行を生成し、
+//                         sourceRow からの値・画像・サーヴァント情報の引継を全てスキップ。
+//                         「空行を追加」 メニュー経路で使用される。
+function cloneRow(sourceRow, direction = 'down', opts) {
+  opts = opts || {};
   _rowCounter++;
   const suffix = '_R' + _rowCounter;
   const sourceSuffix = sourceRow.dataset.rowSuffix || '';
 
-  const originalRow = document.querySelector('tbody tr[data-row-suffix=""]') || sourceRow;
+  // テンプレート選択:
+  //   - 空行モード時 (opts.empty): 常に _originalRowHtml を使用 (= 元行の現在値の影響を受けない)
+  //   - 通常クローン時:
+  //     1. DOM 上の元行 (data-row-suffix="") を優先
+  //     2. 元行が削除済みなら _originalRowHtml から復元
+  //     3. 最終手段として sourceRow をテンプレートにフォールバック
+  let originalRow = null;
+  if (opts.empty && _originalRowHtml) {
+    const tempBody = document.createElement('tbody');
+    tempBody.innerHTML = _originalRowHtml;
+    originalRow = tempBody.querySelector('tr');
+  }
+  if (!originalRow) {
+    originalRow = document.querySelector('tbody tr[data-row-suffix=""]');
+  }
+  if (!originalRow && _originalRowHtml) {
+    const tempBody = document.createElement('tbody');
+    tempBody.innerHTML = _originalRowHtml;
+    originalRow = tempBody.querySelector('tr');
+  }
+  if (!originalRow) originalRow = sourceRow;
   const newRow = originalRow.cloneNode(true);
 
-  // ソース行の現在値をコピー
-  // npTypeSelect は元行テンプレートと options が異なる可能性があるので先に innerHTML をコピー
-  const srcNpTypeSel = sourceRow.querySelector('[id^="npTypeSelect"]');
-  const dstNpTypeSel = newRow.querySelector('[id^="npTypeSelect"]');
-  if (srcNpTypeSel && dstNpTypeSel) dstNpTypeSel.innerHTML = srcNpTypeSel.innerHTML;
+  // 安全網: sourceRow フォールバック時に id が "memo_R2" 等となっていれば
+  // 末尾の _R\d+ サフィックスをクリーン化してから 後段の suffix 付与に渡す。
+  // (= "memo_R2_R5" のような二重サフィックスを防ぐ)
+  newRow.querySelectorAll('[id]').forEach(el => { el.id = el.id.replace(/_R\d+$/, ''); });
 
-  const srcInputs = [...sourceRow.querySelectorAll('input, select, textarea')];
-  const dstInputs = [...newRow.querySelectorAll('input, select, textarea')];
-  srcInputs.forEach((src, i) => {
-    const dst = dstInputs[i];
-    if (!dst) return;
-    if (src.type === 'checkbox') dst.checked = src.checked;
-    else dst.value = src.value;
-  });
-  [...sourceRow.querySelectorAll('span[id]')].forEach((src, i) => {
-    const dstSpans = [...newRow.querySelectorAll('span[id]')];
-    if (dstSpans[i]) dstSpans[i].textContent = src.textContent;
-  });
-  const srcImg = sourceRow.querySelector('.target-face');
-  const dstImg = newRow.querySelector('.target-face');
-  if (srcImg && dstImg) {
-    // 注意: img.src プロパティは「src 属性が設定されていない / 空」 の場合でも、
-    // ブラウザによっては現在ページの URL (document.URL) を返すことがある。
-    // そのまま dstImg.src = srcImg.src を行うと、 サーヴァント未選択の空行をコピーした際に
-    // 「ページ URL を画像として読み込もうとして失敗 → 壊れた画像アイコン表示」 となる。
-    // 生の属性値を getAttribute で取得し、 空ならコピーしない (= 未選択状態を保つ)。
-    const srcAttr = srcImg.getAttribute('src');
-    if (srcAttr) {
-      dstImg.setAttribute('src', srcAttr);
-      if (srcImg.classList.contains('show')) dstImg.classList.add('show');
-      else dstImg.classList.remove('show');
-    } else if (dstImg.parentNode) {
-      // ソース行の画像が空 (リセット済み等) でも、 cloneNode(true) のベース元になった
-      // originalRow (data-row-suffix="" の元行) に画像が残っていると、
-      // newRow の dstImg にも src 属性が付いたまま残る。
-      // その状態で removeAttribute('src') しても、 ブラウザの broken-image state
-      // が解消されないことが報告されている (resetRow で経験した同じ問題)。
-      // 確実に状態をリセットするため、 img 要素ごと新規生成して置き換える。
-      const newImg = document.createElement('img');
-      newImg.id = dstImg.id;
-      newImg.className = 'target-face';
-      newImg.alt = '';
-      dstImg.parentNode.replaceChild(newImg, dstImg);
-      // 親ボタンの title も連動クリア (ホバー時に古いサーヴァント名が出ないように)
-      const dstBtn = newRow.querySelector('.target-btn');
-      if (dstBtn) dstBtn.removeAttribute('title');
+  // ソース行の現在値をコピー (opts.empty=true の場合はスキップ → テンプレートの既定値のまま)
+  if (!opts.empty) {
+    // npTypeSelect は元行テンプレートと options が異なる可能性があるので先に innerHTML をコピー
+    const srcNpTypeSel = sourceRow.querySelector('[id^="npTypeSelect"]');
+    const dstNpTypeSel = newRow.querySelector('[id^="npTypeSelect"]');
+    if (srcNpTypeSel && dstNpTypeSel) dstNpTypeSel.innerHTML = srcNpTypeSel.innerHTML;
+
+    const srcInputs = [...sourceRow.querySelectorAll('input, select, textarea')];
+    const dstInputs = [...newRow.querySelectorAll('input, select, textarea')];
+    srcInputs.forEach((src, i) => {
+      const dst = dstInputs[i];
+      if (!dst) return;
+      if (src.type === 'checkbox') dst.checked = src.checked;
+      else dst.value = src.value;
+    });
+    [...sourceRow.querySelectorAll('span[id]')].forEach((src, i) => {
+      const dstSpans = [...newRow.querySelectorAll('span[id]')];
+      if (dstSpans[i]) dstSpans[i].textContent = src.textContent;
+    });
+    const srcImg = sourceRow.querySelector('.target-face');
+    const dstImg = newRow.querySelector('.target-face');
+    if (srcImg && dstImg) {
+      // 注意: img.src プロパティは「src 属性が設定されていない / 空」 の場合でも、
+      // ブラウザによっては現在ページの URL (document.URL) を返すことがある。
+      // そのまま dstImg.src = srcImg.src を行うと、 サーヴァント未選択の空行をコピーした際に
+      // 「ページ URL を画像として読み込もうとして失敗 → 壊れた画像アイコン表示」 となる。
+      // 生の属性値を getAttribute で取得し、 空ならコピーしない (= 未選択状態を保つ)。
+      const srcAttr = srcImg.getAttribute('src');
+      if (srcAttr) {
+        dstImg.setAttribute('src', srcAttr);
+        if (srcImg.classList.contains('show')) dstImg.classList.add('show');
+        else dstImg.classList.remove('show');
+      } else if (dstImg.parentNode) {
+        // ソース行の画像が空 (リセット済み等) でも、 cloneNode(true) のベース元になった
+        // originalRow (data-row-suffix="" の元行) に画像が残っていると、
+        // newRow の dstImg にも src 属性が付いたまま残る。
+        // その状態で removeAttribute('src') しても、 ブラウザの broken-image state
+        // が解消されないことが報告されている (resetRow で経験した同じ問題)。
+        // 確実に状態をリセットするため、 img 要素ごと新規生成して置き換える。
+        const newImg = document.createElement('img');
+        newImg.id = dstImg.id;
+        newImg.className = 'target-face';
+        newImg.alt = '';
+        dstImg.parentNode.replaceChild(newImg, dstImg);
+        // 親ボタンの title も連動クリア (ホバー時に古いサーヴァント名が出ないように)
+        const dstBtn = newRow.querySelector('.target-btn');
+        if (dstBtn) dstBtn.removeAttribute('title');
+      }
     }
   }
 
@@ -7525,22 +7740,27 @@ function cloneRow(sourceRow, direction = 'down') {
   // cloneNode(true) のベース元は常に originalRow (元行 = data-row-suffix="") なので、
   // 元行の dataset.servantId が新規行に入ってしまう。 input value は別途 sourceRow から
   // 書き戻されるため、 ここで dataset と title だけ別途 sourceRow と整合させる。
-  // これがないと、 例えば row1=バゼット, row2=青子 の状態で row2 をコピーした時、
-  // 新規行の input は青子だが dataset.servantId はバゼットの ID という不整合が起きる。
-  // (CSV エクスポート → インポートで「青子の数値だがバゼットの画像」 が表示されるバグの原因)
-  const srcServantId = sourceRow.dataset && sourceRow.dataset.servantId;
-  if (srcServantId) {
-    newRow.dataset.servantId = srcServantId;
-  } else {
+  // 空行モード時は引継せずクリアする。
+  if (opts.empty) {
     delete newRow.dataset.servantId;
     newRow.removeAttribute('data-servant-id');
-  }
-  const srcBtn = sourceRow.querySelector('.target-btn');
-  const dstBtn = newRow.querySelector('.target-btn');
-  if (srcBtn && dstBtn) {
-    const srcTitle = srcBtn.getAttribute('title');
-    if (srcTitle) dstBtn.setAttribute('title', srcTitle);
-    else dstBtn.removeAttribute('title');
+    const dstBtnE = newRow.querySelector('.target-btn');
+    if (dstBtnE) dstBtnE.removeAttribute('title');
+  } else {
+    const srcServantId = sourceRow.dataset && sourceRow.dataset.servantId;
+    if (srcServantId) {
+      newRow.dataset.servantId = srcServantId;
+    } else {
+      delete newRow.dataset.servantId;
+      newRow.removeAttribute('data-servant-id');
+    }
+    const srcBtn = sourceRow.querySelector('.target-btn');
+    const dstBtn = newRow.querySelector('.target-btn');
+    if (srcBtn && dstBtn) {
+      const srcTitle = srcBtn.getAttribute('title');
+      if (srcTitle) dstBtn.setAttribute('title', srcTitle);
+      else dstBtn.removeAttribute('title');
+    }
   }
 
   ['oninput', 'onchange'].forEach(attr => {
@@ -7570,29 +7790,41 @@ function cloneRow(sourceRow, direction = 'down') {
     if (!h) return;
     el.setAttribute('onclick',
       h.replace(/openBuffDetail\('([^']+)'/g, (m, fid) => `openBuffDetail('${fid}${suffix}'`)
-       .replace(/openKoModalForRow\('[^']*'\)/,    `openKoModalForRow('${suffix}')`)
-       .replace(/openNpStarModalForRow\('[^']*'\)/, `openNpStarModalForRow('${suffix}')`)
+       .replace(/openKoModalForRow\('[^']*'\)/,        `openKoModalForRow('${suffix}')`)
+       .replace(/openNpStarModalForRow\('[^']*'\)/,    `openNpStarModalForRow('${suffix}')`)
+       .replace(/openNpDamageModalForRow\('[^']*'\)/,  `openNpDamageModalForRow('${suffix}')`)
        .replace(/copyAvgDmgForRow\('[^']*',\s*this\)/, `copyAvgDmgForRow('${suffix}', this)`)
     );
   });
 
-  // buff detail store コピー
-  Object.keys(_buffDetailStore).forEach(key => {
-    const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
-    if (keySuffix === sourceSuffix) {
-      const baseKey = sourceSuffix ? key.slice(0, -sourceSuffix.length) : key;
-      _buffDetailStore[baseKey + suffix] = JSON.parse(JSON.stringify(_buffDetailStore[key]));
-    }
-  });
-  if (_buffDetailBoostMap['npBuf' + sourceSuffix]) _buffDetailBoostMap['npBuf' + suffix] = true;
+  // 被ダメージ計算モードフラグの引継 (空行時はクリア)
+  if (opts.empty) {
+    newRow.classList.remove('row-defense');
+  } else if (sourceRow.classList.contains('row-defense')) {
+    newRow.classList.add('row-defense');
+  } else {
+    newRow.classList.remove('row-defense');
+  }
 
-  // サーヴァントオブジェクトのコピー (新規 R 行に元行のサーヴァント情報を引き継ぐ)
-  // これにより、 クローン後すぐ・あるいはエクスポート→インポート時の collectRowData で
-  // R 行の servantId が正しく取得でき、 画像復元も成功する。
-  const sourceServant = sourceSuffix ? (APP.servantMap?.[sourceSuffix] || null) : APP.servant;
-  if (sourceServant) {
-    APP.servantMap = APP.servantMap || {};
-    APP.servantMap[suffix] = sourceServant;
+  // buff detail store コピー (空行時はスキップ = 既定の空状態のまま)
+  if (!opts.empty) {
+    Object.keys(_buffDetailStore).forEach(key => {
+      const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+      if (keySuffix === sourceSuffix) {
+        const baseKey = sourceSuffix ? key.slice(0, -sourceSuffix.length) : key;
+        _buffDetailStore[baseKey + suffix] = JSON.parse(JSON.stringify(_buffDetailStore[key]));
+      }
+    });
+    if (_buffDetailBoostMap['npBuf' + sourceSuffix]) _buffDetailBoostMap['npBuf' + suffix] = true;
+  }
+
+  // サーヴァントオブジェクトのコピー (空行時はスキップ)
+  if (!opts.empty) {
+    const sourceServant = sourceSuffix ? (APP.servantMap?.[sourceSuffix] || null) : APP.servant;
+    if (sourceServant) {
+      APP.servantMap = APP.servantMap || {};
+      APP.servantMap[suffix] = sourceServant;
+    }
   }
 
   const targetBtn = newRow.querySelector('.target-btn');
@@ -7615,6 +7847,12 @@ function cloneRow(sourceRow, direction = 'down') {
   // (cloneRow は element をディープコピーするので、 元行の option がそのまま入っているが、
   //  万一プリセットが編集された後の cloneRow でズレが出ないよう、 全行を一括 refresh する)
   if (typeof refreshAllTargetPresetSelects === 'function') refreshAllTargetPresetSelects();
+  // 被ダメージ計算モードの引継: 操作ボタンの span 表記 (被/弾) も同期させる
+  // (class は上で予め付与済みだが、 span 書換は DOM 挿入後の方が安定)
+  if (typeof toggleRowDefenseMode === 'function') {
+    const isDef = newRow.classList.contains('row-defense');
+    toggleRowDefenseMode(newRow, { force: isDef ? 'on' : 'off' });
+  }
   return newRow;
 }
 
@@ -7687,6 +7925,11 @@ function resetRow(row) {
   // 過去に APP.servantMap[''] が残っていた場合などに取りこぼすため、両方を念のため触る。
   if (APP.servantMap) delete APP.servantMap[suffix];
   if (!suffix) APP.servant = null;
+
+  // 被ダメージ計算モードフラグもリセット (= 通常モードに戻す)
+  if (typeof toggleRowDefenseMode === 'function') {
+    toggleRowDefenseMode(row, { force: 'off' });
+  }
 
   recalcRow(suffix);
   _rowCtx = prevCtx;
@@ -8138,15 +8381,23 @@ async function openNpDamageModalForRow(suffix) {
   }
 
   // 受け手にプリセット (= 行のサーヴァントを被ダメ側にセット)
-  // Phase B-1 では「攻撃側」 はサーヴァントなしで開始 (= ユーザーが手動入力)。
-  // Phase B-2 で攻撃側もサーヴァント選択モーダルから設定可能にする。
+  // ただし「被ダメ計算モード行」 から開いた場合は、 この行のサーヴァントは
+  // 「エネミー (攻撃側)」 を表すため、 Enemy 側に セットする (= 受け手は空)。
   _npDamageState.enemyId = null;
   _npDamageState.receiverId = null;
   document.getElementById('npDamageEnemyName').textContent = '未選択';
   document.getElementById('npDamageReceiverName').textContent = '未選択';
 
+  const _tbodyForDef = document.querySelector('#calcTable tbody');
+  const _rowForDef = _tbodyForDef ? _tbodyForDef.querySelector(`tr[data-row-suffix="${sfx}"]`) : null;
+  const _isDefRowOpen = !!(_rowForDef && _rowForDef.classList.contains('row-defense'));
+
   if (sv) {
-    _npDamageApplyReceiver(sv);
+    if (_isDefRowOpen) {
+      _npDamageApplyEnemy(sv);
+    } else {
+      _npDamageApplyReceiver(sv);
+    }
   }
 
   document.getElementById('npDamageModal').style.display = 'flex';
