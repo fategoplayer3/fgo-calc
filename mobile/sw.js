@@ -7,9 +7,11 @@
 // 管理される (互いに影響しない)。
 //
 // このファイルは /mobile/sw.js として配置する (= /mobile/ 配下にスコープが限定される)。
+//
+// 重要: ファイル更新時は必ず CACHE_NAME のバージョン番号を増やすこと。
 // ════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'fgo-calc-mobile-v1';
+const CACHE_NAME = 'fgo-calc-mobile-v20260526-1';
 
 // install: 即座に新 SW を有効化
 self.addEventListener('install', () => {
