@@ -5704,8 +5704,12 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
       } else if (action === 'swap-down') {
         if (idx < rows.length - 1) swapRows(row, rows[idx + 1]);
       } else if (action === 'toggle-defense') {
+        // 被ダメージ計算 モード切替: DOM のみ変更 (= LocalStorage は触らない)。
+        // 自動保存すると、 既存の「保存」 状態を 意図せず上書きしてしまい
+        // 「読込」 で元に戻せなくなる事故が起きるため、 ユーザーが明示的に
+        // 「保存」 を押した時のみ LS 反映する方針。 他の操作 (clone, reset, swap 等)
+        // と挙動を統一。
         toggleRowDefenseMode(row, { applyDefaults: true });
-        if (typeof saveToLocal === 'function') saveToLocal();
       } else if (action === 'reset') {
         resetRow(row);
       } else if (action === 'copy-up') {
