@@ -2649,6 +2649,8 @@ const VARIANT_SERVANT_ENTRIES = [
 // これに collectionNo が含まれるサーヴァントは自動リスト分にもラベルを付与
 const VARIANT_LABEL_FOR_COLLNO = {
   1:   'シールダー版',   // マシュ（手動エントリ）
+  168: '魔性菩薩',       // ビーストⅢ/R
+  240: '愛欲の魔王',     // ビーストⅢ/L
   413: '通常版',         // 蒼崎青子（自動リスト側）
 };
 
@@ -2683,6 +2685,64 @@ const SUPER_AOKO_ATK_GROWTH = Array.from({length:120}, (_,i) => {
   if (lo === hi || lo[0] === hi[0]) return lo[1];
   return Math.round(lo[1] + (hi[1] - lo[1]) * (lv - lo[0]) / (hi[0] - lo[0]));
 });
+
+// ────────────────────────────────────────────────────────────
+// ボス エネミー の ATK 上書き
+// サーヴァントカード ステータス (atkMax 13000 前後) と実クエスト ATK が大きく異なる
+// ビースト系 ボスを対象に、 クエスト データ ベースの ATK 範囲を使う。
+// ATK は クエストの HP バー単位で変動するため、 atkBase = 最低値 / atkMax = 最高値 とし、
+// Lv で 補間させる (= Lv 1 = 最弱バー の目安、 lvMax = 最強バー の目安)。
+// ────────────────────────────────────────────────────────────
+const BOSS_ATK_OVERRIDE = {
+  // 魔性菩薩 (殺生院キアラ) - ビーストⅢ／R
+  // 出典: https://apps.atlasacademy.io/db/JP/quest/94051101/1
+  168: { atkBase: 5000, atkMax: 7500, lvMax: 90 },
+  // 愛欲の魔王 (カマ・マーラ) - ビーストⅢ／L
+  // 出典: https://apps.atlasacademy.io/db/JP/quest/94072598/1?hash=1_0483_5e12e66
+  // (HP バー間で ATK 変動なし: 12000 固定)
+  240: { atkBase: 12000, atkMax: 12000, lvMax: 90 },
+  // 魔神王ゴエティア - 要 ATK 値確認
+  // 417: { atkBase: ?, atkMax: ?, lvMax: 90 },
+  // ティアマト - 要 ATK 値確認
+  // 444: { atkBase: ?, atkMax: ?, lvMax: 90 },
+};
+
+function applyBossAtkOverride(d) {
+  if (!d || !d.collectionNo) return false;
+  const o = BOSS_ATK_OVERRIDE[d.collectionNo];
+  if (!o) return false;
+  d.atkBase   = o.atkBase;
+  d.atkMax    = o.atkMax;
+  d.lvMax     = o.lvMax;
+  d.atkGrowth = null;  // 配列を消して atkBase ↔ atkMax の Lv 補間を使わせる
+  d._isBossOverride = true;
+  return true;
+}
+
+// UI 注意書き: 同セッション中の同 cno に対しては 1 回のみ alert (= 連続選択時にうるさくない)
+const _bossOverrideAlertShown = new Set();
+function showBossOverrideNoticeOnce(d) {
+  if (!d || !d._isBossOverride) return;
+  const cno = d.collectionNo;
+  if (_bossOverrideAlertShown.has(cno)) return;
+  _bossOverrideAlertShown.add(cno);
+  const o = BOSS_ATK_OVERRIDE[cno];
+  const name = d.name || 'ボスエネミー';
+  let msg;
+  if (o.atkBase === o.atkMax) {
+    // 単一値 (= HP バー間で ATK 変動なし)
+    msg = `【${name} 注意】\n\n` +
+          `このサーヴァントはボス用 ATK 上書きデータを使用しています。\n` +
+          `実クエストでの ATK は ${o.atkBase} 固定です (HP バー単位の変動なし)。`;
+  } else {
+    // 範囲値 (= HP バー単位で ATK 変動あり)
+    msg = `【${name} 注意】\n\n` +
+          `このサーヴァントはボス用 ATK 上書きデータを使用しています。\n` +
+          `実クエストでは HP バー単位で ATK が ${o.atkBase} ~ ${o.atkMax} の範囲で変動します。\n` +
+          `シミュレートしたい HP バーに応じて ATK 欄を手動で調整してください。`;
+  }
+  alert(msg);
+}
 
 const HARDCODED_SERVANT_DATA = {
   // マシュ・キリエライト（シールダー）— NPを明示的にハードコード
@@ -2838,11 +2898,11 @@ async function loadAllServants() {
   }
 
   // NPC一覧（プレイヤー操作不可のサーヴァント、サーヴァント選択画面から除外）
+  // ビーストⅢ系 (168=魔性菩薩, 240=愛欲の魔王) は ゲーティア・ティアマト と同様に
+  // 被ダメージ計算モードでの エネミー選択用として表示するため、 ここに含めない。
   const NPC_COLLECTION_NOS = new Set([
      83, // ソロモン
     152, // ソロモン (旧)
-    168, // ビーストⅢ／R
-    240, // ビーストⅢ／L
     411, // E-フレアマリー
     412, // E-アクアマリー
     436, // E-グランマリー
@@ -3088,6 +3148,10 @@ async function selectServantById(id) {
     // NP ハードコード上書き（マシュ Shielder など）
     if (HARDCODED_SERVANT_DATA[id]?.noblePhantasms?.length) {
       d.noblePhantasms = HARDCODED_SERVANT_DATA[id].noblePhantasms;
+    }
+    // ボス ATK 上書き (ビースト系)
+    if (applyBossAtkOverride(d)) {
+      showBossOverrideNoticeOnce(d);
     }
     extractNpData(d);
     applyClassPassive(d);
@@ -8181,6 +8245,7 @@ async function _fetchServantData(id) {
     if (HARDCODED_SERVANT_DATA[id]?.noblePhantasms?.length) {
       d.noblePhantasms = HARDCODED_SERVANT_DATA[id].noblePhantasms;
     }
+    applyBossAtkOverride(d);  // ボス ATK 上書き
     return d;
   }
   // 3. _servantCache (前回 API フェッチ済みでキャッシュ)
@@ -8210,6 +8275,7 @@ async function _fetchServantData(id) {
     if (HARDCODED_SERVANT_DATA[id]?.noblePhantasms?.length) {
       d.noblePhantasms = HARDCODED_SERVANT_DATA[id].noblePhantasms;
     }
+    applyBossAtkOverride(d);  // ボス ATK 上書き (UI副作用なしの取得経路なので alert はしない)
     if (_servantCache.size >= 10) {
       _servantCache.delete(_servantCache.keys().next().value);
     }
