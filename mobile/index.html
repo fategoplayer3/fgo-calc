@@ -167,6 +167,13 @@
     .how-to-title{font-weight:700;margin-bottom:6px;color:#2a4a7a;font-size:13px}
     .how-to-list{margin:0;padding-left:20px}
     .how-to-list li{margin-bottom:3px}
+    /* 折りたたみ可能セクション (= 高度な使い方 / 注意点 等) */
+    .how-to-details{margin-top:14px}
+    .how-to-details > summary{cursor:pointer;list-style:none;font-weight:700;color:#2a4a7a;font-size:13px;padding-left:22px;position:relative;user-select:none;margin-bottom:6px}
+    .how-to-details > summary::-webkit-details-marker{display:none}
+    .how-to-details > summary::before{content:'+';position:absolute;left:0;top:0;width:16px;text-align:center;font-weight:700;color:#2a4a7a;font-size:14px;line-height:inherit}
+    .how-to-details[open] > summary::before{content:'−'}
+    .how-to-details > summary:hover{opacity:0.8}
 
 
     /* 行アクション「操作」 ボタン: 親 td の高さに追従させて上下の空白を埋める。
@@ -1649,45 +1656,46 @@ textarea{
       <div class="how-to-use">
         <div class="how-to-title">使い方</div>
         <ol class="how-to-list">
-          <li>最初に「対象」のアイコンをタップし、サーヴァントを選択してください。</li>
-          <li>攻撃バフから先のバフを入力してください。対象のバフをタップすると入力ウィンドウがポップアップされます。</li>
-          <li><strong style="color:#c0392b;">クラス相性</strong>、<strong style="color:#c0392b;">属性相性</strong>を入力してください。なおクラス補正は自動で入力されます。</li>
-          <li>選ぶカードとクリティカルの有無を選択してください。Nは宝具です。</li>
-          <li>目標ダメージの入力は任意です。</li>
-          <li>次のターン以降の計算が必要な際は「操作」ボタンを選択し、「→にコピーして列追加」で列を増やしてください。</li>
-          <li>画面を左右に <strong>スワイプ</strong> すると 2 列目以降のサーヴァントが表示されます。</li>
-          <li>「データ管理」から計算結果のエクスポートとインポートが可能です。CSV は PC 版と共通フォーマットで、相互に読み込めます。</li>
-          <li>右上の「💻 PC版へ」 をタップすると PC 版に切り替えできます。同じデータ ([データ管理] → 保存 / 読込) で状態を引き継げます。</li>
-          <li>クリティカル有無を選択する欄で「全」は全体攻撃クリティカル、「半」は全体攻撃非クリティカルを意味します (どちらもダメージが半減します)。</li>
-          <li>計算結果のスクリーンショットは SNS 等で自由にご共有いただけます。</li>
+          <li>「対象」 アイコンをタップしてサーヴァントを選択、 各バフ欄をタップして数値入力。</li>
+          <li><strong style="color:#c0392b;">クラス相性</strong>・<strong style="color:#c0392b;">属性相性</strong> を入力 (クラス補正は自動)、 カードと クリ有無を選択 (<strong>N=宝具</strong>、 <strong>「全/半」 = 全体攻撃クリ/非クリ でダメージ半減</strong>)。</li>
+          <li>「操作」 → 「→にコピーして列追加」 で 次ターン用の列を追加、 左右スワイプで列を切替。</li>
+          <li>「データ管理」 から CSV エクスポート/インポートと ブラウザへの 保存/読込 が可能 (PC 版と共通フォーマット)。</li>
+          <li>計算結果のスクリーンショットは SNS 等で自由に共有可能。</li>
+          <li>各列 「操作」 ボタンから 列操作 (コピー / 入れ替え / 削除 等) や 被ダメージ計算 モード切替が可能 (詳細は <strong>高度な使い方</strong> へ)。</li>
         </ol>
-        <div class="how-to-title" style="margin-top:14px;">高度な使い方</div>
-        <ol class="how-to-list">
-          <li>「表示切替」→「位置別追加バフを表示」 をオンにすると、カード位置 (1st/2nd/3rd/EX) 別の追加バフ入力欄が表示されます。<br>
-            メイン入力に加算される形で、特定カードでのみ効くバフ・デバフを再現できます。<br>
-            例: 神通力(夏)「クリ攻撃時に攻撃力 +10% (3T) を付与」を 1st クリ発動と想定 → 攻撃バフの 2nd/3rd/EX 追加欄に 10 を入力 → 1st は加算なし、2nd 以降に +10% が乗る。
-          </li>
-          <li>「表示切替」→「メモ列を表示」 をオンにすると、サーヴァントごとに自由記述のメモ欄が表示されます。編成名・装備など覚書に。</li>
-          <li>バフ詳細入力ウィンドウ左下の「📋 プリセット ▾」から、よく使うバフ一式に名前を付けて保存・呼び出しできます (攻撃バフ・Bバフ等フィールドごとに独立)。<br>
-            「管理」ウィンドウでは名前変更・削除や JSON/CSV でのバックアップ・他端末への移行が可能です。
-          </li>
-          <li>スペース・イシュタルやプトレマイオスのように宝具を換装できるサーヴァントは宝具名の部分をタップして別の宝具に切り替えることが可能です。</li>
-          <li><strong>被ダメージ計算モード</strong>: 各列の「操作」 ボタン → メニュー最下部の「☐ 被ダメージ計算」 をタップすると、 その列が「敵から受けるダメージ」 を計算するモードに切り替わります (背景が薄赤に変化)。 もう一度タップで通常モードに戻ります。</li>
-        </ol>
-        <div class="how-to-title" style="margin-top:14px;">注意点</div>
-        <ol class="how-to-list">
-          <li>計算結果が間違っていても責任は負えません。ご了承ください。</li>
-          <li>本ツールは端末を <strong>縦持ち</strong> で使うことを想定して設計されています。横持ちにすると一部表示が崩れる可能性があります。</li>
-          <li>「画像保存」 で開いたタブのアドレスバーに「保護されていない通信」 と表示されますが、これはブラウザ仕様 (blob: URL) で、外部への通信は発生せず実害はありません。</li>
-          <li>サーヴァントのデータは
-            <a href="https://apps.atlasacademy.io" target="_blank" rel="noopener noreferrer" style="color:#1f5fbf;">Atlas Academy様</a>、
-            <a href="https://w.atwiki.jp/f_go/" target="_blank" rel="noopener noreferrer" style="color:#1f5fbf;">アットウィキ(@WIKI)様</a>
-            のデータを参考にさせていただいています。
-          </li>
-          <li>改善案、要望がありましたら以下にご連絡ください。(匿名で連絡可能です)<br>
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSeYwcglQSavPE1XmJk-TtPP4WmltLT81qmy-Q9KclBFaIgUQQ/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" style="color:#1f5fbf;">Googleフォーム</a>
-          </li>
-        </ol>
+        <details class="how-to-details">
+          <summary>高度な使い方</summary>
+          <ol class="how-to-list">
+            <li><strong>PC 版 ↔ Mobile 版 切替</strong>: 右上の <strong>「💻 PC版へ」</strong> アイコン (Mobile 版) / <strong>「📱」</strong> (PC 版) でレイアウト切替可能。 状態は自動継承されないため、 切替前に「データ管理」 → 「保存」、 切替後に「読込」 で復元 (CSV エクスポート/インポートでも引き継ぎ可能)。</li>
+            <li><strong>「操作」 メニュー</strong>: 各列の「操作」 ボタンから利用可能 — <strong>コピー</strong> (→に / ←に / 空列を追加)、 <strong>入れ替え</strong> (→ / ←)、 <strong>リセット</strong>、 <strong>削除</strong>、 <strong>被ダメージ計算</strong> モード切替。</li>
+            <li><strong>被ダメージ計算モード</strong>: 「操作」 メニュー最下部の「☐ 被ダメージ計算」 をタップすると、 その列が「敵から受けるダメージ」 を計算するモードに切り替わります (背景が薄赤に変化)。 もう一度タップで通常モードに戻ります。</li>
+            <li>「表示切替」→「位置別追加バフを表示」 をオンにすると、カード位置 (1st/2nd/3rd/EX) 別の追加バフ入力欄が表示されます。<br>
+              メイン入力に加算される形で、特定カードでのみ効くバフ・デバフを再現できます。<br>
+              例: 神通力(夏)「クリ攻撃時に攻撃力 +10% (3T) を付与」を 1st クリ発動と想定 → 攻撃バフの 2nd/3rd/EX 追加欄に 10 を入力 → 1st は加算なし、2nd 以降に +10% が乗る。
+            </li>
+            <li>「表示切替」→「メモ列を表示」 をオンにすると、サーヴァントごとに自由記述のメモ欄が表示されます。編成名・装備など覚書に。</li>
+            <li>バフ詳細入力ウィンドウ左下の「📋 プリセット ▾」から、よく使うバフ一式に名前を付けて保存・呼び出しできます (攻撃バフ・Bバフ等フィールドごとに独立)。<br>
+              「管理」ウィンドウでは名前変更・削除や JSON/CSV でのバックアップ・他端末への移行が可能です。
+            </li>
+            <li>スペース・イシュタルやプトレマイオスのように宝具を換装できるサーヴァントは宝具名の部分をタップして別の宝具に切り替えることが可能です。</li>
+          </ol>
+        </details>
+        <details class="how-to-details">
+          <summary>注意点</summary>
+          <ol class="how-to-list">
+            <li>計算結果が間違っていても責任は負えません。ご了承ください。</li>
+            <li>本ツールは端末を <strong>縦持ち</strong> で使うことを想定して設計されています。横持ちにすると一部表示が崩れる可能性があります。</li>
+            <li>「画像保存」 で開いたタブのアドレスバーに「保護されていない通信」 と表示されますが、これはブラウザ仕様 (blob: URL) で、外部への通信は発生せず実害はありません。</li>
+            <li>サーヴァントのデータは
+              <a href="https://apps.atlasacademy.io" target="_blank" rel="noopener noreferrer" style="color:#1f5fbf;">Atlas Academy様</a>、
+              <a href="https://w.atwiki.jp/f_go/" target="_blank" rel="noopener noreferrer" style="color:#1f5fbf;">アットウィキ(@WIKI)様</a>
+              のデータを参考にさせていただいています。
+            </li>
+            <li>改善案、要望がありましたら以下にご連絡ください。(匿名で連絡可能です)<br>
+              <a href="https://docs.google.com/forms/d/e/1FAIpQLSeYwcglQSavPE1XmJk-TtPP4WmltLT81qmy-Q9KclBFaIgUQQ/viewform?usp=publish-editor" target="_blank" rel="noopener noreferrer" style="color:#1f5fbf;">Googleフォーム</a>
+            </li>
+          </ol>
+        </details>
       </div>
 
     </main>
