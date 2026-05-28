@@ -3118,6 +3118,10 @@ async function selectServantById(id) {
   // 選択先の行コンテキストを設定
   _rowCtx = _servantTargetSuffix;
 
+  // 別サーヴァントへ切り替えるので、 この行の NP・スター計算モーダルの保存値をクリア
+  // (= 新サーヴァントのデータで自動入力し直すため)。
+  if (APP.npStarState) delete APP.npStarState[_rowCtx];
+
   // 注: 同じサーヴァント再選択 (バフ維持) の判定は適用ボタンハンドラ側で実施。
   // selectServantById に来た時点で「別のサーヴァント選択」 と確定しているので、
   // ここでは常に resetAllBuffFields() → 新規構築を実行する。
@@ -5833,8 +5837,33 @@ closeKoBtn.addEventListener('click', ()=>koModal.classList.remove('open'));
 // 各行内の「NP・スター計算」ボタンから openNpStarModalForRow(suffix) で開かれる。
 const npStarModal       = document.getElementById('npStarModal');
 const closeNpStarBtn    = document.getElementById('closeNpStarModalBtn');
+
+// ── NP・スター計算モーダルのカスタマイズ値を行ごとに保持 ──
+// APP.npStarState[sfx] に ns_* 全フィールドの値を保存し、 同じ行で再オープン時に復元する。
+// (メモリ保持。 ページリロードでリセットされる)
+let _npsOpenSfx = null;
+function _npsCollectFields() {
+  const obj = {};
+  document.querySelectorAll('#npStarModal input[id^="ns_"], #npStarModal select[id^="ns_"]').forEach(el => {
+    obj[el.id] = el.value;
+  });
+  return obj;
+}
+function _npsApplyFields(obj) {
+  if (!obj) return;
+  Object.keys(obj).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = obj[id];
+  });
+}
+function _npsSaveState() {
+  if (_npsOpenSfx === null) return;
+  APP.npStarState = APP.npStarState || {};
+  APP.npStarState[_npsOpenSfx] = _npsCollectFields();
+}
+
 if (closeNpStarBtn) {
-  closeNpStarBtn.addEventListener('click', () => npStarModal.classList.remove('open'));
+  closeNpStarBtn.addEventListener('click', () => { _npsSaveState(); npStarModal.classList.remove('open'); });
 }
 if (npStarModal) {
   // 枠外クリックで閉じる処理は意図しない閉鎖を招くため削除。 閉じるボタンのみで閉じる。
@@ -8513,6 +8542,10 @@ async function openNpStarModalForRow(suffix) {
   // コマンドコード欄は毎回 0 から (= 行データに対応する保存先がないため)
   set('ns_cc_np_1st', 0); set('ns_cc_np_2nd', 0); set('ns_cc_np_3rd', 0);
   set('ns_cc_sr_1st', 0); set('ns_cc_sr_2nd', 0); set('ns_cc_sr_3rd', 0);
+
+  // この行で過去にカスタマイズした値があれば、 上記の自動入力を上書きして復元する。
+  _npsOpenSfx = sfx;
+  if (APP.npStarState && APP.npStarState[sfx]) _npsApplyFields(APP.npStarState[sfx]);
 
   document.getElementById('npStarModal').classList.add('open');
   setTimeout(recalcNpStar, 0);
