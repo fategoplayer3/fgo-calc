@@ -6401,7 +6401,9 @@ function _npsCollectFields() {
   const obj = {};
   document.querySelectorAll('#npStarModal input[id^="ns_"], #npStarModal select[id^="ns_"]').forEach(el => {
     if (SKIP.has(el.id)) return;
-    obj[el.id] = el.value;
+    // <select> は selectedIndex で保存 (= NP敵補正/スター敵補正 のように同じ value を持つ
+    //  選択肢が複数あっても、 選んだ項目を正確に復元するため)。 input は value で保存。
+    obj[el.id] = (el.tagName === 'SELECT') ? { __sel: el.selectedIndex } : el.value;
   });
   return obj;
 }
@@ -6409,7 +6411,13 @@ function _npsApplyFields(obj) {
   if (!obj) return;
   Object.keys(obj).forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.value = obj[id];
+    if (!el) return;
+    const v = obj[id];
+    if (v && typeof v === 'object' && '__sel' in v) {
+      if (el.tagName === 'SELECT' && v.__sel >= 0) el.selectedIndex = v.__sel;
+    } else {
+      el.value = v;
+    }
   });
 }
 function _npsSaveState() {
