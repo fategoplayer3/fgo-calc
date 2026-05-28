@@ -6391,8 +6391,16 @@ const closeNpStarBtn    = document.getElementById('closeNpStarModalBtn');
 // (メモリ保持。 ページリロードでリセットされる)
 let _npsOpenSfx = null;
 function _npsCollectFields() {
+  // カード選択 (ns_card_*) と クリティカル (ns_cri_*) は ホーム画面の
+  // card1/2/3・crit1/2/3・cardEx と連動させるため保存対象から除外する。
+  // (= モーダル再オープン時は常にホーム画面の現在値を自動入力)
+  const SKIP = new Set([
+    'ns_card_1st', 'ns_card_2nd', 'ns_card_3rd',
+    'ns_cri_1st', 'ns_cri_2nd', 'ns_cri_3rd', 'ns_cri_ex',
+  ]);
   const obj = {};
   document.querySelectorAll('#npStarModal input[id^="ns_"], #npStarModal select[id^="ns_"]').forEach(el => {
+    if (SKIP.has(el.id)) return;
     obj[el.id] = el.value;
   });
   return obj;
