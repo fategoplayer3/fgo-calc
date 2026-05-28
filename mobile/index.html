@@ -4393,6 +4393,17 @@ function applyClassPassive(d) {
   // 念のため内部でもリセット（多重呼び出し時の安全策）
   resetAllBuffFields();
 
+  // ボス用 ATK 上書きエネミー (魔性菩薩・愛欲の魔王 等) は、 プレイアブル版の
+  // パッシブ (例: 単独顕現のクリ威力) を 敵本体としては持たないため、 パッシブバフの
+  // 自動入力をスキップする。 (ATK は applyServantStats のボス override で別途適用)
+  if (d && d._isBossOverride) {
+    dbg(`[${d.collectionNo}] boss override → パッシブバフ自動入力スキップ`);
+    applyClassScoreBonus();
+    renderPassiveDebug();
+    recalc();
+    return;
+  }
+
   const cno = d?.collectionNo ?? 0;
   const mapEntry = PASSIVE_BUFF_MAP[cno];
 
@@ -4591,11 +4602,16 @@ function applyClassScoreBonus(){
   const addMap = getClassScoreAddMap();
   const passiveMap = APP._passiveValueMap || {};
   const _csRowCtx = _rowCtx || '';
+  // 敵サーヴァント / 被ダメ(敵)行には プレイヤー専用の強化トグル
+  // (クラススコア / アペンド1・4 / 足跡MAX) を適用しない。 敵はこれらを持たないため。
+  // パッシブバフ (passiveMap、 例: 敵自身のクリ威力) は引き続き反映する。
+  const _skipToggles = _isCurrentRowEnemy() || _isCurrentRowDefenseMode();
   // クラススコア ON/OFF を行ごとに記録 (= NP・スター計算モーダルの スター発生率バフ +50 判定用)
   APP.classScoreMap = APP.classScoreMap || {};
-  APP.classScoreMap[_csRowCtx] = !!document.getElementById('classScore')?.checked;
+  APP.classScoreMap[_csRowCtx] = !_skipToggles && !!document.getElementById('classScore')?.checked;
 
-  for (const [fid, bonus] of Object.entries(addMap)) {
+  for (const [fid, bonus0] of Object.entries(addMap)) {
+    const bonus = _skipToggles ? 0 : bonus0;  // 敵/被ダメ行は player強化トグル無効
     const el = _el(fid);
     if (!el) continue;
 
@@ -4665,9 +4681,12 @@ function applyServantStats(opts) {
   const d = getRowServant();
   if (!d) return;
   const lv  = +document.getElementById('popLv').value  || 90;
-  const fou  = +document.getElementById('popFou').value || 0;
-  const ce   = +document.getElementById('popCE').value  || 0;
-  const grand= document.getElementById('popGrand').checked ? 1000 : 0;
+  let fou  = +document.getElementById('popFou').value || 0;
+  let ce   = +document.getElementById('popCE').value  || 0;
+  let grand= document.getElementById('popGrand').checked ? 1000 : 0;
+  // 敵サーヴァント / 被ダメ(敵)行は プレイヤー専用の ATK 加算 (フォウ/CE/グランド) を持たない。
+  // モーダル項目に値が残っていても敵には乗せず、 boss 本来の ATK にする。
+  if (_isCurrentRowEnemy() || _isCurrentRowDefenseMode()) { fou = 0; ce = 0; grand = 0; }
 
   let atk;
   const ag = d.atkGrowth||[];
@@ -5062,6 +5081,21 @@ function _isCurrentRowDefenseMode() {
     : '#calcTable tbody tr[data-row-suffix=""]';
   const row = document.querySelector(sel);
   return !!(row && row.classList.contains('row-defense'));
+}
+
+// _rowCtx の行に選択されているサーヴァントが「敵(エネミー)」かどうかを判定。
+// 敵サーヴァント (className==='Enemy') には プレイヤー専用の強化トグル
+// (クラススコア / アペンド / 足跡MAX) を適用しないために使う。
+function _isCurrentRowEnemy() {
+  const ctx = (typeof _rowCtx !== 'undefined') ? _rowCtx : '';
+  const sel = ctx
+    ? '#calcTable tbody tr[data-row-suffix="' + ctx + '"]'
+    : '#calcTable tbody tr[data-row-suffix=""]';
+  const row = document.querySelector(sel);
+  if (!row || !row.dataset.servantId || !Array.isArray(APP.allSv)) return false;
+  const sid = parseInt(row.dataset.servantId, 10);
+  const sv = APP.allSv.find(s => s.id === sid);
+  return !!(sv && sv.className === 'Enemy');
 }
 
 function calcNpDmg(pos, firstType, effectiveBuffs) {
@@ -6319,7 +6353,15 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (idx < rows.length - 1) swapRows(row, rows[idx + 1]);
       } else if (action === 'toggle-defense') {
         // DOM のみ変更 (= LS は触らない)。 他操作と同じく明示「保存」 のみで反映。
-        toggleRowDefenseMode(row, { applyDefaults: true });
+        const _willBeDefense = !row.classList.contains('row-defense');
+        if (_willBeDefense) {
+          // 被ダメ計算へ切替時は 行を一度リセットしてクリーンな状態にする
+          // (= 攻撃側で乗せた CE/グランド/各種バフ等を持ち越さないため)。
+          resetRow(row);
+          toggleRowDefenseMode(row, { force: 'on', applyDefaults: true });
+        } else {
+          toggleRowDefenseMode(row, { force: 'off', applyDefaults: true });
+        }
       } else if (action === 'reset') {
         resetRow(row);
       } else if (action === 'copy-up') {
