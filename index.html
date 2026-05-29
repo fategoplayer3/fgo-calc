@@ -3811,14 +3811,15 @@ function resetAllBuffFields() {
     });
   });
   // サーヴァントのパッシブ値マップをリセット（classScoreBonus計算に使用）
-  // _passiveValueMap を行コンテキスト単位でリセット
+  // キーは `fid` (元行、 suffix なし) または `fid_R<N>` (追加行) の形式。
+  // _buffDetailStore と同様に、 現在の行コンテキスト (_rowCtx) のエントリのみ
+  // クリアして、 他行の値は維持する。 (旧実装は単一キー削除/全削除のバグで、
+  // 別行のパッシブ値が引き継がれる leak の原因になっていた)
   APP._passiveValueMap = APP._passiveValueMap || {};
-  if (_rowCtx) {
-    delete APP._passiveValueMap[_rowCtx];
-  } else {
-    // 元行のみクリア（'_R*' キーは他行のものなので残す）
-    Object.keys(APP._passiveValueMap).filter(k => !k.startsWith('_R'))
-      .forEach(k => delete APP._passiveValueMap[k]);
+  const _pvmSuffix = _rowCtx || '';
+  for (const key of Object.keys(APP._passiveValueMap)) {
+    const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySuffix === _pvmSuffix) delete APP._passiveValueMap[key];
   }
   // _buffDetailStore を現在の行コンテキストのエントリのみクリア
   for (const key of Object.keys(_buffDetailStore)) {
@@ -4070,7 +4071,7 @@ function applyClassScoreBonus(){
       continue;
     }
 
-    const passive = passiveMap[fid + _csRowCtx] ?? passiveMap[fid] ?? 0;
+    const passive = passiveMap[fid + _csRowCtx] ?? 0;  // 行ごとに厳密に参照 (他行へのフォールバックなし)
     const row0Total = passive + bonus;  // passive + class score / append bonus
     const vStr = row0Total !== 0 ? normalizeNumberString(row0Total) : '';
 
