@@ -7269,6 +7269,8 @@ function collectRowData(row) {
   if (svId) data.servantId = svId;
   // 被ダメージ計算モードフラグ (row-defense クラスから読取)
   if (row.classList.contains('row-defense')) data.defenseMode = '1';
+  // クラススコア ON/OFF (行ごとの状態。 NP・スター計算モーダルの sr_buff +50 判定用)
+  if (APP.classScoreMap && APP.classScoreMap[sfx]) data.classScore = '1';
   return data;
 }
 
@@ -7544,6 +7546,16 @@ function applyRowData(targetRow, rowData) {
     const isDef = (rowData.defenseMode === '1' || rowData.defenseMode === 1 || rowData.defenseMode === true);
     toggleRowDefenseMode(targetRow, { force: isDef ? 'on' : 'off' });
   }
+  // クラススコア ON/OFF の復元。 NP・スター計算モーダルが APP.classScoreMap[sfx] を見て
+  // スター発生率バフに +50 を加算するため、 行ごとの状態を必ず復元する。
+  // 旧 CSV/LS (classScore 列なし → rowData.classScore が undefined) では
+  // classScoreMap[sfx] を変更せず、 モーダル開く時にグローバル checkbox から
+  // フォールバック判定する (= ユーザーが意図的にチェックしていれば +50 が乗る)。
+  const _csSfx = targetRow.dataset.rowSuffix || '';
+  APP.classScoreMap = APP.classScoreMap || {};
+  if (rowData.classScore !== undefined && rowData.classScore !== null) {
+    APP.classScoreMap[_csSfx] = (rowData.classScore === '1' || rowData.classScore === 1 || rowData.classScore === true);
+  }
 }
 
 function loadFromLocal() {
@@ -7662,6 +7674,9 @@ const CSV_INPUT_FIELDS = [
   'specialResistP1', 'specialResistP2', 'specialResistP3', 'specialResistPe',
   // 被ダメージ計算モードフラグ ('1' = 被ダメ / '' = 通常)
   'defenseMode',
+  // クラススコア ON/OFF ('1' = ON / '' = OFF)。 NP・スター計算モーダルの
+  // スター発生率バフ +50 判定に使用。 行ごとの状態を CSV/LS に保存する。
+  'classScore',
 ];
 const CSV_RESULT_FIELDS = [
   'd1lo','d1av','d1hi',
@@ -8589,7 +8604,12 @@ async function openNpStarModalForRow(suffix) {
   set('ns_na_buff', _extractPassiveNpGainBuff(sv));
   let _srBuff = _extractPassiveStarGenBuff(sv);
   APP.classScoreMap = APP.classScoreMap || {};
-  if (APP.classScoreMap[sfx]) _srBuff += 50;
+  // 行ごとの classScore 状態を優先。 未設定 (= 旧 CSV インポート等で行情報が無い)
+  // ならグローバル classScore チェックボックスからフォールバック判定。
+  const _csOn = (APP.classScoreMap[sfx] !== undefined && APP.classScoreMap[sfx] !== null)
+    ? !!APP.classScoreMap[sfx]
+    : !!document.getElementById('classScore')?.checked;
+  if (_csOn) _srBuff += 50;
   set('ns_sr_buff', _srBuff);
   set('ns_card_1st', card1);
   set('ns_card_2nd', card2);
@@ -9211,25 +9231,32 @@ function _npsCalcNp(hit, na, aBonus, card_buff, aBonus_all, card_NP, enemy_rate,
 function _npsCalcStar(hit, sr, qBonus, card_buff, qBonus_all, card_NP, sr_buff, cri, ok) {
   let star    = 100 * (sr/100 + qBonus/100 * (100 + card_buff)/100 + qBonus_all * card_NP/100 + sr_buff/100 + cri/100);
   let star_ok = star + 30;  // OvK = +30%
-  star    = Math.floor(star * 100);
-  star    = Math.floor(star / 10.0);
+  star    = Math.floor(star    * 100);
+  star    = Math.floor(star    / 10.0);
   if (star    > 3000) star    = 3000;
-  let star_num = Math.floor(star / 1000);
   star_ok = Math.floor(star_ok * 100);
   star_ok = Math.floor(star_ok / 10.0);
   if (star_ok > 3000) star_ok = 3000;
-  star_num = Math.max(star_num, 0);
-  let lo_rate = Math.max((star    - 1000 * star_num) / 10.0, 0);
-  let hi_rate = Math.max((star_ok - 1000 * star_num) / 10.0, 0);
-  // round down to 1 decimal
-  lo_rate = Math.floor(lo_rate * 10) / 10;
-  hi_rate = Math.floor(hi_rate * 10) / 10;
-  // extra: 1 if either lo or hi could push over 100 (probabilistic chance per hit)
+  // 非OvK / OvK でそれぞれ独立に「保証星数 (floor) + 条件付き残り%」 を算出する。
+  // (旧実装は star_num を 非OvK rate のみから計算していたため、 OvK で rate が
+  //  100% を跨ぐケース (例: 3rd Arts 99.8% → OvK 129.8%) で OvK 行が誤って
+  //  「保証 0 + 条件 129.8%」 と表示されていた。 本来は「保証 1/hit + 条件 29.8%」)。
+  let star_num    = Math.max(Math.floor(star    / 1000), 0);
+  let star_num_ok = Math.max(Math.floor(star_ok / 1000), 0);
+  // 表示用は 1 ヒットあたりの フルレート (例: OvK 3rd A で 129.8%) を返す。
+  // 「条件付き残り%」 のみ表示 (旧実装) では 100% を跨ぐケースで spec/他計算機と
+  // 数値が一致せず混乱するため、 フルレート表記で揃える。
+  let lo_rate = Math.floor(Math.max(star    / 10.0, 0) * 10) / 10;
+  let hi_rate = Math.floor(Math.max(star_ok / 10.0, 0) * 10) / 10;
+  // extra (+N) の判定は「条件付き残り > 0」 のときのみ。
+  // (rate がぴったり floor × 100% の場合は +N なし)
+  const lo_conditional = star    - 1000 * star_num;
+  const hi_conditional = star_ok - 1000 * star_num_ok;
   let extra = 0;
-  if (lo_rate > 0) extra += (hit - ok);
-  if (hi_rate > 0) extra += ok;
+  if (lo_conditional > 0) extra += (hit - ok);
+  if (hi_conditional > 0) extra += ok;
   return {
-    count:   star_num * hit,
+    count:   star_num * (hit - ok) + star_num_ok * ok,  // 非OvK分 + OvK分
     lo_rate, lo_hits: hit - ok,
     hi_rate, hi_hits: ok,
     extra,
