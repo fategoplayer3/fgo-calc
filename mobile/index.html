@@ -275,6 +275,7 @@
     .np-star-result-table tr:nth-child(odd) th{background:#eef3fa}
     .np-star-table input,.np-star-table select{width:100%;padding:4px 6px;border:1px solid var(--line);border-radius:3px;font-family:Consolas,monospace;font-size:12px;text-align:right}
     .np-star-table select{text-align:left}
+    .ns-na-note{display:block;margin-top:4px;padding:3px 6px;background:#e8f5e9;border:1px solid #66bb6a;border-radius:3px;color:#2e7d32;font-size:10.5px;font-family:inherit;text-align:left;line-height:1.35;white-space:normal}
     .np-star-table input.ns-hit,.np-star-table input.ns-buff{width:31%;display:inline-block;margin-right:1.5%}
     .np-star-table input.ns-hit:last-child,.np-star-table input.ns-buff:last-child{margin-right:0}
     .np-star-table select.ns-card,.np-star-table select.ns-cri{width:23%;display:inline-block;margin-right:1.5%}
@@ -1763,7 +1764,7 @@ textarea{
           <table class="np-star-table">
             <tr>
               <th>NP獲得率</th>
-              <td><input type="number" step="0.01" id="ns_na" value="0"></td>
+              <td><input type="number" step="0.01" id="ns_na" value="0"><span id="ns_na_note" class="ns-na-note" style="display:none;"></span></td>
               <th>NP獲得量バフ</th>
               <td><input type="number" id="ns_na_buff" value="0"></td>
             </tr>
@@ -9129,6 +9130,20 @@ async function openNpStarModalForRow(suffix) {
   set('ns_na', na);
   // 宝具専用 NP 獲得率を ns_na の data 属性に保持 (= 宝具スロットの計算で使用)。
   { const _naEl = document.getElementById('ns_na'); if (_naEl) _naEl.dataset.naNp = na_np; }
+  // 宝具専用 NP 獲得率が通常カードと異なるサーヴァント (エミヤ〔アサシン〕/百貌のハサン/
+  // ギルガメッシュ 等) の場合、 ちゃんと対応している旨を注記バッジで明示する。
+  {
+    const _noteEl = document.getElementById('ns_na_note');
+    if (_noteEl) {
+      if (na_np > 0 && Math.abs(na_np - na) > 1e-9) {
+        _noteEl.textContent = `✓ 宝具専用NP獲得率 ${na_np}% を適用中（通常カード ${na}%）`;
+        _noteEl.style.display = 'block';
+      } else {
+        _noteEl.textContent = '';
+        _noteEl.style.display = 'none';
+      }
+    }
+  }
   set('ns_sr', sr);
   set('ns_b_hit', b_hit);
   set('ns_a_hit', a_hit);
