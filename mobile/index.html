@@ -10051,16 +10051,52 @@ function _clearAllTextareasIfAllowed() {
   } catch (e) { /* swallow */ }
 }
 
+// iOS/モバイルの form recovery は select の値を -1 (空) だけでなく、 別の有効値に
+// 復元することがある (例: 起動時デフォルト NBB の card1 が 'N'→'B' に化けて BBB になる)。
+// ensureSelectsHaveDefaultSelection は selectedIndex===-1 のみ対象なので、 この
+// 「有効値だが間違った値」 の化けは拾えない。 textarea クリアと同じ多段タイミング
+// (0/120/350ms) + 同じロック (_textareaClearLocked) で、 サーヴァント未選択の行の
+// カード/クリ/EX select を defaultSelected (= NBB/有/有) に戻し続ける。
+// サーヴァント選択済みの行や、 復元・インポート後 (ロック後) は触らない。
+function _resetCardSelectsIfAllowed() {
+  if (_textareaClearLocked) return;
+  try {
+    document.querySelectorAll(
+      'select[id^="card1"],select[id^="card2"],select[id^="card3"],' +
+      'select[id^="crit1"],select[id^="crit2"],select[id^="crit3"],select[id^="cardEx"]'
+    ).forEach(sel => {
+      if (!sel.options || !sel.options.length) return;
+      // この select の行 suffix を求め、 サーヴァント選択済みなら触らない
+      // (= 復元された行 / 手動設定行を壊さない)
+      const m = sel.id.match(/(_R\d+)$/);
+      const sfx = m ? m[1] : '';
+      const npSel = document.getElementById('npTypeSelect' + sfx);
+      if (npSel && npSel.value) return;
+      let defIdx = -1;
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].defaultSelected) { defIdx = i; break; }
+      }
+      const want = defIdx >= 0 ? defIdx : 0;
+      if (sel.selectedIndex !== want) {
+        sel.selectedIndex = want;
+        if (typeof _updateCardSelColor === 'function') _updateCardSelColor(sel);
+      }
+    });
+  } catch (e) { /* swallow */ }
+}
+
 function resetTextareasOnStartup() {
   // 1 回目: 起動コードから直接呼ばれる時点 (DOM 構築直後)
   _clearAllTextareasIfAllowed();
+  _resetCardSelectsIfAllowed();
   // 2 回目以降: load イベント以降の遅延タイミングで再クリア
   // (Safari の form recovery が load 後に値を上書きする現象に対応)
   const scheduleClears = () => {
-    setTimeout(_clearAllTextareasIfAllowed, 0);
-    setTimeout(_clearAllTextareasIfAllowed, 120);
+    setTimeout(() => { _clearAllTextareasIfAllowed(); _resetCardSelectsIfAllowed(); }, 0);
+    setTimeout(() => { _clearAllTextareasIfAllowed(); _resetCardSelectsIfAllowed(); }, 120);
     setTimeout(() => {
       _clearAllTextareasIfAllowed();
+      _resetCardSelectsIfAllowed();
       // 350ms 後は「初期化期間」 終了 → 以降はユーザー操作・明示的復元を尊重
       _textareaClearLocked = true;
     }, 350);
@@ -10075,6 +10111,13 @@ function resetTextareasOnStartup() {
   // (350ms の初期化期間中にユーザーが入力を始めるケースの保険)
   document.addEventListener('input', e => {
     if (e.target && e.target.tagName === 'TEXTAREA') {
+      _textareaClearLocked = true;
+    }
+  }, { capture: true, once: false });
+  // 初期化期間中にユーザーがカード/クリ等の select を変更したら、 以降のデフォルト
+  // 戻しを禁止する (ユーザー操作を尊重)。
+  document.addEventListener('change', e => {
+    if (e.target && e.target.tagName === 'SELECT') {
       _textareaClearLocked = true;
     }
   }, { capture: true, once: false });
