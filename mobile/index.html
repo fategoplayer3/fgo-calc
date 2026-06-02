@@ -10079,7 +10079,13 @@ function _resetCardSelectsIfAllowed() {
       const want = defIdx >= 0 ? defIdx : 0;
       if (sel.selectedIndex !== want) {
         sel.selectedIndex = want;
-        if (typeof _updateCardSelColor === 'function') _updateCardSelColor(sel);
+        // 色更新は カード (card1/2/3) のみ。 crit/cardEx に _updateCardSelColor を
+        // 呼ぶと B/A/Q 以外を 'N' 扱いして宝具カード色 (赤等) を誤って付けてしまう。
+        const baseId = sel.id.replace(/_R\d+$/, '');
+        if ((baseId === 'card1' || baseId === 'card2' || baseId === 'card3')
+            && typeof _updateCardSelColor === 'function') {
+          _updateCardSelColor(sel);
+        }
       }
     });
   } catch (e) { /* swallow */ }
