@@ -8173,6 +8173,18 @@ function cloneRow(sourceRow, direction = 'down', opts) {
       }
     });
     if (_buffDetailBoostMap['npBuf' + sourceSuffix]) _buffDetailBoostMap['npBuf' + suffix] = true;
+    // パッシブ値マップ コピー: これがないと、 クローン行で classScore / アペンド等を
+    // 後からトグルした際に applyClassScoreBonus が passive=0 を基準にしてしまい、
+    // コピー元のパッシブ (例: 単独行動のクリ威力12) が消えて bonus だけになる。
+    if (APP._passiveValueMap) {
+      Object.keys(APP._passiveValueMap).forEach(key => {
+        const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+        if (keySuffix === sourceSuffix) {
+          const baseKey = sourceSuffix ? key.slice(0, -sourceSuffix.length) : key;
+          APP._passiveValueMap[baseKey + suffix] = APP._passiveValueMap[key];
+        }
+      });
+    }
   }
 
   // サーヴァントオブジェクトのコピー (空行時はスキップ)
