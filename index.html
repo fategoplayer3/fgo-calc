@@ -131,7 +131,9 @@
     .class-aff-stack select { font-size:10px; padding:1px 1px; min-height:18px; box-sizing:border-box; width:100%;
       -webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:none; text-align:center; }
     /* ユーザー入力マーカー: 薄い黄色背景でクラス相性/属性相性を強調 (サーヴァント自動入力のクラス補正と区別) */
-    .user-input-mark { background:#ffe9a8 !important; border-color:#f5b800 !important; }
+    .user-input-mark { background:#fff4d4 !important; border-color:#f5b800 !important; }
+    /* 項目名の強調: クラス相性・属性は入力忘れしやすいのでヘッダー文字を朱色に */
+    .hdr-emph { color:#dc3023 !important; }
     /* WebKit (Safari/Mac/iPhone) は appearance:none でも select 内部の矢印用スペースが残る
        既知バグのため、 text-align:center / text-align-last:center を指定しても値が左寄りに
        見える。 padding-left で相殺する試みも効果なかったため諦め、 シンプルな指定に。
@@ -793,7 +795,7 @@ textarea{
               <th class="w-xxs col-pos-buff" rowspan="2" title="2nd 特殊耐性 位置別追加">耐性<br>2nd</th>
               <th class="w-xxs col-pos-buff" rowspan="2" title="3rd 特殊耐性 位置別追加">耐性<br>3rd</th>
               <th class="w-xxs col-pos-buff" rowspan="2" title="EX 特殊耐性 位置別追加">耐性<br>EX</th>
-              <th class="w-cls" rowspan="2" title="上から: クラス相性 / クラス補正 / 属性相性">クラス<br>相性<br>/補正<br>/属性</th>
+              <th class="w-cls" rowspan="2" title="上から: クラス相性 / クラス補正 / 属性相性">クラス<br><span class="hdr-emph">相性</span><br>/補正<br>/<span class="hdr-emph">属性</span></th>
               <th class="w-csel" rowspan="2">1st<br>/クリ</th>
               <th class="w-csel" rowspan="2">2nd<br>/クリ</th>
               <th class="w-csel" rowspan="2">3rd<br>/クリ</th>
