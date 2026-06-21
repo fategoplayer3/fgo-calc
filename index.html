@@ -109,7 +109,7 @@
     tbody tr:nth-child(odd) .sticky-left-3 { background:#ffffff; }
     /* sticky 列の右端に薄い境界線を表示して、 スクロール領域との分離を視覚化 */
     .sticky-left-3 { box-shadow: 1px 0 0 #d0d0d0; }
-    .w-target{width:40px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:36px}.w-card{width:22px}.w-csel{width:28px}.w-s{width:50px}.w-m{width:44px}.w-l{width:84px}.w-mnp{width:56px}
+    .w-target{width:40px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:36px}.w-card{width:22px}.w-csel{width:28px}.w-s{width:50px}.w-m{width:44px}.w-l{width:72px}.w-mnp{width:56px}
     /* クラス相性/補正/属性相性 + 宝具特攻威力共通: 数字幅を確保しつつ最小限に。
        select は矢印 (~16px) を appearance:none で消すことで さらに幅を縮められる。 */
     .w-cls{width:44px}
@@ -196,8 +196,8 @@
     .ex-stack select{padding:0 1px;font-size:10px;text-align:center;text-align-last:center}
     .damage-stack{display:flex;flex-direction:column;gap:0;align-items:flex-end;font-family:Consolas,monospace;line-height:1.1;padding-right:1px}
     .damage-stack span{font-size:10px}
-    .damage-stack .mid{font-size:13px;font-weight:700}
-    .damage-stack.total .mid{font-size:14px;color:#1f5fbf}
+    .damage-stack .mid{font-size:12px;font-weight:700}
+    .damage-stack.total .mid{font-size:12px;color:#1f5fbf}
     .muted{color:var(--muted)}
     .how-to-use{margin:18px 4px 12px;padding:12px 16px;border:1px solid #c8d8e8;background:#f4f8fc;border-radius:6px;font-size:12px;line-height:1.7;color:#333}
     .how-to-title{font-weight:700;margin-bottom:6px;color:#2a4a7a;font-size:13px}
@@ -9530,7 +9530,7 @@ const _CELL_WIDTHS = {
   'w-csel':   28,  // 旧 34 → 28 (1st/2nd/3rd/EX クリ列、 1 文字 N/B/A/Q/有/0 のみ、 2026/5/23)
   'w-s':      50,
   'w-m':      44,  // 旧 48 → 44 (ATK 列、 5桁でも収まる、 2026/5/23)
-  'w-l':      84,  // 旧 76→72→84 (ダメージ列。 72 は 7桁カンマ区切りまで。 トータルが 1000万超 = 8桁 "17,364,081" (10文字) で 14px 等幅が収まらず左隣 EX 列へはみ出して見切れる問題を修正。 84px で 8桁を余裕を持って表示、 2026/6/19)
+  'w-l':      72,  // 旧 76→72→84→72 (ダメージ列。 一旦 84 へ広げたが MacBook 等の狭い画面で テーブルが横にはみ出すため 72 へ戻し、 代わりにダメージ結果のフォントを 12px へ縮小して 8桁 "17,364,081" (10文字) を 72px 内に収める方式へ変更、 2026/6/21)
   'w-mnp':    56,  // 旧 60 → 56 (宝具/種類/倍率、 ellipsis 省略あり、 2026/5/23)
   'w-cls':    44,
   'w-cardgrp': 34,  // 旧 42→38→34 (B/A/Q 縦並びの 3 桁値列の縮小、 2026/5/23)
