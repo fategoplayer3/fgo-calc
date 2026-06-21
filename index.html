@@ -109,7 +109,7 @@
     tbody tr:nth-child(odd) .sticky-left-3 { background:#ffffff; }
     /* sticky 列の右端に薄い境界線を表示して、 スクロール領域との分離を視覚化 */
     .sticky-left-3 { box-shadow: 1px 0 0 #d0d0d0; }
-    .w-target{width:40px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:36px}.w-card{width:22px}.w-csel{width:28px}.w-s{width:50px}.w-m{width:44px}.w-l{width:72px}.w-mnp{width:56px}
+    .w-target{width:40px}.w-memo{width:110px}.w-xxs{width:34px}.w-xs{width:36px}.w-card{width:22px}.w-csel{width:28px}.w-s{width:50px}.w-m{width:44px}.w-l{width:84px}.w-mnp{width:56px}
     /* クラス相性/補正/属性相性 + 宝具特攻威力共通: 数字幅を確保しつつ最小限に。
        select は矢印 (~16px) を appearance:none で消すことで さらに幅を縮められる。 */
     .w-cls{width:44px}
@@ -9530,7 +9530,7 @@ const _CELL_WIDTHS = {
   'w-csel':   28,  // 旧 34 → 28 (1st/2nd/3rd/EX クリ列、 1 文字 N/B/A/Q/有/0 のみ、 2026/5/23)
   'w-s':      50,
   'w-m':      44,  // 旧 48 → 44 (ATK 列、 5桁でも収まる、 2026/5/23)
-  'w-l':      72,  // 旧 76 → 72 (ダメージ列、 7桁カンマ区切りでも収まる、 2026/5/23)
+  'w-l':      84,  // 旧 76→72→84 (ダメージ列。 72 は 7桁カンマ区切りまで。 トータルが 1000万超 = 8桁 "17,364,081" (10文字) で 14px 等幅が収まらず左隣 EX 列へはみ出して見切れる問題を修正。 84px で 8桁を余裕を持って表示、 2026/6/19)
   'w-mnp':    56,  // 旧 60 → 56 (宝具/種類/倍率、 ellipsis 省略あり、 2026/5/23)
   'w-cls':    44,
   'w-cardgrp': 34,  // 旧 42→38→34 (B/A/Q 縦並びの 3 桁値列の縮小、 2026/5/23)
