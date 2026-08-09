@@ -5376,12 +5376,19 @@ function recalc() {
   const _npRateForSlots = (typeof getCurrentNpMultiplier === 'function')
                           ? getCurrentNpMultiplier() : 0;
   const _npActive = (_npRateForSlots > 0);
+  // NP スロットも通常カードと同様に zero フラグ (クリ select = 0) を尊重する。
+  // 「N を選んでいるがクリ欄が 0」 = そのスロットでは攻撃しない指定なので、
+  // ダメージが 0 になる (下の _d1raw 等で ZERO_SLOT) だけでなく、
+  // 回数制バフの残回数も消費してはならない。
+  // 旧実装は NP スロットで active:_npActive のみを見ており zero を無視していたため、
+  // 例: 攻撃バフ 3 回制 + [N(クリ0), B, B, EX] の構成で N が 1 回消費してしまい、
+  //     B/B に 2 回分しか乗らず EX に乗らない、 という数え違いが起きていた。
   const _phase3Slots = [
-    c1 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive }
+    c1 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive && !zero1 }
                 : { card:c1, isCrit:crit1, active:!zero1 },
-    c2 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive }
+    c2 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive && !zero2 }
                 : { card:c2, isCrit:crit2, active:!zero2 },
-    c3 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive }
+    c3 === 'NP' ? { card:npLetterForChain, isCrit:false, active:_npActive && !zero3 }
                 : { card:c3, isCrit:crit3, active:!zero3 },
     { card:'EX', isCrit:false, active:exOn },
   ];
