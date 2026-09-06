@@ -4745,7 +4745,7 @@ const GRAND_SCORE_CHAIN = {
   // 反映する専用キー (ダメージ計算のフィールドではないので map には加算しない)。
   saber:     { B:{criBuf:50},                 A:{_npGainBuf:30},
                Q:{_starRateBuf:100, footB:500, footA:500, footQ:500},
-               M:{atkBuf:30}, Brave:{ exBuf:100 } },
+               M:{atkBuf:30}, Brave:{} },
   archer:    { B:{cardBufB:20}, A:{cardBufA:20}, Q:{cardBufQ:20},        M:{} },
   // ランサーは HP 割合が少ないほど効果アップ。 ユーザー指定により最大値を採用。
   //   A: NP獲得量 20〜50%  /  Q: スター発生率 50〜150% & 集中度 500%
@@ -4760,7 +4760,9 @@ const GRAND_SCORE_CHAIN = {
   rider:     { B:{criBuf:30, _npBufGrasp:{v:20, c:1}},
                A:{_npGainBuf:20, _npBufGrasp:{v:20, c:1}},
                Q:{_starRateBuf:50, footB:500, footA:500, footQ:500, _npBufGrasp:{v:20, c:1}},
-               M:{atkBuf:20}, Brave:{} },
+               // マイティチェインは 「チェイン判定の瞬間」 に境域掌握の有無を見る。
+               // 境域掌握なら味方全体の攻撃力 +10% が追加される (自身にも乗る)。
+               M:{atkBuf:20, _atkBufGrasp:10}, Brave:{} },
   // キャスターは 「対応色の宝具威力 +20% & 敵の対応色耐性 -30%」。
   // 宝具威力は自分の宝具がその色の時のみ乗るため npBuf は宝具色一致時に限定 (下で判定)。
   caster:    { B:{_npBufIfNp:20, bDebuf:30}, A:{_npBufIfNp:20, aDebuf:30}, Q:{_npBufIfNp:20, qDebuf:30}, M:{atkBuf:20} },
@@ -4797,9 +4799,10 @@ const GRAND_SCORE_CHAIN = {
 //        → 攻撃のたびに付与されるので、 使われるまで溜まる (stack: true)
 //   騎 【駿馬、 戦場を駆る】 「ダメージ前に QAB 威力 30% (各2回)」 を付与 (1T)
 //        → ブレイブ成立時に 1 度だけ付与される。 蓄積しない (stack: false)
+//   ex = EX 威力アップ量 (各攻撃前に付与され EX でしか消費されないので蓄積する)
 const _GRAND_BRAVE_PER_HIT = {
-  saber: { v: 50, c: 1, stack: true },
-  rider: { v: 30, c: 2, stack: false },
+  saber: { v: 50, c: 1, stack: true, ex: 100 },
+  rider: { v: 30, c: 2, stack: false },        // 騎は EX バフなし
 };
 
 // ブレイブチェインのカード威力バフを、 カード構成から動的に算出する。
@@ -4824,8 +4827,24 @@ function _grandBraveCardBufs(spec) {
     const v = cardLetter(sel);
     return (v === 'NP' || v === 'N') ? npL : v;
   };
-  const cards = [resolve('card1'), resolve('card2'), resolve('card3')];
+  // 補助宝具のスロットは攻撃しないのでバフの授受に関与しない (null にして除外)
+  const _atk = _grandAttackingSlots();
+  const cards = [0, 1, 2].map(i => (_atk.includes(i) ? resolve('card' + (i + 1)) : null));
   const fidOf = { B: 'cardBufB', A: 'cardBufA', Q: 'cardBufQ' };
+
+  // EX 威力バフ (剣の 【魔力放出】 のみ) は各攻撃前に付与され、 EX でしか消費されないので
+  // 溜まった分がそのまま EX 攻撃に乗る。 EX 攻撃自身の直前にも付与されるため、
+  // 「攻撃するコマンドカード枚数 + 1 (EX 分)」 が上限。
+  //   例) 3 枚 + EX なら 100% × 4 = 400%
+  // クリ欄が '0' のスロット (= 攻撃しない) はカウントしないので、 その分だけ減る。
+  if (doStack && spec && spec.ex) {
+    const hits = _grandAttackingSlots().length;
+    const exOn = (gs('cardEx') === '有' || gs('cardEx') === '全');
+    if (exOn && hits > 0) {
+      const n = hits + 1;                       // EX 攻撃前の付与分を足す
+      out.exBuf = { v: spec.ex * n, c: 1, unit: spec.ex, n: n };
+    }
+  }
   for (const color of ['B', 'A', 'Q']) {
     const positions = [];
     cards.forEach((c, i) => { if (c === color) positions.push(i); });
@@ -4986,9 +5005,18 @@ function _grandHasGrasp() {
   return (v === undefined || v === null) ? true : !!v;
 }
 
+// 宝具スロットが実際に攻撃するか。 補助宝具 (宝具倍率 0 = ダメージ関数なし) は
+// 敵に攻撃しないため、 「攻撃前に付与」 系のバフが発動しない (攻略サイトにも明記)。
+function _grandNpSlotAttacks() {
+  const r = (typeof getCurrentNpMultiplier === 'function') ? getCurrentNpMultiplier() : 0;
+  return r > 0;
+}
+
 // この行で宝具を実際に撃つか (= 宝具スロットがあり、 そこで攻撃する) を返す。
 // クリ欄が '0' のスロットは 「そのスロットでは攻撃しない」 指定なので宝具使用に数えない。
+// 補助宝具も攻撃が成立しないので数えない。
 function _grandUsesNp() {
+  if (!_grandNpSlotAttacks()) return false;
   for (let i = 1; i <= 3; i++) {
     const v = cardLetter('card' + i);
     if (v !== 'N' && v !== 'NP') continue;
@@ -4996,6 +5024,22 @@ function _grandUsesNp() {
     return true;
   }
   return false;
+}
+
+// 攻撃するコマンドカードのスロット番号 (0-2) を返す。
+// クリ欄 0 のスロットと、 補助宝具の宝具スロットは 「攻撃しない」 ので除外する。
+function _grandAttackingSlots() {
+  const out = [];
+  const npOk = _grandNpSlotAttacks();
+  for (let i = 1; i <= 3; i++) {
+    const v = cardLetter('card' + i);
+    const isNp = (v === 'N' || v === 'NP');
+    if (!isNp && v !== 'B' && v !== 'A' && v !== 'Q') continue;
+    if (gs('crit' + i) === '0') continue;
+    if (isNp && !npOk) continue;            // 補助宝具は攻撃しない
+    out.push(i - 1);
+  }
+  return out;
 }
 
 // 現在行のサーヴァントのクラス名 (小文字) を返す。 取得できなければ null。
@@ -5287,6 +5331,12 @@ function _applyGrandScoreToMap(map) {
         if (_gz2 > 0) rec('criBuf', v, 'Gaze', c, null, false, false, _gz2 === 1);
         continue;
       }
+      if (fid === '_atkBufGrasp') {
+        // ライダーのマイティチェイン追加分。 宝具を撃つかに関わらず
+        // 「チェイン判定時に境域掌握状態か」 だけで決まるので _grandHasGrasp のみ見る。
+        if (_grandHasGrasp()) rec('atkBuf', v, 'Grasp', c);
+        continue;
+      }
       if (fid === '_npBufGrasp') {
         // ライダーの 【境域掌握(騎)】 由来の宝具威力アップ。
         // 自分の宝具がチェイン色と一致し、 かつ実際に宝具を撃つ場合のみ乗る。
@@ -5442,11 +5492,6 @@ function applyClassScoreBonus(){
       // (grandScore 列は ON のままなのに bBuf/exBuf だけ元に戻る、 という症状になる)
       // ON/OFF は必ず行ごとの状態マップを参照する。
       const _gsOnNow = !!(APP.grandScoreMap && APP.grandScoreMap[_csRowCtx]);
-      // NP・スター計算モーダル用に行ごとの効果量を保存しておく
-      APP.grandNpStarMap = APP.grandNpStarMap || {};
-      APP.grandNpStarMap[_csRowCtx] = _gsOnNow
-        ? Object.assign({ na: 0, sr: 0, nd: 0 }, APP._grandNpStar)
-        : { na: 0, sr: 0, nd: 0 };
       _syncGrandScoreRow(_buffDetailStore[_skey], _gInfo && _gInfo.items, fid, _gsOnNow, _skey);
     }
 
@@ -5468,6 +5513,21 @@ function applyClassScoreBonus(){
     el.value = storeTotal ? totalStr : '0';
     if (row0Total !== 0) setAutoFilled(el, true);
     else if (passive === 0) setAutoFilled(el, false);
+  }
+
+  // NP・スター計算 / 被ダメージ NP 計算モーダル用に、 行ごとの効果量を保存する。
+  //   ・NP獲得量 (A チェイン) / スター発生率 (Q チェイン) / 被ダメ時 NP (EX1 の A チェイン)
+  // これらはダメージ計算のバフ欄を持たないため、 モーダルを開いた時に参照される。
+  // ※ フィールド走査ループの中に置くと 「対象フィールドのストアが無い行」 では
+  //   更新されず、 カードを Q チェインに組み替えてもスター発生率が古いままになる。
+  //   カード変更のたびに確実に更新されるよう、 ループの外で必ず書き込む。
+  {
+    const _ctx = _csRowCtx || '';
+    const _on = !!(APP.grandScoreMap && APP.grandScoreMap[_ctx]);
+    APP.grandNpStarMap = APP.grandNpStarMap || {};
+    APP.grandNpStarMap[_ctx] = (_on && !_skipToggles)
+      ? Object.assign({ na: 0, sr: 0, nd: 0 }, APP._grandNpStar)
+      : { na: 0, sr: 0, nd: 0 };
   }
 }
 
