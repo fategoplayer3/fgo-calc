@@ -2322,6 +2322,7 @@ textarea{
     <option value="1">1ターン目</option>
     <option value="2">2ターン目</option>
   </select></label>
+<label id="grandPierceWrap" style="margin-left:10px;display:none;" title="ランサー専用。 【一刺にて城を穿つ(槍)】 の状態。 宝具の効果発動前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば今ターンも ON のままです。 ON の間、 敵に解除可能な防御強化がなければ自身の攻撃の威力 +50% (5回) が乗ります。 敵の防御強化を解除した場合は威力アップが乗らないので OFF にしてください。"><input type="checkbox" id="grandPierce" checked> <span style="font-size:11px;">一刺にて城を穿つ</span></label>
 <label id="grandGraspWrap" style="margin-left:10px;display:none;" title="ライダー専用。 【境域掌握(騎)】 状態かどうか。 宝具使用時の効果前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば今ターンも ON のままです。 ON の間、 色チェイン成立時の宝具威力 +20% と、 ブレイブ成立時の各色カード威力 +20% が有効になります。"><input type="checkbox" id="grandGrasp" checked> <span style="font-size:11px;">境域掌握</span></label>
 <label id="grandAmmoWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で攻撃のたびに 1 個消費し、 そのカードの色威力が +20% (色チェイン成立時は +30%)。 開始時 4 個、 ターン終了時 +1 個なので、 2 ターン目以降は残数を入れ直してください。"><span style="font-size:11px;">鈍の矢弾</span> <input type="number" id="grandAmmo" value="4" min="0" max="9" step="1" style="width:42px;height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"></label>
           </div>
@@ -3742,6 +3743,9 @@ function _updateGrandAmmoVisibility() {
   // [対敵注視] は EX1 (盾/裁/讐/月) 専用
   const gz = document.getElementById('grandGazeWrap');
   if (gz) gz.style.display = (on && GRAND_EX1_CLASSES.has(cls)) ? '' : 'none';
+  // 【一刺にて城を穿つ(槍)】 はランサー専用
+  const pw = document.getElementById('grandPierceWrap');
+  if (pw) pw.style.display = (on && cls === 'lancer') ? '' : 'none';
   // [増幅負荷] / 【対極共生】 は EX2 (Ego/降臨/詐/獣) 専用
   const isEx2 = GRAND_EX2_CLASSES.has(cls) || cls.startsWith('beast');
   const e2 = document.getElementById('grandEx2Wrap');
@@ -4753,13 +4757,13 @@ const GRAND_SCORE_CHAIN = {
                Q:{_starRateBuf:150, footB:500, footA:500, footQ:500},
                M:{atkBuf:50} },
   // 【駿馬、 戦場を駆る(騎)】 ブレイブ成立時 Q/A/B 威力 +30% (各 2 回)
-  // ライダーの各色チェインには 【境域掌握(騎)】 状態を前提とした
-  // 「その色の攻撃時、 全体の同色カードの宝具威力 +20% (1回/3T)」 が付く。
-  // 境域掌握は宝具使用時の効果前に自身へ付与されるので、 宝具を撃つ構成なら乗る。
-  // 自分の宝具がチェイン色と一致する場合のみ有効 (_npBufGrasp で判定)。
-  rider:     { B:{criBuf:30, _npBufGrasp:{v:20, c:1}},
-               A:{_npGainBuf:20, _npBufGrasp:{v:20, c:1}},
-               Q:{_starRateBuf:50, footB:500, footA:500, footQ:500, _npBufGrasp:{v:20, c:1}},
+  // 各色チェインには [境域掌握] 状態時の追加効果
+  //   「該当色による攻撃時、 味方全体の該当色宝具の威力 +20% (1回/3T)」
+  // があるが、 付与されるのは 「該当色で攻撃した後」 なので同ターンの自分の宝具には乗らない。
+  // 恩恵を受けるのは後続の味方の同色宝具か次ターン以降なので、 ここでは計上しない。
+  rider:     { B:{criBuf:30},
+               A:{_npGainBuf:20},
+               Q:{_starRateBuf:50, footB:500, footA:500, footQ:500},
                // マイティチェインは 「チェイン判定の瞬間」 に境域掌握の有無を見る。
                // 境域掌握なら味方全体の攻撃力 +10% が追加される (自身にも乗る)。
                M:{atkBuf:20, _atkBufGrasp:10}, Brave:{} },
@@ -4774,20 +4778,23 @@ const GRAND_SCORE_CHAIN = {
                M:{criBuf:100} },
   berserker: { B:{cardBufB:50}, A:{cardBufA:50}, Q:{cardBufQ:50},        M:{} },
   // EX1 (此方): シールダー / ルーラー / アヴェンジャー / ムーンキャンサー
-  //   各色チェインで 「味方全体の対象カード性能 +20%」。 性能アップなので
-  //   カード威力欄ではなく bBuf/aBuf/qBuf (NP・スターにも影響する枠) に入れる。
-  //   B チェインの [対敵注視] へのクリ威力 +80%、 マイティの被ダメ時攻撃力 +20% は
-  //   条件付き (敵に対敵注視が付いている / 被弾している) のため対象外。
-  //   A チェインには 「自身の被ダメ時 NP 獲得量 +50% (2T)」 も付く。
-  //   これは被ダメージ NP 計算モーダルの 「被ダメ時 NP獲得量バフ」 に反映する。
-  //   B チェイン成立時は [対敵注視] の敵へのクリ威力 +80% も付く (_criBufGaze で判定)。
-  ex1:       { B:{bBuf:20, _criBufGaze:80}, A:{aBuf:20, _npDefBuf:50}, Q:{qBuf:20}, M:{} },
+  //   各色チェインで 「味方全体の対象カード威力 +20%」。
+  //   攻略サイトが 「カード威力アップ」 と明記しているので、 性能欄 (bBuf 等) ではなく
+  //   カード威力欄 (cardBufB/A/Q) に入れる (= 火力のみに影響し NP・スターには乗らない)。
+  //   B チェインには追加で 「[対敵注視] 状態の敵へのクリ威力 +80%」 (_criBufGaze)。
+  //   A チェインには 「自身の被ダメ時 NP 獲得量 +50% (2T)」 (_npDefBuf) も付く
+  //   (これは被ダメージ NP 計算モーダルの 「被ダメ時 NP獲得量バフ」 に反映)。
+  //   マイティの被ダメ時攻撃力 +20% は被弾が前提なので対象外 (手動調整)。
+  ex1:       { B:{cardBufB:20, _criBufGaze:80}, A:{cardBufA:20, _npDefBuf:50},
+               Q:{cardBufQ:20}, M:{} },
   // EX2 (彼方): アルターエゴ / フォーリナー / プリテンダー / ビースト
   //   B チェイン = 味方全体のクリ威力 +30% (2T)
   //   マイティ   = 自身の EX カード威力 +100% (1回)
   //   Q/A チェインは強化解除・被強化成功率・弱体付与成功率などダメージ計算外。
   //   [増幅負荷] / [放出残滓] / 対極共生の弱体数依存特攻は状態管理が必要なため対象外。
-  ex2:       { B:{criBuf:30}, A:{}, Q:{}, M:{exBuf:{v:100, c:1}} },
+  //   マイティの EX カード 「威力」 アップは NP 獲得・スター発生に影響しないため、
+  //   _exPowerOnly を立てて NP・スター計算モーダルから除外する。
+  ex2:       { B:{criBuf:30}, A:{}, Q:{}, M:{exBuf:{v:100, c:1, exPowerOnly:true}} },
 };
 
 // ブレイブチェインで 1 回の攻撃あたりに付与されるカード威力 (クラス別)。
@@ -4843,6 +4850,11 @@ function _grandBraveCardBufs(spec) {
     if (exOn && hits > 0) {
       const n = hits + 1;                       // EX 攻撃前の付与分を足す
       out.exBuf = { v: spec.ex * n, c: 1, unit: spec.ex, n: n };
+      // EX 「威力」 アップは NP 獲得・スター発生に影響しないため、
+      // NP・スター計算モーダルへ渡す値から差し引けるよう別途記録する。
+      // (弓 【鷲の目】 の EX 分はスロット別計算側で加算されるので EX バフ欄には入らず、
+      //  そもそも NP・スター計算には流れないため対象外)
+      APP._grandExPowerOnly = (APP._grandExPowerOnly || 0) + spec.ex * n;
     }
   }
   for (const color of ['B', 'A', 'Q']) {
@@ -4951,9 +4963,11 @@ function _grandDefDebuffPreview() {
   let stacks = 0;
   for (let i = 1; i <= 3; i++) {
     const v = cardLetter('card' + i);
-    if (v !== 'B' && v !== 'A' && v !== 'Q' && v !== 'N' && v !== 'NP') continue;
+    const isNp = (v === 'N' || v === 'NP');
+    if (!isNp && v !== 'B' && v !== 'A' && v !== 'Q') continue;
     if (gs('crit' + i) === '0') continue;          // そのスロットでは攻撃しない
     vals.push(GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX));
+    // 宝具でも [標的破壊] は付与される (実機確認済み)
     stacks += 1;
   }
   const exOn = (gs('cardEx') === '有' || gs('cardEx') === '全');
@@ -4994,6 +5008,18 @@ function _grandGazeTurn() {
 const GRAND_GAZE_SP_BUF = { 1: 20, 2: 50 };
 // EX1 B チェイン成立時の [対敵注視] へのクリ威力アップ
 const GRAND_GAZE_CRI_BUF = 80;
+
+// この行が 【一刺にて城を穿つ(槍)】 の状態を保持しているか。
+// 宝具の効果発動前に付与され 3 ターン持続する (1回/3T) ため、 前のターンに宝具を撃って
+// いれば今ターン宝具を撃たなくても有効。 そのためカード構成からは判定せず、
+// サーヴァント選択モーダルのチェックボックス (行ごとに保存) を正とする。 既定は ON。
+// 敵に解除可能な防御強化があった場合は 「解除」 側が発動して威力アップは乗らないので、
+// その場合はユーザーが OFF にする。
+function _grandHasPierce() {
+  const sfx = _rowCtx || '';
+  const v = APP.grandPierceMap ? APP.grandPierceMap[sfx] : undefined;
+  return (v === undefined || v === null) ? true : !!v;
+}
 
 // この行が 【境域掌握(騎)】 状態かどうか。
 // 宝具使用時の効果前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば
@@ -5178,6 +5204,8 @@ function _syncGrandScoreRow(store, items, fid, gsOn, storeKey) {
 function _applyGrandScoreToMap(map) {
   APP._grandDeltaMap = {};
   APP._grandNpStar = { na: 0, sr: 0, nd: 0 };
+  APP._grandGraspBrave = {};   // 騎ブレイブ [境域掌握] 分 (同色 2 枚目以降に適用)
+  APP._grandExPowerOnly = 0;   // EX 「威力」 アップ分 (NP・スター計算では除外する)
   // 同じフィールドに複数の効果が乗ることがある
   // (例: 騎のブレイブ 「駿馬 30%/2回」 + 「境域掌握 20%/1回」)。
   // 回数や適用条件が効果ごとに違うので 1 つに合算せず、 items に個別に積んで
@@ -5210,7 +5238,13 @@ function _applyGrandScoreToMap(map) {
   // 実際には解除が発生して攻撃力アップが乗らない場合は、
   // バフ詳細でこの行の値を 0 にすれば手動扱い (manual) になり、 以降上書きされない。
   // 宝具のダメージ前に付与されるので、 宝具自身にも乗る。
-  if (cls === 'lancer' && _grandUsesNp()) rec('atkBuf', 50, 'NpPierce', '5', null, false, true);
+  // 【一刺にて城を穿つ(槍)】
+  //   条文は 「自身の攻撃の威力を 50% アップ(5回)」。 攻略サイトの検証では
+  //   付与されるバフアイコンから 「特攻バフ」 カテゴリと見られるため spBuf に入れる
+  //   (攻撃力アップとは乗算枠が異なるので、 他バフとの組み合わせで結果が変わる)。
+  //   宝具の効果発動前に付与され 3 ターン持続するので、 宝具を撃つターンに限らず
+  //   チェックが ON の間は有効。 位置条件も付けない (前ターン付与分は 1 枚目から乗る)。
+  if (cls === 'lancer' && _grandHasPierce()) rec('spBuf', 50, 'NpPierce', '5');
 
   // ── EX2: [増幅負荷] と 【対極共生(彼方)】 ──
   // [増幅負荷] は本来 1 個 -10% の攻撃力ダウン。 【対極共生】 で変換すると +10% になる。
@@ -5304,14 +5338,28 @@ function _applyGrandScoreToMap(map) {
     //   宝具より前のカードには乗らないため fromNp を立てる
     //   (例: 2nd で宝具 → 2nd/3rd/EX に乗る)。
     //   駿馬本体 (30%/2回) とは回数も条件も違うので、 別効果として rec し別行に出す。
+    // 【駿馬、 戦場を駆る(騎)】 の後段 ([境域掌握] 状態時):
+    //   「○攻撃時に味方の○カード威力 +20% (1回/3T)」 を各色に付与。
+    // 条文どおり 「その色で攻撃した時に付与される」 ので、 付与のきっかけとなった
+    // その攻撃自身には乗らず、 同じ色の 2 枚目以降にのみ有効。
+    //   例) B, B, Q なら 1 枚目 B で付与 → 2 枚目 B に +20% が乗る。
+    //       B を 1 枚しか切らないならそのターンは乗る先がない。
+    // 位置を特定して加算するため、 通常の rec ではなく専用マップに退避する。
     if (chain === 'Brave' && cls === 'rider' && _grandHasGrasp()) {
       const _npL2 = getCurrentNpCardLetter();
-      const _res = (sel) => { const v = cardLetter(sel); return (v === 'NP' || v === 'N') ? _npL2 : v; };
-      const _cards = [_res('card1'), _res('card2'), _res('card3')];
+      const _atkSlots = _grandAttackingSlots();
+      const _res = (i) => {
+        const v = cardLetter('card' + (i + 1));
+        return (v === 'NP' || v === 'N') ? _npL2 : v;
+      };
       const _fidOf = { B: 'cardBufB', A: 'cardBufA', Q: 'cardBufQ' };
+      APP._grandGraspBrave = APP._grandGraspBrave || {};
       for (const color of ['B', 'A', 'Q']) {
-        if (!_cards.includes(color)) continue;   // その色を切らないなら乗る先がない
-        rec(_fidOf[color], 20, 'Grasp', '1', null, false, true);
+        // その色で攻撃するスロットを順に並べ、 2 つ目以降が適用対象
+        const hits = _atkSlots.filter(i => _res(i) === color);
+        if (hits.length < 2) continue;           // 1 枚だけなら乗る先がない
+        const fid = _fidOf[color];
+        APP._grandGraspBrave[fid] = { v: 20, from: hits[1] };   // hits[1] = 2 枚目の位置
       }
     }
     for (const [fid, raw] of Object.entries(eff)) {
@@ -5320,6 +5368,11 @@ function _applyGrandScoreToMap(map) {
       const c = (typeof raw === 'number') ? '' : String(raw.c ?? '');
       const split = (typeof raw === 'number') ? null : (raw.n ? { unit: raw.unit, n: raw.n } : null);
       const critOnly = (typeof raw === 'number') ? false : !!raw.critOnly;
+      // EX 「威力」 アップ (NP・スターに影響しない) は別途記録して
+      // NP・スター計算モーダルへ渡す値から差し引く
+      if (typeof raw === 'object' && raw && raw.exPowerOnly) {
+        APP._grandExPowerOnly = (APP._grandExPowerOnly || 0) + (raw.v || 0);
+      }
       if (fid === '_npBufIfNp') {
         // キャスターの 「対応色の宝具威力アップ」。 自分の宝具がそのチェイン色の時のみ乗る。
         if (npL === chain) rec('npBuf', v, chain, c);
@@ -5335,12 +5388,6 @@ function _applyGrandScoreToMap(map) {
         // ライダーのマイティチェイン追加分。 宝具を撃つかに関わらず
         // 「チェイン判定時に境域掌握状態か」 だけで決まるので _grandHasGrasp のみ見る。
         if (_grandHasGrasp()) rec('atkBuf', v, 'Grasp', c);
-        continue;
-      }
-      if (fid === '_npBufGrasp') {
-        // ライダーの 【境域掌握(騎)】 由来の宝具威力アップ。
-        // 自分の宝具がチェイン色と一致し、 かつ実際に宝具を撃つ場合のみ乗る。
-        if (npL === chain && _grandHasGrasp()) rec('npBuf', v, 'Grasp', c);
         continue;
       }
       // NP獲得量 / スター発生率 は行のバフ欄ではなく NP・スター計算モーダルの
@@ -5528,6 +5575,14 @@ function applyClassScoreBonus(){
     APP.grandNpStarMap[_ctx] = (_on && !_skipToggles)
       ? Object.assign({ na: 0, sr: 0, nd: 0 }, APP._grandNpStar)
       : { na: 0, sr: 0, nd: 0 };
+    // 騎ブレイブの [境域掌握] 分もスロット位置つきで保持する
+    APP.grandGraspBraveMap = APP.grandGraspBraveMap || {};
+    APP.grandGraspBraveMap[_ctx] = (_on && !_skipToggles)
+      ? Object.assign({}, APP._grandGraspBrave)
+      : {};
+    // EX 威力アップ分 (NP・スター計算モーダルで差し引く)
+    APP.grandExPowerMap = APP.grandExPowerMap || {};
+    APP.grandExPowerMap[_ctx] = (_on && !_skipToggles) ? (APP._grandExPowerOnly || 0) : 0;
   }
 }
 
@@ -7305,6 +7360,9 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.grandNpStarMap) delete APP.grandNpStarMap[sfx];
         if (APP.grandAmmoMap) delete APP.grandAmmoMap[sfx];
         if (APP.grandGraspMap) delete APP.grandGraspMap[sfx];
+        if (APP.grandPierceMap) delete APP.grandPierceMap[sfx];
+        if (APP.grandGraspBraveMap) delete APP.grandGraspBraveMap[sfx];
+        if (APP.grandExPowerMap) delete APP.grandExPowerMap[sfx];
         if (APP.grandGazeMap) delete APP.grandGazeMap[sfx];
         if (APP.grandEx2Map) delete APP.grandEx2Map[sfx];
         if (APP.grandRowHiddenMap) {
@@ -7463,6 +7521,11 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
       const _gz = APP.grandGazeMap ? APP.grandGazeMap[_gsSfx] : undefined;
       _gazeBox.value = String((_gz === undefined || _gz === null) ? 0 : _gz);
     }
+    const _pierceBox = document.getElementById('grandPierce');
+    if (_pierceBox) {
+      const _p = APP.grandPierceMap ? APP.grandPierceMap[_gsSfx] : undefined;
+      _pierceBox.checked = (_p === undefined || _p === null) ? true : !!_p;   // 既定は ON
+    }
     const _graspBox = document.getElementById('grandGrasp');
     if (_graspBox) {
       const _g = APP.grandGraspMap ? APP.grandGraspMap[_gsSfx] : undefined;
@@ -7522,6 +7585,12 @@ if (applyServantBtn) {
           const _ks = (k.match(/(_R\d+)$/) || ['', ''])[1];
           if (_ks === _gsApplySfx) delete APP.grandRowHiddenMap[k];
         }
+      }
+      // 一刺にて城を穿つ (槍) の ON/OFF も行ごとに保持する
+      const _pierceEl = document.getElementById('grandPierce');
+      if (_pierceEl) {
+        APP.grandPierceMap = APP.grandPierceMap || {};
+        APP.grandPierceMap[_gsApplySfx] = !!_pierceEl.checked;
       }
       // 境域掌握 (騎) の ON/OFF も行ごとに保持する
       const _graspEl = document.getElementById('grandGrasp');
@@ -7888,7 +7957,35 @@ function computeEffectiveBuffsByCardPos(rowSuffix, slots) {
   _applyGrandDefDebuffStacks(sfx, slots, out);
   // 鈍の矢弾 (弓) もスロット順に消費される共有リソースなのでここで割り当てる
   _applyGrandArcherAmmo(sfx, slots, out);
+  // 騎ブレイブの [境域掌握] 分 (同色 2 枚目以降にのみ乗る)
+  _applyGrandGraspBrave(sfx, slots, out);
   return out;
+}
+
+// 【駿馬、 戦場を駆る(騎)】 の [境域掌握] 追加分をスロット別に反映する。
+// 「その色で攻撃した時に付与」 なので、 きっかけの攻撃には乗らず同色 2 枚目以降が対象。
+// 付与位置 (from) 以降のスロットで、 かつその色のカードにのみ加算する。
+function _applyGrandGraspBrave(sfx, slots, out) {
+  try {
+    const m = APP.grandGraspBraveMap && APP.grandGraspBraveMap[sfx || ''];
+    if (!m) return;
+    const hidden = (f) => !!(APP.grandRowHiddenMap && APP.grandRowHiddenMap[f + (sfx || '')]);
+    for (const [fid, info] of Object.entries(m)) {
+      if (!info || !info.v) continue;
+      if (hidden(fid)) continue;
+      const target = fid === 'cardBufB' ? 'B' : fid === 'cardBufA' ? 'A' : fid === 'cardBufQ' ? 'Q' : null;
+      if (!target) continue;
+      const base = out[fid] ? out[fid].slice() : [0, 0, 0, 0];
+      for (let pos = info.from; pos < 3; pos++) {
+        const slot = slots[pos];
+        if (!slot || !slot.active) continue;
+        if (slot.card !== target) continue;
+        base[pos] = (base[pos] || 0) + info.v;
+        break;                       // 1 回分なので最初に該当したカードだけ
+      }
+      out[fid] = base;
+    }
+  } catch (e) { /* 計算本体を止めない */ }
 }
 
 // ── グランドスコア 【鷲の目(弓)】 / 鈍の矢弾 ──
@@ -7984,6 +8081,8 @@ function _applyGrandDefDebuffStacks(sfx, slots, out) {
       if (!slot || !slot.active) continue;
       // 「これまでに付与された分」 が乗る (自分の攻撃で付与される分は次から)
       base[pos] = (base[pos] || 0) + GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX);
+      // 攻略サイトには 「通常攻撃時に付与」 とあるが、 実機では宝具でも
+      // [標的破壊] が付与されることを確認済みのため、 宝具スロットでもスタックを増やす。
       stacks += 1;
     }
     out.defDebuf = base;
@@ -10057,6 +10156,15 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     if (APP.grandGraspMap && APP.grandGraspMap[_srcSfx] !== undefined) {
       APP.grandGraspMap[suffix] = APP.grandGraspMap[_srcSfx];
     }
+    if (APP.grandPierceMap && APP.grandPierceMap[_srcSfx] !== undefined) {
+      APP.grandPierceMap[suffix] = APP.grandPierceMap[_srcSfx];
+    }
+    if (APP.grandGraspBraveMap && APP.grandGraspBraveMap[_srcSfx]) {
+      APP.grandGraspBraveMap[suffix] = Object.assign({}, APP.grandGraspBraveMap[_srcSfx]);
+    }
+    if (APP.grandExPowerMap && APP.grandExPowerMap[_srcSfx] !== undefined) {
+      APP.grandExPowerMap[suffix] = APP.grandExPowerMap[_srcSfx];
+    }
     if (APP.grandGazeMap && APP.grandGazeMap[_srcSfx] !== undefined) {
       APP.grandGazeMap[suffix] = APP.grandGazeMap[_srcSfx];
     }
@@ -10541,7 +10649,14 @@ async function openNpStarModalForRow(suffix) {
   set('ns_b_card_debuff', parseFloat(getRowVal('bDebuf')) || 0);
   set('ns_a_card_debuff', parseFloat(getRowVal('aDebuf')) || 0);
   set('ns_q_card_debuff', parseFloat(getRowVal('qDebuf')) || 0);
-  set('ns_ex_card_buff',  parseFloat(getRowVal('exBuf')) || 0);
+  // EX バフ欄には 「EXカード性能アップ」 (NP・スターに影響する) と
+  // 「EX威力アップ」 (火力のみ) が混在する。 B/A/Q と同様に威力分は引き継がないため、
+  // グランドスコア由来の威力アップ分 (剣 【魔力放出】) を差し引く。
+  {
+    const _exAll = parseFloat(getRowVal('exBuf')) || 0;
+    const _exPow = (APP.grandExPowerMap && APP.grandExPowerMap[sfx]) || 0;
+    set('ns_ex_card_buff', Math.max(0, _exAll - _exPow));
+  }
   // NP/SR バフ: NP獲得量バフ は サーヴァントのパッシブ (upDropnp = NP獲得量アップ) を初期値として自動入力。
   //              スター発生率バフ は パッシブ (upCriticalpoint = スター発生率アップ、 例: 気配遮断) を自動入力。
   //              さらに クラススコアが ON の行なら +50 する。
