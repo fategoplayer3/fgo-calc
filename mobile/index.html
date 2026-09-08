@@ -373,7 +373,8 @@
   #servantModal #popLv, #servantModal #popFou, #servantModal #popCE,
   #servantModal #grandGaze, #servantModal #grandAmmo,
   #servantModal #grandLoad, #servantModal #grandDebuffCount,
-  #servantModal #grandDualityRate{height:24px !important; line-height:1.2 !important;}
+  #servantModal #grandDualityRate,
+  #servantModal #grandInsta{height:24px !important; line-height:1.2 !important;}
   #servantList .sv-item{padding:6px 10px !important;}
   #servantList .sv-main > span:first-child{font-size:11px !important; line-height:1.2;}
   #servantList .sv-rank{font-size:10px !important;}
@@ -2322,6 +2323,15 @@ textarea{
     <option value="1">1ターン目</option>
     <option value="2">2ターン目</option>
   </select></label>
+<label id="grandInstaWrap" style="margin-left:10px;display:none;" title="アサシン専用。 自身に付与されている [即死付与率アップ] の効果量合計。 マイティチェイン成立時、 この量が 10%/30%/60%/100%/150% 以上の各段階を満たすごとにクリティカル威力が 30% ずつ追加でアップします (最大 +150%)。 各色チェインでも即死付与率アップが付与されるので、 それらの合計を選んでください。"><span style="font-size:11px;">即死付与率</span>
+  <select id="grandInsta" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;">
+    <option value="0" selected>なし</option>
+    <option value="10">10%以上</option>
+    <option value="30">30%以上</option>
+    <option value="60">60%以上</option>
+    <option value="100">100%以上</option>
+    <option value="150">150%以上</option>
+  </select></label>
 <label id="grandPierceWrap" style="margin-left:10px;display:none;" title="ランサー専用。 【一刺にて城を穿つ(槍)】 の状態。 宝具の効果発動前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば今ターンも ON のままです。 ON の間、 敵に解除可能な防御強化がなければ自身の攻撃の威力 +50% (5回) が乗ります。 敵の防御強化を解除した場合は威力アップが乗らないので OFF にしてください。"><input type="checkbox" id="grandPierce" checked> <span style="font-size:11px;">一刺にて城を穿つ</span></label>
 <label id="grandGraspWrap" style="margin-left:10px;display:none;" title="ライダー専用。 【境域掌握(騎)】 状態かどうか。 宝具使用時の効果前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば今ターンも ON のままです。 ON の間、 色チェイン成立時の宝具威力 +20% と、 ブレイブ成立時の各色カード威力 +20% が有効になります。"><input type="checkbox" id="grandGrasp" checked> <span style="font-size:11px;">境域掌握</span></label>
 <label id="grandAmmoWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で攻撃のたびに 1 個消費し、 そのカードの色威力が +20% (色チェイン成立時は +30%)。 開始時 4 個、 ターン終了時 +1 個なので、 2 ターン目以降は残数を入れ直してください。"><span style="font-size:11px;">鈍の矢弾</span> <input type="number" id="grandAmmo" value="4" min="0" max="9" step="1" style="width:42px;height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"></label>
@@ -3743,6 +3753,9 @@ function _updateGrandAmmoVisibility() {
   // [対敵注視] は EX1 (盾/裁/讐/月) 専用
   const gz = document.getElementById('grandGazeWrap');
   if (gz) gz.style.display = (on && GRAND_EX1_CLASSES.has(cls)) ? '' : 'none';
+  // [即死付与率] はアサシン専用
+  const iw = document.getElementById('grandInstaWrap');
+  if (iw) iw.style.display = (on && cls === 'assassin') ? '' : 'none';
   // 【一刺にて城を穿つ(槍)】 はランサー専用
   const pw = document.getElementById('grandPierceWrap');
   if (pw) pw.style.display = (on && cls === 'lancer') ? '' : 'none';
@@ -4758,12 +4771,16 @@ const GRAND_SCORE_CHAIN = {
                M:{atkBuf:50} },
   // 【駿馬、 戦場を駆る(騎)】 ブレイブ成立時 Q/A/B 威力 +30% (各 2 回)
   // 各色チェインには [境域掌握] 状態時の追加効果
-  //   「該当色による攻撃時、 味方全体の該当色宝具の威力 +20% (1回/3T)」
-  // があるが、 付与されるのは 「該当色で攻撃した後」 なので同ターンの自分の宝具には乗らない。
-  // 恩恵を受けるのは後続の味方の同色宝具か次ターン以降なので、 ここでは計上しない。
-  rider:     { B:{criBuf:30},
-               A:{_npGainBuf:20},
-               Q:{_starRateBuf:50, footB:500, footA:500, footQ:500},
+  //   「該当色による攻撃時、 味方全体の該当色宝具の威力 +20% (1回/3T)」 がある。
+  // 攻略サイトは 「宝具使用時に境域掌握が付くので 1 ターン目の自分の宝具には乗らない」 と
+  // 説明しているが、 計算機では 「境域掌握」 チェックが ON = そのターン開始時点で
+  // 既に状態を保持している (前ターンに宝具を撃った持ち越し) という意味なので、
+  // チェイン判定時点で条件を満たしており自分の宝具にも乗る。
+  // 1 ターン目 (= まだ境域掌握を持っていない) を計算する場合はチェックを OFF にする。
+  // 自分の宝具がチェイン色と一致する場合のみ有効 (_npBufGrasp)。
+  rider:     { B:{criBuf:30, _npBufGrasp:{v:20, c:1}},
+               A:{_npGainBuf:20, _npBufGrasp:{v:20, c:1}},
+               Q:{_starRateBuf:50, footB:500, footA:500, footQ:500, _npBufGrasp:{v:20, c:1}},
                // マイティチェインは 「チェイン判定の瞬間」 に境域掌握の有無を見る。
                // 境域掌握なら味方全体の攻撃力 +10% が追加される (自身にも乗る)。
                M:{atkBuf:20, _atkBufGrasp:10}, Brave:{} },
@@ -4772,10 +4789,14 @@ const GRAND_SCORE_CHAIN = {
   caster:    { B:{_npBufIfNp:20, bDebuf:30}, A:{_npBufIfNp:20, aDebuf:30}, Q:{_npBufIfNp:20, qDebuf:30}, M:{atkBuf:20} },
   // アサシンの色チェインは 「クリティカルの○カードの威力アップ (3回/3T)」。
   // クリティカル攻撃時のみ有効で宝具には乗らないため critOnly を立てる。
+  // アサシンの色チェインは 「クリティカルの○カードの威力アップ (3回/3T)」。
+  // クリティカル攻撃時のみ有効で宝具には乗らないため critOnly を立てる。
+  //   マイティは クリ威力 +100% に加えて、 [即死付与率アップ] の効果量合計が
+  //   10/30/60/100/150% 以上の各段階を満たすごとに +30% (_criBufInsta で算出)。
   assassin:  { B:{cardBufB:{v:80,  c:3, critOnly:true}},
                A:{cardBufA:{v:160, c:3, critOnly:true}},
                Q:{cardBufQ:{v:240, c:3, critOnly:true}},
-               M:{criBuf:100} },
+               M:{criBuf:100, _criBufInsta:true} },
   berserker: { B:{cardBufB:50}, A:{cardBufA:50}, Q:{cardBufQ:50},        M:{} },
   // EX1 (此方): シールダー / ルーラー / アヴェンジャー / ムーンキャンサー
   //   各色チェインで 「味方全体の対象カード威力 +20%」。
@@ -5009,6 +5030,27 @@ const GRAND_GAZE_SP_BUF = { 1: 20, 2: 50 };
 // EX1 B チェイン成立時の [対敵注視] へのクリ威力アップ
 const GRAND_GAZE_CRI_BUF = 80;
 
+// [即死付与率アップ] の効果量合計 (%) を返す。 アサシンのマイティチェイン追加分に使う。
+function _grandInstakillRate() {
+  const sfx = _rowCtx || '';
+  const v = APP.grandInstaMap ? APP.grandInstaMap[sfx] : undefined;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+// アサシンのマイティチェイン追加分:
+//   「自身の即死付与率アップが 10%/30%/60%/100%/150% 以上の時、 それぞれ 30% ずつアップ」
+//   = 満たした段階の数 × 30% のクリティカル威力アップ (最大 5 段階 = +150%)。
+const GRAND_INSTAKILL_TIERS = [10, 30, 60, 100, 150];
+const GRAND_INSTAKILL_CRI_PER_TIER = 30;
+function _grandInstakillCriBonus() {
+  const rate = _grandInstakillRate();
+  if (!rate) return 0;
+  let tiers = 0;
+  for (const t of GRAND_INSTAKILL_TIERS) { if (rate >= t) tiers += 1; }
+  return tiers * GRAND_INSTAKILL_CRI_PER_TIER;
+}
+
 // この行が 【一刺にて城を穿つ(槍)】 の状態を保持しているか。
 // 宝具の効果発動前に付与され 3 ターン持続する (1回/3T) ため、 前のターンに宝具を撃って
 // いれば今ターン宝具を撃たなくても有効。 そのためカード構成からは判定せず、
@@ -5109,7 +5151,7 @@ const GRAND_ROW_PREFIX = 'グランドスコア';
 const GRAND_CHAIN_LABEL = { B: 'Bチェイン', A: 'Aチェイン', Q: 'Qチェイン', M: 'マイティ', Brave: 'ブレイブ',
                             NpPierce: '一刺にて城を穿つ', Grasp: '境域掌握', Gaze: '対敵注視',
                             Load: '増幅負荷', LoadOn: '増幅負荷 変換', LoadExp: '増幅負荷 変換期待値',
-                            Duality: '対極共生' };
+                            Duality: '対極共生', Instakill: '即死付与率' };
 
 // バフ詳細ストアの 「グランドスコア」 行を現在値に同期する。
 // パッシブバフ行 (row0) と混ぜず独立した固定行にすることで、
@@ -5206,12 +5248,17 @@ function _applyGrandScoreToMap(map) {
   APP._grandNpStar = { na: 0, sr: 0, nd: 0 };
   APP._grandGraspBrave = {};   // 騎ブレイブ [境域掌握] 分 (同色 2 枚目以降に適用)
   APP._grandExPowerOnly = 0;   // EX 「威力」 アップ分 (NP・スター計算では除外する)
+  APP._grandUncapFields = {};  // グランドスコアが乗ったフィールド (上限撤廃の対象)
   // 同じフィールドに複数の効果が乗ることがある
   // (例: 騎のブレイブ 「駿馬 30%/2回」 + 「境域掌握 20%/1回」)。
   // 回数や適用条件が効果ごとに違うので 1 つに合算せず、 items に個別に積んで
   // バフ詳細でも別行として表示・調整できるようにする。
   const rec = (fid, v, chain, count, split, critOnly, fromNp, fromSecond) => {
     if (!v) return;
+    // グランドスコア由来のバフが 1 つでも含まれる種類は上限が撤廃される
+    // (実際には 5000% 相当の非常に高い天井になる)。 どの種類に含まれたかを記録する。
+    APP._grandUncapFields = APP._grandUncapFields || {};
+    APP._grandUncapFields[fid] = true;
     map[fid] = (map[fid] || 0) + v;
     const cur = APP._grandDeltaMap[fid] || { v: 0, items: [] };
     cur.v += v;
@@ -5269,11 +5316,15 @@ function _applyGrandScoreToMap(map) {
       }
       if (_atk) rec('atkBuf', Math.round(_atk * 100) / 100, _lbl, '');
     }
-    // 対極共生の弱体数依存: 特攻 と 威力アップ (それぞれ 1 個 10% / 最大 50%)
+    // 対極共生の弱体数依存 (1 個 10% / 最大 50%)。
+    //   条文は 「解除可能な弱体の数に応じた特攻」 と 「自身の攻撃の威力アップ」 だが、
+    //   攻略サイトの検証どおり後者も 「特攻バフ」 カテゴリなので、
+    //   特殊威力 (spDmgBuf) ではなく特攻威力 (spBuf) にまとめて計上する。
+    //   ※ spDmgBuf は戴冠戦のクエスト補正など別枠の乗算項なので、
+    //      ここに入れると乗算が一段増えて過大評価になる。
     if (_e2.duality && _e2.debuffs > 0) {
       const _d = Math.min(_e2.debuffs, GRAND_DUALITY_MAX_STACK) * GRAND_DUALITY_PER;
-      rec('spBuf', _d, 'Duality', '');       // 「解除可能な弱体」 特攻
-      rec('spDmgBuf', _d, 'Duality', '');    // 自身の攻撃の威力アップ
+      rec('spBuf', _d, 'Duality', '');
     }
   }
 
@@ -5304,12 +5355,17 @@ function _applyGrandScoreToMap(map) {
         v: 0, info: true,
         infoLabel: '鈍の矢弾 ' + arr.map(v => (v == null ? '-' : v)).join('/'),
       });
+      // 実値はスロット別計算で加算され rec() を通らないので、 ここで上限撤廃対象に含める
+      APP._grandUncapFields = APP._grandUncapFields || {};
+      APP._grandUncapFields[fid] = true;
     }
     if (_am.exBuf) {
       APP._grandDeltaMap.exBuf = APP._grandDeltaMap.exBuf || { v: 0, items: [] };
       APP._grandDeltaMap.exBuf.items.push({
         v: 0, info: true, infoLabel: '鈍の矢弾 EX+' + _am.exBuf,
       });
+      APP._grandUncapFields = APP._grandUncapFields || {};
+      APP._grandUncapFields.exBuf = true;
     }
   }
 
@@ -5320,6 +5376,12 @@ function _applyGrandScoreToMap(map) {
       APP._grandDeltaMap.defDebuf.items.push({
         v: 0, info: true, infoLabel: '曇らせ侍る ' + _prev.join('/'),
       });
+      // 【曇らせ侍る(狂)】 もグランドスコア由来の防御デバフなので、 上限撤廃の対象に含める。
+      // 実際の値はスロット別計算 (_applyGrandDefDebuffStacks) で加算され rec() を通らないため、
+      // ここで明示的にフラグを立てないと上限が 100% のままになる。
+      // (防御デバフは例外で天井 200%)
+      APP._grandUncapFields = APP._grandUncapFields || {};
+      APP._grandUncapFields.defDebuf = true;
     }
   }
 
@@ -5360,6 +5422,9 @@ function _applyGrandScoreToMap(map) {
         if (hits.length < 2) continue;           // 1 枚だけなら乗る先がない
         const fid = _fidOf[color];
         APP._grandGraspBrave[fid] = { v: 20, from: hits[1] };   // hits[1] = 2 枚目の位置
+        // これもスロット別計算で加算され rec() を通らないので上限撤廃対象に含める
+        APP._grandUncapFields = APP._grandUncapFields || {};
+        APP._grandUncapFields[fid] = true;
       }
     }
     for (const [fid, raw] of Object.entries(eff)) {
@@ -5378,10 +5443,22 @@ function _applyGrandScoreToMap(map) {
         if (npL === chain) rec('npBuf', v, chain, c);
         continue;
       }
+      if (fid === '_criBufInsta') {
+        // 殺のマイティチェイン: [即死付与率アップ] の量に応じた追加クリ威力
+        const _ik = _grandInstakillCriBonus();
+        if (_ik) rec('criBuf', _ik, 'Instakill', '');
+        continue;
+      }
       if (fid === '_criBufGaze') {
         // EX1 B チェイン: [対敵注視] の敵へのクリ威力アップ。 敵に付いている時のみ。
         const _gz2 = _grandGazeTurn();
         if (_gz2 > 0) rec('criBuf', v, 'Gaze', c, null, false, false, _gz2 === 1);
+        continue;
+      }
+      if (fid === '_npBufGrasp') {
+        // 【境域掌握(騎)】 由来の宝具威力アップ。
+        // チェックが ON (= 状態を保持している) かつ 自分の宝具がチェイン色と一致する時に乗る。
+        if (npL === chain && _grandHasGrasp()) rec('npBuf', v, 'Grasp', c);
         continue;
       }
       if (fid === '_atkBufGrasp') {
@@ -5583,6 +5660,13 @@ function applyClassScoreBonus(){
     // EX 威力アップ分 (NP・スター計算モーダルで差し引く)
     APP.grandExPowerMap = APP.grandExPowerMap || {};
     APP.grandExPowerMap[_ctx] = (_on && !_skipToggles) ? (APP._grandExPowerOnly || 0) : 0;
+    // 上限撤廃の対象フィールド (グランドスコアのバフが含まれる種類)
+    APP.grandUncapMap = APP.grandUncapMap || {};
+    APP.grandUncapMap[_ctx] = (_on && !_skipToggles)
+      ? Object.assign({}, APP._grandUncapFields)
+      : {};
+    // 上限ヒント (ツールチップ) も実態に合わせて貼り直す
+    if (typeof refreshBuffCapHints === 'function') refreshBuffCapHints();
   }
 }
 
@@ -5827,13 +5911,30 @@ const BUFF_CAPS = {
   // 個別フィールドには上限を設けない
   npBuf:     500,   // C区分: 宝具威力 上限500%(6.0倍)
   spBuf:    1000,   // C区分: 特攻威力 上限1000%(11.0倍)
-  // exBuf: 上限なし（除外）
+  exBuf:     400,   // A区分: EXカードバフ 上限400% (カード威力バフと同じ扱い)
   // npSpBuf: 上限なし (D区分: 宝具特攻)
   // fixedDmg: 上限なし (E区分)
 };
 
 // バフ値を上限でクランプして返す（% 単位の生数値を受け取る）
+// グランドスコアによるバフが 1 つでもその種類のバフに含まれる場合、
+// その種類の上限が撤廃される (実際は 5000% 相当の天井になる)。
+//   例外: バーサーカーの 【曇らせ侍る(狂)】 による防御デバフだけは下限 200% となる。
+const GRAND_UNCAP_LIMIT = 5000;        // 上限撤廃後の実質的な天井 (%)
+const GRAND_DEFDEBUF_LIMIT = 200;      // 狂の防御デバフのみ 200% が下限 (= 上限)
+
+// この行のこのフィールドが 「グランドスコアによる上限撤廃」 の対象か。
+function _grandIsUncapped(fieldId) {
+  const m = APP.grandUncapMap && APP.grandUncapMap[_rowCtx || ''];
+  return !!(m && m[fieldId]);
+}
+
 function capBuff(fieldId, rawPercent) {
+  if (_grandIsUncapped(fieldId)) {
+    // 防御デバフ (狂の曇らせ侍る由来) だけは 200% が天井
+    const lim = (fieldId === 'defDebuf') ? GRAND_DEFDEBUF_LIMIT : GRAND_UNCAP_LIMIT;
+    return Math.min(rawPercent, lim);
+  }
   const cap = BUFF_CAPS[fieldId];
   if (cap === undefined) return rawPercent;               // 上限なし
   return Math.min(rawPercent, cap);
@@ -6238,7 +6339,10 @@ function calcOneDmg(pos, cardType, firstType, isCrit, bChain, effectiveBuffs) {
   // クリ耐性ダウン: クリバフと加算される (敵側のデバフ)。 上限値なし (atwiki 6588 参照)。
   // 500% 上限の clamp を通った後に加算するため、 上限外で寄与する。
   const _criResistDown = gcEff('criResistDown') / 100;
-  const CRI_CAP = 5.0; // 500% = 6.0倍上限
+  // グランドスコアのクリ威力バフが含まれる場合は上限撤廃 (5000% 相当)
+  const CRI_CAP = (_grandIsUncapped('criBuf') || _grandIsUncapped('criBufB')
+                || _grandIsUncapped('criBufA') || _grandIsUncapped('criBufQ'))
+                ? (GRAND_UNCAP_LIMIT / 100) : 5.0; // 通常は 500% = 6.0倍上限
   const criBufForB = Math.min(_criBuf + _criBufB, CRI_CAP) + _criResistDown;
   const criBufForA = Math.min(_criBuf + _criBufA, CRI_CAP) + _criResistDown;
   const criBufForQ = Math.min(_criBuf + _criBufQ, CRI_CAP) + _criResistDown;
@@ -7361,8 +7465,10 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.grandAmmoMap) delete APP.grandAmmoMap[sfx];
         if (APP.grandGraspMap) delete APP.grandGraspMap[sfx];
         if (APP.grandPierceMap) delete APP.grandPierceMap[sfx];
+        if (APP.grandInstaMap) delete APP.grandInstaMap[sfx];
         if (APP.grandGraspBraveMap) delete APP.grandGraspBraveMap[sfx];
         if (APP.grandExPowerMap) delete APP.grandExPowerMap[sfx];
+        if (APP.grandUncapMap) delete APP.grandUncapMap[sfx];
         if (APP.grandGazeMap) delete APP.grandGazeMap[sfx];
         if (APP.grandEx2Map) delete APP.grandEx2Map[sfx];
         if (APP.grandRowHiddenMap) {
@@ -7521,6 +7627,11 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
       const _gz = APP.grandGazeMap ? APP.grandGazeMap[_gsSfx] : undefined;
       _gazeBox.value = String((_gz === undefined || _gz === null) ? 0 : _gz);
     }
+    const _instaBox = document.getElementById('grandInsta');
+    if (_instaBox) {
+      const _iv = APP.grandInstaMap ? APP.grandInstaMap[_gsSfx] : undefined;
+      _instaBox.value = String((_iv === undefined || _iv === null) ? 0 : _iv);
+    }
     const _pierceBox = document.getElementById('grandPierce');
     if (_pierceBox) {
       const _p = APP.grandPierceMap ? APP.grandPierceMap[_gsSfx] : undefined;
@@ -7585,6 +7696,13 @@ if (applyServantBtn) {
           const _ks = (k.match(/(_R\d+)$/) || ['', ''])[1];
           if (_ks === _gsApplySfx) delete APP.grandRowHiddenMap[k];
         }
+      }
+      // [即死付与率] (殺) も行ごとに保持する
+      const _instaEl = document.getElementById('grandInsta');
+      if (_instaEl) {
+        APP.grandInstaMap = APP.grandInstaMap || {};
+        const _iv = parseInt(_instaEl.value, 10);
+        APP.grandInstaMap[_gsApplySfx] = (Number.isFinite(_iv) && _iv >= 0) ? _iv : 0;
       }
       // 一刺にて城を穿つ (槍) の ON/OFF も行ごとに保持する
       const _pierceEl = document.getElementById('grandPierce');
@@ -7721,14 +7839,40 @@ const BUFF_CAP_HINTS = {
   criBufQ:  '上限: クリバフ+Qクリバフ合計500%',
   npBuf:    '上限: 500%',
   spBuf:    '上限: 1000%',
-  exBuf:    '上限なし',
+  exBuf:    '上限: 400%',
   npSpBuf:  '上限なし (別枠乗算)',
   fixedDmg: '上限なし',
 };
-Object.entries(BUFF_CAP_HINTS).forEach(([id, hint]) => {
+
+// 各フィールドの元々の title (上限ヒントを付ける前の説明文) を保持しておく。
+// グランドスコアの上限撤廃に応じてヒントを差し替えるため、 毎回ここから作り直す。
+const _BUFF_TITLE_BASE = {};
+Object.keys(BUFF_CAP_HINTS).forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.title = (el.title ? el.title + ' / ' : '') + hint;
+  if (el) _BUFF_TITLE_BASE[id] = el.title || '';
 });
+
+// 上限ヒントを現在の状態に合わせて貼り直す。
+// グランドスコアのバフが含まれるフィールドは上限が撤廃される (実質 5000%) ので、
+// その旨をヒントにも反映して 「なぜ 400% を超えているのか」 が分かるようにする。
+//   ※ 防御デバフだけは例外で 200% が天井。
+function refreshBuffCapHints() {
+  const sfx = _rowCtx || '';
+  const uncap = (APP.grandUncapMap && APP.grandUncapMap[sfx]) || {};
+  Object.entries(BUFF_CAP_HINTS).forEach(([id, hint]) => {
+    const el = _el(id) || document.getElementById(id);
+    if (!el) return;
+    let h = hint;
+    if (uncap[id]) {
+      h = (id === 'defDebuf')
+        ? '上限: 200% (グランドスコアにより緩和)'
+        : '上限なし (グランドスコアにより撤廃)';
+    }
+    const base = _BUFF_TITLE_BASE[id] || '';
+    el.title = base ? (base + ' / ' + h) : h;
+  });
+}
+refreshBuffCapHints();
 
 // ════════════════════════════════════════════════════════════
 // バフ詳細入力モーダル
@@ -10159,11 +10303,17 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     if (APP.grandPierceMap && APP.grandPierceMap[_srcSfx] !== undefined) {
       APP.grandPierceMap[suffix] = APP.grandPierceMap[_srcSfx];
     }
+    if (APP.grandInstaMap && APP.grandInstaMap[_srcSfx] !== undefined) {
+      APP.grandInstaMap[suffix] = APP.grandInstaMap[_srcSfx];
+    }
     if (APP.grandGraspBraveMap && APP.grandGraspBraveMap[_srcSfx]) {
       APP.grandGraspBraveMap[suffix] = Object.assign({}, APP.grandGraspBraveMap[_srcSfx]);
     }
     if (APP.grandExPowerMap && APP.grandExPowerMap[_srcSfx] !== undefined) {
       APP.grandExPowerMap[suffix] = APP.grandExPowerMap[_srcSfx];
+    }
+    if (APP.grandUncapMap && APP.grandUncapMap[_srcSfx]) {
+      APP.grandUncapMap[suffix] = Object.assign({}, APP.grandUncapMap[_srcSfx]);
     }
     if (APP.grandGazeMap && APP.grandGazeMap[_srcSfx] !== undefined) {
       APP.grandGazeMap[suffix] = APP.grandGazeMap[_srcSfx];
