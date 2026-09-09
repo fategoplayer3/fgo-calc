@@ -1671,6 +1671,9 @@ textarea{
           <li>「データ管理」 から CSV エクスポート/インポートと ブラウザへの 保存/読込 が可能 (PC 版と共通フォーマット)。</li>
           <li>計算結果のスクリーンショットは SNS 等で自由に共有可能。</li>
           <li>各列 「操作」 ボタンから 列操作 (コピー / 入れ替え / 削除 等) や 被ダメージ計算 モード切替が可能 (詳細は <strong>高度な使い方</strong> へ)。</li>
+          <li><strong style="color:#c0392b;">グランドスコアは参考値です。</strong><br>
+            効果の発動タイミングやバフの枠 (攻撃力 / 特攻 / カード威力 等) に未確定な部分が残っています。<br>
+            実際の値と異なる場合は、 各バフ欄をタップして表示される<strong>バフ詳細</strong>から、 グランドスコアの行を個別に修正・削除してください。</li>
         </ol>
         <details class="how-to-details">
           <summary>高度な使い方</summary>
@@ -2304,12 +2307,12 @@ textarea{
 <label style="margin-left:10px;"><input type="checkbox" id="append1"> アペンド1</label>
 <label style="margin-left:10px;"><input type="checkbox" id="append4"> アペンド4</label>
 <label style="margin-left:10px;"><input type="checkbox" id="footprintMax"> 足跡MAX</label>
-<label style="margin-left:10px;" title="グランドサーヴァント限定のクラススコア。 全サイン解放 (最大値) で計算します。 選択サーヴァントのクラスに応じた効果が入ります。"><input type="checkbox" id="grandScore" onchange="_updateGrandAmmoVisibility()"> グランドスコア</label>
+<label style="margin-left:10px;" title="グランドサーヴァント限定のクラススコア。 全サイン解放 (最大値) で計算します。 選択サーヴァントのクラスに応じた効果が入ります。 仕様に未確定な部分が多いため、 結果は参考値として扱ってください。"><input type="checkbox" id="grandScore" onchange="_updateGrandAmmoVisibility()"> グランドスコア（参考）</label>
 <span id="grandEx2Wrap" style="display:none;">
 <label style="margin-left:10px;" title="EX2 専用。 【対極共生(彼方)】 を解放しているか。 ON にすると [増幅負荷] の攻撃力ダウンが攻撃力アップに変換され、 さらに 「解除可能な弱体」 の数に応じた特攻と威力アップ (各 1 個 10% / 最大 50%) が乗ります。 OFF の場合 [増幅負荷] は素のデメリット (攻撃力ダウン) として計算されます。"><input type="checkbox" id="grandDuality"> <span style="font-size:11px;">対極共生</span></label>
 <br>
 <label style="margin-left:10px;" title="EX2 専用。 [増幅負荷] の個数 (最大10)。 本来は 1 個につき攻撃力 -10% のデメリットですが、 【対極共生】 で変換すると +10% のバフになります。 Qチェインで3個/Aチェインで2個/Bチェインで1個 付与され 5 ターン持続するため、 前ターンからの持ち越し分も含めて入力してください。"><span style="font-size:11px;">増幅負荷</span> <select id="grandLoad" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"><option value="0" selected>0個</option><option value="1">1個</option><option value="2">2個</option><option value="3">3個</option><option value="4">4個</option><option value="5">5個</option><option value="6">6個</option><option value="7">7個</option><option value="8">8個</option><option value="9">9個</option><option value="10">10個</option></select></label>
-<label style="margin-left:10px;" title="EX2 専用。 自身に付いている 「解除可能な弱体」 の総数。 [増幅負荷] や [放出残滓] のほか、 敵から受けた弱体も含みます。 【対極共生】 の特攻・威力アップに使われ、 1 個につき 10%・最大 5 個 (50%) で頭打ちです。"><span style="font-size:11px;">弱体数</span> <select id="grandDebuffCount" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"><option value="0" selected>0個</option><option value="1">1個</option><option value="2">2個</option><option value="3">3個</option><option value="4">4個</option><option value="5">5個以上</option></select></label>
+<label style="margin-left:10px;" title="EX2 専用。 [増幅負荷] と [放出残滓] 以外の 「解除可能な弱体」 の数。 敵から受けたデバフなどがあれば入力してください。 増幅負荷の個数とマイティチェイン成立時の放出残滓は自動で加算されます。 【対極共生】 の特攻はこの合計 1 個につき 10%・最大 5 個 (50%) で頭打ちです。"><span style="font-size:11px;">他の弱体</span> <select id="grandDebuffCount" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"><option value="0" selected>0個</option><option value="1">1個</option><option value="2">2個</option><option value="3">3個</option><option value="4">4個</option><option value="5">5個以上</option></select></label>
 <label style="margin-left:10px;" title="EX2 専用。 [増幅負荷] の変換確率。 通常は 80% ですが、 【理の傍ら(彼方)】 の宝具使用後 5 ターンは 100% になります。 「80% (期待値)」 を選ぶと 変換成功分 (+) と失敗分 (-) を確率で加重平均した値を使います。"><span style="font-size:11px;">変換</span>
   <select id="grandDualityRate" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;">
     <option value="100" selected>100% (理の傍ら)</option>
@@ -2323,6 +2326,7 @@ textarea{
     <option value="1">1ターン目</option>
     <option value="2">2ターン目</option>
   </select></label>
+<label id="grandSureHitWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で、 攻撃するカードに必中が付与されている場合の追加効果。 ON にすると 宝具威力アップ (単体宝具 20% / 全体宝具 40%) が乗ります。 必中はマイティチェイン成立時に付与される (3回) ほか、 スキルや礼装でも付与されます。"><input type="checkbox" id="grandSureHit"> <span style="font-size:11px;">必中</span></label>
 <label id="grandInstaWrap" style="margin-left:10px;display:none;" title="アサシン専用。 自身に付与されている [即死付与率アップ] の効果量合計。 マイティチェイン成立時、 この量が 10%/30%/60%/100%/150% 以上の各段階を満たすごとにクリティカル威力が 30% ずつ追加でアップします (最大 +150%)。 各色チェインでも即死付与率アップが付与されるので、 それらの合計を選んでください。"><span style="font-size:11px;">即死付与率</span>
   <select id="grandInsta" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;">
     <option value="0" selected>なし</option>
@@ -3747,6 +3751,9 @@ function _updateGrandAmmoVisibility() {
   const cls = sv ? String(sv.className || '').toLowerCase() : '';
   const wrap = document.getElementById('grandAmmoWrap');
   if (wrap) wrap.style.display = (on && cls === 'archer') ? '' : 'none';
+  // 必中 (弓の 【鷲の目】 追加効果) もアーチャー専用
+  const sh = document.getElementById('grandSureHitWrap');
+  if (sh) sh.style.display = (on && cls === 'archer') ? '' : 'none';
   // 【境域掌握(騎)】 はライダー専用
   const gw = document.getElementById('grandGraspWrap');
   if (gw) gw.style.display = (on && cls === 'rider') ? '' : 'none';
@@ -4900,6 +4907,28 @@ function _grandBraveCardBufs(spec) {
     // unit = 1 個あたりの量、 n = そのカードで消費する蓄積個数。
     // n >= 2 の場合はバフ詳細でも n 行に分けて表示し、 ユーザーが個別に調整できるようにする。
     const _n = (uniq.length === 1) ? uniq[0] : Math.max(...gains);
+
+    // 位置ごとに蓄積量が異なる場合 (例: B,A,B なら 1 手目 1 個 / 3 手目 2 個) は、
+    // 回数制バフとして登録すると 「先頭から消費」 のルールで 1 手目が全部持って行ってしまう。
+    // そのためスロット位置つきの内訳を別途保持し、 computeEffectiveBuffsByCardPos で
+    // 位置ごとに正しい量を割り当てる (_applyGrandBraveStacks)。
+    if (uniq.length > 1) {
+      APP._grandBraveSlots = APP._grandBraveSlots || {};
+      APP._grandBraveSlots[fidOf[color]] = positions.map((pos, i) => ({
+        pos, v: perHit * gains[i], count: perCount,
+      }));
+      // 位置ごとに乗る量が違う (例: B,A,B なら 1手目 +50 / 3手目 +100) ので、
+      // 欄の 1 つの数値では実態を表せない。 曇らせ侍る(狂) と同じく
+      // 「どのカードにいくら乗るか」 が分かる情報行を出す。
+      //   例: 「ブレイブ 1枚目 50 / 3枚目 100」
+      APP._grandBraveSlotInfo = APP._grandBraveSlotInfo || {};
+      APP._grandBraveSlotInfo[fidOf[color]] =
+        'ブレイブ ' + positions.map((pos, i) => (pos + 1) + '枚目 ' + (perHit * gains[i])).join(' / ');
+      // 欄の合計表示用には最大値を入れておく (実際の適用はスロット別マップが担う)
+      out[fidOf[color]] = { v: perHit * _n, c: perCount, unit: perHit, n: _n, rowCount: perCount, bySlot: true };
+      continue;
+    }
+
     // 回数は 「バフ 1 個が使える回数 (perCount)」 が基準。
     //   分割表示する場合 (n>=2) は 1 行 = バフ 1 個なので各行 perCount。
     //   1 行にまとめる場合は その色で使うバフ個数分をまとめて持つので gains.length 倍。
@@ -5014,6 +5043,25 @@ const GRAND_LOAD_MAX = 10;            // [増幅負荷] の最大個数
 const GRAND_DUALITY_PER = 10;         // 【対極共生】 弱体 1 個あたりの威力アップ (%)
 const GRAND_DUALITY_MAX_STACK = 5;    // 同 最大個数 (= 50%)
 
+// ── 【対極共生】 の 「解除可能な弱体」 の数え方 ──
+// [増幅負荷] と [放出残滓] はそれ自体が弱体なので、 弱体数に自動で加算する。
+// (放出残滓は変換に成功して HP 回復効果になっても弱体扱いのままなので、
+//  変換の成否に関わらず 1 個として数える)
+// ※ この扱いは検証が十分でないため、 仕様が判明したらここを変えるだけで追従できる。
+const GRAND_DEBUFF_COUNT_INCLUDES_LOAD = true;      // 増幅負荷を弱体数に含めるか
+const GRAND_DEBUFF_COUNT_INCLUDES_RESIDUE = true;   // 放出残滓 (マイティ時) を含めるか
+const GRAND_RESIDUE_PER_MIGHTY = 1;                 // マイティ成立時に付く放出残滓の個数
+
+// 【対極共生】 の判定に使う 「解除可能な弱体」 の総数を返す。
+//   = 増幅負荷の個数 + 放出残滓 (マイティ成立時) + ユーザー入力の 「他の弱体」
+function _grandDualityDebuffCount(state, isMighty) {
+  let n = 0;
+  if (GRAND_DEBUFF_COUNT_INCLUDES_LOAD) n += Math.min(state.load || 0, GRAND_LOAD_MAX);
+  if (GRAND_DEBUFF_COUNT_INCLUDES_RESIDUE && isMighty) n += GRAND_RESIDUE_PER_MIGHTY;
+  n += (state.debuffs || 0);          // その他 (敵から受けたデバフ等)
+  return n;
+}
+
 // [対敵注視] の状態を返す。 0=なし / 1=1ターン目 / 2=2ターン目。
 // マイティチェイン成立時に攻撃対象へ付与され 2 ターン持続する。
 // 1 ターン目は 「特性を付与した後」 = 2 枚目以降の攻撃から特攻が乗る。
@@ -5029,6 +5077,36 @@ function _grandGazeTurn() {
 const GRAND_GAZE_SP_BUF = { 1: 20, 2: 50 };
 // EX1 B チェイン成立時の [対敵注視] へのクリ威力アップ
 const GRAND_GAZE_CRI_BUF = 80;
+
+// 【鷲の目(弓)】 の必中時追加効果:
+//   「そのカードに必中が付与されているなら宝具威力アップ (単体宝具 20% / 全体宝具 40%)」
+// 必中の有無はスキル・礼装・マイティチェイン等で変わるため、
+// サーヴァント選択モーダルのチェックボックス (行ごとに保存) を正とする。 既定は OFF。
+const GRAND_SUREHIT_NP_SINGLE = 20;   // 単体宝具の宝具威力アップ (%)
+const GRAND_SUREHIT_NP_AOE    = 40;   // 全体宝具の宝具威力アップ (%)
+function _grandHasSureHit() {
+  const sfx = _rowCtx || '';
+  return !!(APP.grandSureHitMap && APP.grandSureHitMap[sfx]);
+}
+
+// 現在選択中の宝具が全体宝具か。 判定できなければ false (= 単体扱い)。
+function _grandNpIsAoe() {
+  try {
+    const sv = (typeof getRowServant === 'function') ? getRowServant() : null;
+    if (!sv || !Array.isArray(sv.noblePhantasms)) return false;
+    const sel = _el('npTypeSelect');
+    let np = null;
+    if (sel && sel.value) {
+      const m = String(sel.value).match(/^np_(\d+)$/);
+      if (m) {
+        const id = parseInt(m[1], 10);
+        np = sv.noblePhantasms.find(x => x && x.id === id) || null;
+      }
+    }
+    if (!np && sv.noblePhantasms.length) np = sv.noblePhantasms[sv.noblePhantasms.length - 1];
+    return !!(np && typeof isAoeNp === 'function' && isAoeNp(np));
+  } catch (e) { return false; }
+}
 
 // [即死付与率アップ] の効果量合計 (%) を返す。 アサシンのマイティチェイン追加分に使う。
 function _grandInstakillRate() {
@@ -5151,7 +5229,7 @@ const GRAND_ROW_PREFIX = 'グランドスコア';
 const GRAND_CHAIN_LABEL = { B: 'Bチェイン', A: 'Aチェイン', Q: 'Qチェイン', M: 'マイティ', Brave: 'ブレイブ',
                             NpPierce: '一刺にて城を穿つ', Grasp: '境域掌握', Gaze: '対敵注視',
                             Load: '増幅負荷', LoadOn: '増幅負荷 変換', LoadExp: '増幅負荷 変換期待値',
-                            Duality: '対極共生', Instakill: '即死付与率' };
+                            Duality: '対極共生', Instakill: '即死付与率', SureHit: '必中' };
 
 // バフ詳細ストアの 「グランドスコア」 行を現在値に同期する。
 // パッシブバフ行 (row0) と混ぜず独立した固定行にすることで、
@@ -5249,6 +5327,8 @@ function _applyGrandScoreToMap(map) {
   APP._grandGraspBrave = {};   // 騎ブレイブ [境域掌握] 分 (同色 2 枚目以降に適用)
   APP._grandExPowerOnly = 0;   // EX 「威力」 アップ分 (NP・スター計算では除外する)
   APP._grandUncapFields = {};  // グランドスコアが乗ったフィールド (上限撤廃の対象)
+  APP._grandBraveSlots = {};   // ブレイブ蓄積のスロット別内訳 (位置ごとに量が違う場合)
+  APP._grandBraveSlotInfo = {};// 同 内訳を表示するためのラベル
   // 同じフィールドに複数の効果が乗ることがある
   // (例: 騎のブレイブ 「駿馬 30%/2回」 + 「境域掌握 20%/1回」)。
   // 回数や適用条件が効果ごとに違うので 1 つに合算せず、 items に個別に積んで
@@ -5293,6 +5373,13 @@ function _applyGrandScoreToMap(map) {
   //   チェックが ON の間は有効。 位置条件も付けない (前ターン付与分は 1 枚目から乗る)。
   if (cls === 'lancer' && _grandHasPierce()) rec('spBuf', 50, 'NpPierce', '5');
 
+  // 【鷲の目(弓)】 の必中時追加効果: 宝具威力アップ (単体 20% / 全体 40%)。
+  // 必中が付いているかはユーザー指定 (チェックボックス)。 宝具を撃つ構成でのみ意味がある。
+  if (cls === 'archer' && _grandHasSureHit() && _grandUsesNp()) {
+    const _v = _grandNpIsAoe() ? GRAND_SUREHIT_NP_AOE : GRAND_SUREHIT_NP_SINGLE;
+    rec('npBuf', _v, 'SureHit', '');
+  }
+
   // ── EX2: [増幅負荷] と 【対極共生(彼方)】 ──
   // [増幅負荷] は本来 1 個 -10% の攻撃力ダウン。 【対極共生】 で変換すると +10% になる。
   // 変換は通常 80%、 【理の傍ら】 の宝具使用後 5 ターンは 100%。
@@ -5322,8 +5409,12 @@ function _applyGrandScoreToMap(map) {
     //   特殊威力 (spDmgBuf) ではなく特攻威力 (spBuf) にまとめて計上する。
     //   ※ spDmgBuf は戴冠戦のクエスト補正など別枠の乗算項なので、
     //      ここに入れると乗算が一段増えて過大評価になる。
-    if (_e2.duality && _e2.debuffs > 0) {
-      const _d = Math.min(_e2.debuffs, GRAND_DUALITY_MAX_STACK) * GRAND_DUALITY_PER;
+    // 弱体数は [増幅負荷] と [放出残滓] を自動加算した総数を使う。
+    // chains はこの時点ではまだ未定義なので、 マイティ成立かをその場で判定する
+    const _isMighty = _grandChainTypes().includes('M');
+    const _dbCount = _grandDualityDebuffCount(_e2, _isMighty);
+    if (_e2.duality && _dbCount > 0) {
+      const _d = Math.min(_dbCount, GRAND_DUALITY_MAX_STACK) * GRAND_DUALITY_PER;
       rec('spBuf', _d, 'Duality', '');
     }
   }
@@ -5393,7 +5484,15 @@ function _applyGrandScoreToMap(map) {
   for (const chain of chains) {
     let eff = table[chain] || {};
     // ブレイブの色バフはカード構成依存なので動的に合成する
-    if (chain === 'Brave') eff = Object.assign({}, eff, _grandBraveCardBufs(_GRAND_BRAVE_PER_HIT[cls]));
+    if (chain === 'Brave') {
+      eff = Object.assign({}, eff, _grandBraveCardBufs(_GRAND_BRAVE_PER_HIT[cls]));
+      // 位置ごとに乗る量が違うフィールドは、 欄の数値だけでは実態が分からないので
+      // 「1枚目 50 / 3枚目 100」 のような内訳を情報行として出す (値は持たない)。
+      for (const [fid, label] of Object.entries(APP._grandBraveSlotInfo || {})) {
+        APP._grandDeltaMap[fid] = APP._grandDeltaMap[fid] || { v: 0, items: [] };
+        APP._grandDeltaMap[fid].items.push({ v: 0, info: true, infoLabel: label });
+      }
+    }
     // 【駿馬、 戦場を駆る(騎)】 の後段:
     //   自身が 「境域掌握」 なら 「○攻撃時に味方の○カード威力 +20% (1回/3T)」 を各色に付与。
     //   境域掌握は宝具使用時の効果前に付くので、 そのターンに宝具を撃つ構成なら有効。
@@ -5433,6 +5532,14 @@ function _applyGrandScoreToMap(map) {
       const c = (typeof raw === 'number') ? '' : String(raw.c ?? '');
       const split = (typeof raw === 'number') ? null : (raw.n ? { unit: raw.unit, n: raw.n } : null);
       const critOnly = (typeof raw === 'number') ? false : !!raw.critOnly;
+      // bySlot = 位置ごとに乗る量が違うため、 値はスロット別計算 (_applyGrandBraveStacks) が
+      // 直接入れる。 ここで rec すると欄・バフ詳細に二重で出てしまうので、
+      // 内訳を示す情報行だけを残して値の登録はスキップする。
+      if (typeof raw === 'object' && raw && raw.bySlot) {
+        APP._grandUncapFields = APP._grandUncapFields || {};
+        APP._grandUncapFields[fid] = true;   // 上限撤廃の対象には含める
+        continue;
+      }
       // EX 「威力」 アップ (NP・スターに影響しない) は別途記録して
       // NP・スター計算モーダルへ渡す値から差し引く
       if (typeof raw === 'object' && raw && raw.exPowerOnly) {
@@ -5660,6 +5767,11 @@ function applyClassScoreBonus(){
     // EX 威力アップ分 (NP・スター計算モーダルで差し引く)
     APP.grandExPowerMap = APP.grandExPowerMap || {};
     APP.grandExPowerMap[_ctx] = (_on && !_skipToggles) ? (APP._grandExPowerOnly || 0) : 0;
+    // ブレイブ蓄積のスロット別内訳
+    APP.grandBraveSlotMap = APP.grandBraveSlotMap || {};
+    APP.grandBraveSlotMap[_ctx] = (_on && !_skipToggles)
+      ? Object.assign({}, APP._grandBraveSlots)
+      : {};
     // 上限撤廃の対象フィールド (グランドスコアのバフが含まれる種類)
     APP.grandUncapMap = APP.grandUncapMap || {};
     APP.grandUncapMap[_ctx] = (_on && !_skipToggles)
@@ -7466,9 +7578,11 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.grandGraspMap) delete APP.grandGraspMap[sfx];
         if (APP.grandPierceMap) delete APP.grandPierceMap[sfx];
         if (APP.grandInstaMap) delete APP.grandInstaMap[sfx];
+        if (APP.grandSureHitMap) delete APP.grandSureHitMap[sfx];
         if (APP.grandGraspBraveMap) delete APP.grandGraspBraveMap[sfx];
         if (APP.grandExPowerMap) delete APP.grandExPowerMap[sfx];
         if (APP.grandUncapMap) delete APP.grandUncapMap[sfx];
+        if (APP.grandBraveSlotMap) delete APP.grandBraveSlotMap[sfx];
         if (APP.grandGazeMap) delete APP.grandGazeMap[sfx];
         if (APP.grandEx2Map) delete APP.grandEx2Map[sfx];
         if (APP.grandRowHiddenMap) {
@@ -7627,6 +7741,8 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
       const _gz = APP.grandGazeMap ? APP.grandGazeMap[_gsSfx] : undefined;
       _gazeBox.value = String((_gz === undefined || _gz === null) ? 0 : _gz);
     }
+    const _shBox = document.getElementById('grandSureHit');
+    if (_shBox) _shBox.checked = !!(APP.grandSureHitMap && APP.grandSureHitMap[_gsSfx]);
     const _instaBox = document.getElementById('grandInsta');
     if (_instaBox) {
       const _iv = APP.grandInstaMap ? APP.grandInstaMap[_gsSfx] : undefined;
@@ -7696,6 +7812,12 @@ if (applyServantBtn) {
           const _ks = (k.match(/(_R\d+)$/) || ['', ''])[1];
           if (_ks === _gsApplySfx) delete APP.grandRowHiddenMap[k];
         }
+      }
+      // 必中 (弓) の ON/OFF も行ごとに保持する
+      const _shEl = document.getElementById('grandSureHit');
+      if (_shEl) {
+        APP.grandSureHitMap = APP.grandSureHitMap || {};
+        APP.grandSureHitMap[_gsApplySfx] = !!_shEl.checked;
       }
       // [即死付与率] (殺) も行ごとに保持する
       const _instaEl = document.getElementById('grandInsta');
@@ -7864,9 +7986,9 @@ function refreshBuffCapHints() {
     if (!el) return;
     let h = hint;
     if (uncap[id]) {
-      h = (id === 'defDebuf')
-        ? '上限: 200% (グランドスコアにより緩和)'
-        : '上限なし (グランドスコアにより撤廃)';
+      // 上限が変わる理由 (グランドスコア) はゲーム側で公表されていないため明示しない。
+      // 表示と実際の計算が食い違うと不具合に見えるので、 実態だけを示す。
+      h = (id === 'defDebuf') ? '上限: 200%' : '上限なし';
     }
     const base = _BUFF_TITLE_BASE[id] || '';
     el.title = base ? (base + ' / ' + h) : h;
@@ -8098,6 +8220,8 @@ function computeEffectiveBuffsByCardPos(rowSuffix, slots) {
   //   例) B, B, B + EX なら  1枚目 0% → 2枚目 20% → 3枚目 40% → EX 60%
   // 攻略でも 「宝具などの前に通常攻撃で標的破壊を付与しておく」 立ち回りが推奨されている。
   // スロット位置ごとに値が変わるためバフ欄では表現できず、 ここで直接加算する。
+  // ブレイブ蓄積で位置ごとに量が違うフィールドは、 回数制の結果を上書きして正しく割り当てる
+  _applyGrandBraveStacks(sfx, slots, out);
   _applyGrandDefDebuffStacks(sfx, slots, out);
   // 鈍の矢弾 (弓) もスロット順に消費される共有リソースなのでここで割り当てる
   _applyGrandArcherAmmo(sfx, slots, out);
@@ -8194,6 +8318,49 @@ function _applyGrandArcherAmmo(sfx, slots, out) {
       const base = out.exBuf ? out.exBuf.slice() : [0, 0, 0, 0];
       base[3] = (base[3] || 0) + GRAND_AMMO_EX_BUF;
       out.exBuf = base;
+    }
+  } catch (e) { /* 計算本体を止めない */ }
+}
+
+// 【魔力放出(剣)】 のブレイブ蓄積を、 位置ごとの正しい量で割り当てる。
+// 例) B, A, B なら 1 手目 B は 1 個分 (+50%)、 3 手目 B は 2 個分 (+100%)。
+// 回数制バフとして扱うと 「先頭から消費」 のルールで 1 手目が全部持って行ってしまうため、
+// このフィールドについては回数制の結果を破棄してここで入れ直す。
+function _applyGrandBraveStacks(sfx, slots, out) {
+  try {
+    const m = APP.grandBraveSlotMap && APP.grandBraveSlotMap[sfx || ''];
+    if (!m) return;
+    const hidden = (f) => !!(APP.grandRowHiddenMap && APP.grandRowHiddenMap[f + (sfx || '')]);
+    for (const [fid, list] of Object.entries(m)) {
+      if (!Array.isArray(list) || !list.length) continue;
+      // パッシブ等 グランドスコア以外の分は回数制の結果に含まれているので、
+      // 「グランド分を除いた土台」 を作り直す必要がある。
+      // ここでは 「そのスロットで乗るはずのグランド分」 を足し直す形にするため、
+      // 一旦 グランド分を含まない値 (= 各行の合計からブレイブ分を引いた額) を求める。
+      const arr = _buffDetailStore[fid + (sfx || '')];
+      let base = 0;
+      if (Array.isArray(arr)) {
+        for (const r of arr) {
+          if (!r || r._gs) continue;                 // グランドスコア行は除く
+          const v = parseFloat(r.value);
+          if (Number.isFinite(v)) base += v;
+        }
+      }
+      const eff = [0, 0, 0, 0];
+      for (let pos = 0; pos < 4; pos++) {
+        const slot = slots[pos];
+        if (!slot || !slot.active) { eff[pos] = 0; continue; }
+        eff[pos] = base;
+      }
+      if (!hidden(fid)) {
+        for (const it of list) {
+          const slot = slots[it.pos];
+          if (!slot || !slot.active) continue;
+          eff[it.pos] = (eff[it.pos] || 0) + it.v;
+        }
+      }
+      for (let pos = 0; pos < 4; pos++) eff[pos] = capBuff(fid, eff[pos]);
+      out[fid] = eff;
     }
   } catch (e) { /* 計算本体を止めない */ }
 }
@@ -10306,6 +10473,9 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     if (APP.grandInstaMap && APP.grandInstaMap[_srcSfx] !== undefined) {
       APP.grandInstaMap[suffix] = APP.grandInstaMap[_srcSfx];
     }
+    if (APP.grandSureHitMap && APP.grandSureHitMap[_srcSfx] !== undefined) {
+      APP.grandSureHitMap[suffix] = APP.grandSureHitMap[_srcSfx];
+    }
     if (APP.grandGraspBraveMap && APP.grandGraspBraveMap[_srcSfx]) {
       APP.grandGraspBraveMap[suffix] = Object.assign({}, APP.grandGraspBraveMap[_srcSfx]);
     }
@@ -10314,6 +10484,9 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     }
     if (APP.grandUncapMap && APP.grandUncapMap[_srcSfx]) {
       APP.grandUncapMap[suffix] = Object.assign({}, APP.grandUncapMap[_srcSfx]);
+    }
+    if (APP.grandBraveSlotMap && APP.grandBraveSlotMap[_srcSfx]) {
+      APP.grandBraveSlotMap[suffix] = Object.assign({}, APP.grandBraveSlotMap[_srcSfx]);
     }
     if (APP.grandGazeMap && APP.grandGazeMap[_srcSfx] !== undefined) {
       APP.grandGazeMap[suffix] = APP.grandGazeMap[_srcSfx];
