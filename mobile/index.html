@@ -4596,7 +4596,8 @@ function applyClassPassive(d) {
       }
       // 先頭の 「パッシブバフ」 行は前サーヴァントの値なので取り除く。
       // (残すと値が混ざる。 次の解析で必要な分だけ作り直される)
-      if (arr[0] && arr[0].label === 'パッシブバフ') {
+      // グランドスコア行 (_gs) はこの後の _syncGrandScoreRow が作り直すのでここでは触らない。
+      if (arr[0] && !arr[0]._gs && arr[0].label === 'パッシブバフ') {
         arr.splice(0, 1);
         arr.push({ label: '', value: '', count: '', fixed: false });
       }
@@ -5172,6 +5173,10 @@ function _grandArcherAmmoPreview() {
 // 攻撃するたびに標的破壊が 1 個ずつ溜まり、 「それまでに溜まった分」 が乗る。
 // 実際の計算は computeEffectiveBuffsByCardPos 側で行うが、
 // バフ詳細に 「効いていること」 を示す情報行を出すためにここでも同じ順序を再現する。
+// 戻り値: [{ label:'1枚目', v:0 }, ...] — どのスロットにいくら乗るかを返す。
+// クリ欄が '0' のスロット (= そのスロットでは自分が攻撃しない) は飛ばすので、
+// 「1枚目 / 3枚目 / EX」 のように歯抜けになることがある。
+// 値だけを並べると 「2枚目に 20 が乗る」 と誤読されるため、 スロット名を持たせる。
 function _grandDefDebuffPreview() {
   const vals = [];
   let stacks = 0;
@@ -5180,12 +5185,12 @@ function _grandDefDebuffPreview() {
     const isNp = (v === 'N' || v === 'NP');
     if (!isNp && v !== 'B' && v !== 'A' && v !== 'Q') continue;
     if (gs('crit' + i) === '0') continue;          // そのスロットでは攻撃しない
-    vals.push(GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX));
+    vals.push({ label: i + '枚目', v: GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX) });
     // 宝具でも [標的破壊] は付与される (実機確認済み)
     stacks += 1;
   }
   const exOn = (gs('cardEx') === '有' || gs('cardEx') === '全');
-  if (exOn) vals.push(GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX));
+  if (exOn) vals.push({ label: 'EX', v: GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX) });
   return vals;
 }
 
@@ -5471,10 +5476,22 @@ function _syncGrandScoreRow(store, items, fid, gsOn, storeKey) {
   }
   if (!rows.length) return;
 
-  store.splice(1, 0, ...rows);
+  // 挿入位置: パッシブ由来の行 (パッシブバフ / 内訳行 / クラススコア等) の直後。
+  // 以前は固定で 1 番目に入れていたため、 パッシブが無いフィールド (先頭が空行) では
+  // 1 行目が空いたまま 2 行目にグランドスコアが来てしまっていた。
+  let _at = 0;
+  for (let i = 0; i < store.length; i++) {
+    const r = store[i];
+    if (!r) break;
+    const _isPassive = r._pv || r._pvBonus || r.label === 'パッシブバフ';
+    if (!_isPassive) break;
+    _at = i + 1;
+  }
+  store.splice(_at, 0, ...rows);
   // 挿入した分だけ末尾の空行を詰めて、 全体の行数を元に戻す
+  // (下限は挿入位置 + 挿入数。 グランド行自体を消さないようにする)
   for (let k = 0; k < rows.length; k++) {
-    for (let i = store.length - 1; i >= 1 + rows.length; i--) {
+    for (let i = store.length - 1; i >= _at + rows.length; i--) {
       const r = store[i];
       if (!r) continue;
       if (!r.fixed && !String(r.label || '').trim() && !String(r.value || '').trim()) { store.splice(i, 1); break; }
@@ -5629,7 +5646,8 @@ function _applyGrandScoreToMap(map) {
     if (_prev.length) {
       APP._grandDeltaMap.defDebuf = APP._grandDeltaMap.defDebuf || { v: 0, items: [] };
       APP._grandDeltaMap.defDebuf.items.push({
-        v: 0, info: true, infoLabel: '曇らせ侍る ' + _prev.join('/'),
+        v: 0, info: true,
+        infoLabel: '曇らせ侍る ' + _prev.map(p => p.label + ' ' + p.v).join(' / '),
       });
       // 【曇らせ侍る(狂)】 もグランドスコア由来の防御デバフなので、 上限撤廃の対象に含める。
       // 実際の値はスロット別計算 (_applyGrandDefDebuffStacks) で加算され rec() を通らないため、
@@ -5763,6 +5781,20 @@ function getAllToggleBonusFields(){
     criBufQ: 0,
     npBuf: 0,
     exBuf: 0,
+    // グランドスコアの共通効果 (カード性能 +50) や各種チェイン効果が入る枠。
+    // ここに初期値を置かないと、 値が入らなかったフィールドが addMap に現れず
+    // applyClassScoreBonus のループを通らない → バフ詳細の行が古いまま残り、
+    // グランド分が 「パッシブバフ」 表記になってしまう。
+    bBuf: 0,
+    aBuf: 0,
+    qBuf: 0,
+    atkBuf: 0,
+    bDebuf: 0,
+    aDebuf: 0,
+    qDebuf: 0,
+    defDebuf: 0,
+    spBuf: 0,
+    spDmgBuf: 0,
     footB: 0,
     footA: 0,
     footQ: 0
@@ -5974,8 +6006,20 @@ function applyClassScoreBonus(){
           }
         }
       } else {
-        const _c0 = _buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].count || '';
-        _buffDetailStore[_skey][0] = { label:'パッシブバフ', value: vStr, count:_c0, fixed:true };
+        // パッシブも内訳も無いフィールド。
+        // vStr (= row0Total = passive + bonus - _gVal) は既にグランド分を差し引いた値なので、
+        // ここでさらに _gVal を引くと二重に引かれてマイナス値になる。
+        //   例) パッシブ0 + グランド50 → vStr='' (0) から 50 を引いて -50 になっていた
+        // グランドスコアは _syncGrandScoreRow が専用行で出すため、 ここでは vStr をそのまま使う。
+        const _pvOnly2 = parseFloat(vStr) || 0;
+        if (Math.abs(_pvOnly2) > 1e-9) {
+          const _c0 = _buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].count || '';
+          _buffDetailStore[_skey][0] = { label:'パッシブバフ', value: normalizeNumberString(_pvOnly2), count:_c0, fixed:true };
+        } else if (_buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].label === 'パッシブバフ') {
+          // 残るのがグランド分だけなら 「パッシブバフ」 行は不要
+          _buffDetailStore[_skey].splice(0, 1);
+          _buffDetailStore[_skey].push({ label: '', value: '', count: '', fixed: false });
+        }
       }
     }
     // グランドスコア内訳行を同期 (値 0 なら行ごと削除)
@@ -8916,8 +8960,13 @@ function openBuffDetail(fieldId, label, event) {
     // クラススコア / アペンドの内訳行 (_pvBonus) は、 そのラベルが内訳そのものなので
     // 「パッシブバフ」 で上書きしない。 上書きすると由来が失われてしまう。
     // 空行を 「パッシブバフ 0」 に変えてしまわないよう、 既に値かラベルがある行だけ固定する。
+    // 自動生成された行 (パッシブ内訳 _pv / トグル内訳 _pvBonus / グランドスコア _gs) は
+    // ラベル自体が内訳なので 「パッシブバフ」 で上書きしない。
+    // ※ _gs の判定が抜けていると、 パッシブが無くグランドスコア行が先頭に来た時に
+    //    「パッシブバフ」 に書き換えられてしまう (bBuf / aBuf で発生していた)。
     const _hasContent = String(store[0].label || '').trim() || String(store[0].value || '').trim();
-    if (!store[0]._pv && !store[0]._pvBonus && _hasContent) {
+    const _isAuto = store[0]._pv || store[0]._pvBonus || store[0]._gs;
+    if (!_isAuto && _hasContent) {
       store[0].label = 'パッシブバフ';
       store[0].fixed = true;
     }
