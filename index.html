@@ -8424,9 +8424,12 @@ function openBuffDetail(fieldId, label, event) {
     // ラベル自体が内訳なので 「パッシブバフ」 で上書きしない。
     // ※ _gs の判定が抜けていると、 パッシブが無くグランドスコア行が先頭に来た時に
     //    「パッシブバフ」 に書き換えられてしまう (bBuf / aBuf で発生していた)。
-    const _hasContent = String(store[0].label || '').trim() || String(store[0].value || '').trim();
+    // ラベルが既に入っている行は上書きしない (印が失われた古いデータでも表記を守る)。
+    // 値だけあってラベルが空の行のみ 「パッシブバフ」 とみなす。
+    const _hasLabel = !!String(store[0].label || '').trim();
+    const _hasValue = !!String(store[0].value || '').trim();
     const _isAuto = store[0]._pv || store[0]._pvBonus || store[0]._gs;
-    if (!_isAuto && _hasContent) {
+    if (!_isAuto && !_hasLabel && _hasValue) {
       store[0].label = 'パッシブバフ';
       store[0].fixed = true;
     }
@@ -9798,8 +9801,13 @@ function serializeBuffDetailsForRow(suffix) {
       // 4 要素目 = 手動編集フラグ、 5 要素目 = クリ限定フラグ。
       // 旧フォーマット (2〜3 要素) との互換は保つ。
       // 4=手動編集, 5=クリ限定, 6=宝具以降
-      if (r.manual || r.critOnly || r.fromNp || r.fromSecond) {
-        return [lbl, val, cnt, r.manual ? 1 : 0, r.critOnly ? 1 : 0, r.fromNp ? 1 : 0, r.fromSecond ? 1 : 0];
+      // 8=パッシブ内訳, 9=クラススコア等の内訳, 10=グランドスコア行。
+      // これを残さないと、 読み込み後に 「先頭行はパッシブバフ」 の処理で
+      // ラベルが上書きされ、 内訳やグランドスコアの表記が失われる。
+      const _kind = (r._pv ? 1 : 0) || (r._pvBonus ? 1 : 0) || (r._gs ? 1 : 0);
+      if (r.manual || r.critOnly || r.fromNp || r.fromSecond || _kind) {
+        return [lbl, val, cnt, r.manual ? 1 : 0, r.critOnly ? 1 : 0, r.fromNp ? 1 : 0, r.fromSecond ? 1 : 0,
+                r._pv ? 1 : 0, r._pvBonus ? 1 : 0, r._gs ? 1 : 0];
       }
       return cnt !== '' ? [lbl, val, cnt] : [lbl, val];
     });
@@ -9847,7 +9855,15 @@ function applyBuffDetailsForRow(suffix, obj) {
       const critOnly = !!(entry && entry[4]);
       const fromNp = !!(entry && entry[5]);
       const fromSecond = !!(entry && entry[6]);
-      return { label, value, count, fixed: (i === 0 && !_isNonBuff) || isGrand, manual, critOnly, fromNp, fromSecond };
+      const _pv = !!(entry && entry[7]);
+      const _pvBonus = !!(entry && entry[8]);
+      const _gsRow = !!(entry && entry[9]) || isGrand;
+      return {
+        label, value, count,
+        // パッシブ内訳行 (_pv) は編集可能にする。 それ以外は従来どおり。
+        fixed: _pv ? false : ((i === 0 && !_isNonBuff) || isGrand),
+        manual, critOnly, fromNp, fromSecond, _pv, _pvBonus, _gs: _gsRow,
+      };
     });
     _buffDetailStore[fid + sfx] = full;
   }
