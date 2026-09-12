@@ -2789,7 +2789,11 @@ const PASSIVE_BUFF_MAP = {
   245: { qBuf:8, fixedDmg:200 }, // ラクシュミー・バーイー
   246: { criBuf:10 }, // ウィリアム・テル
   247: { bBuf:12, fixedDmg:250 }, // アルジュナ〔オルタ〕
-  248: { criBuf:12, criBufB:10, bBuf:5, fixedDmg:210 }, // アシュヴァッターマン（元criBuf:22のうち10はBクリバフ）
+  // 内訳ラベル (_labels) の書き方:
+  //   自動推定で由来を特定できないフィールドだけ、 スキル名を手書きすると
+  //   バフ詳細にそのラベルで表示される (値は左の確定値がそのまま使われる)。
+  248: { criBuf:12, criBufB:10, bBuf:5, fixedDmg:210,
+         _labels: { criBuf:'単独行動 EX', criBufB:'憤怒の化身' } }, // アシュヴァッターマン（元criBuf:22のうち10はBクリバフ）
   249: { aBuf:10, fixedDmg:200 }, // アスクレピオス
   250: { criBuf:2 }, // 魔王信長
   251: { bBuf:4 }, // 森長可
@@ -2888,7 +2892,8 @@ const PASSIVE_BUFF_MAP = {
   348: { aBuf:8 }, // 張角
   349: { qBuf:8, fixedDmg:150 }, // 曲亭馬琴
   350: { criBuf:8 }, // 源為朝
-  351: { aBuf:12, criBuf:10 }, // アーキタイプ：アース（各カード+30は限定条件下のみ有効のため除外。常時有効の Arts+12 / Crit+10 のみ採用）
+  351: { aBuf:12, criBuf:10,
+         _labels: { aBuf:'陣地作成 EX' } }, // アーキタイプ：アース（各カード+30は限定条件下のみ有効のため除外。常時有効の Arts+12 / Crit+10 のみ採用）
   352: { aBuf:8 }, // 徐福
   353: { aBuf:4, criBuf:10 }, // レディ・アヴァロン
   354: { qBuf:8 }, // ガレス
@@ -2908,7 +2913,8 @@ const PASSIVE_BUFF_MAP = {
   369: { aBuf:8, criBuf:8 }, // 言峰綺礼
   370: { bBuf:2, criBuf:10, fixedDmg:250 }, // ニトクリス〔オルタ〕
   371: { aBuf:10, fixedDmg:150, bBuf:10 }, // テスカトリポカ
-  372: { aBuf:12, fixedDmg:210 }, // テノチティトラン（クリバフは限定条件下のみ有効のため除外、Aバフは12）
+  372: { aBuf:12, fixedDmg:210,
+         _labels: { aBuf:'陣地作成 EX' } }, // テノチティトラン（クリバフは限定条件下のみ有効のため除外、Aバフは12）
   374: { aBuf:10 }, // 女教皇ヨハンナ
   375: { criBuf:14, aBuf:6 }, // 高杉晋作
   376: { criBuf:14, fixedDmg:300 }, // ラーヴァ／ティアマト
@@ -2936,7 +2942,8 @@ const PASSIVE_BUFF_MAP = {
   400: { qBuf:10, fixedDmg:200 }, // 上杉謙信
   401: { qBuf:10, fixedDmg:175, criBuf:6 }, // ネモ〔サンタ〕
   402: { qBuf:10, fixedDmg:125 }, // ヤマトタケル
-  403: { criBuf:8, criBufQ:20, bBuf:12, fixedDmg:100 }, // 源頼光／丑御前（元criBuf:28のうち20はQクリバフ）
+  403: { criBuf:8, criBufQ:20, bBuf:12, fixedDmg:100,
+         _labels: { criBuf:'忘却補正 B', criBufQ:'鬼神の顕 A' } }, // 源頼光／丑御前（元criBuf:28のうち20はQクリバフ）
   404: { aBuf:7 }, // 由井正雪
   405: { qBuf:8 }, // 宮本伊織
   406: { qBuf:11 }, // アンドロメダ
@@ -2949,7 +2956,8 @@ const PASSIVE_BUFF_MAP = {
   413: { aBuf:2 }, // 蒼崎青子
   415: { aBuf:10 }, // 久遠寺有珠
   416: { criBuf:13, fixedDmg:100 }, // ひびき＆千鍵
-  417: { fixedDmg:140, criBuf:1.5 }, // エレシュキガル（criBuf:21.5のうち20は限定条件下のため除外）
+  417: { fixedDmg:140, criBuf:1.5,
+         _labels: { criBuf:'単独顕現 E-' } }, // エレシュキガル（criBuf:21.5のうち20は限定条件下のため除外）
   418: { criBuf:12 }, // 謎の代行者C.I.E.L
   419: { qBuf:8 }, // ドブルイニャ・ニキチッチ
   420: { criBuf:12 }, // 徐福
@@ -4517,9 +4525,52 @@ function setAutoFilled(el, flag) {
 }
 
 
+// パッシブの内訳をバフ詳細ストアに展開する。
+//   内訳がある場合  : 「騎乗 A 10」 「神性 A 30」 のようにスキル単位の行に分ける (編集可)
+//   内訳がない場合  : 従来どおり 「パッシブバフ <合計>」 の 1 行 (読み取り専用)
+// 行数 (BUFF_DETAIL_ROWS) を超える場合は行を増やす。
+function _expandPassiveRows(storeKey, vStr, breakdown) {
+  const prev = _buffDetailStore[storeKey];
+  // ユーザーが手入力した行 (パッシブ由来でない行) は保持する
+  const keep = Array.isArray(prev)
+    ? prev.filter(r => r && !r._pv && r.label !== 'パッシブバフ'
+                    && (String(r.label || '').trim() || String(r.value || '').trim()))
+    : [];
+
+  const parts = breakdown
+    ? Object.entries(breakdown).filter(([, v]) => v)
+    : [];
+
+  let head;
+  if (parts.length) {
+    // 内訳あり: スキル名ごとの行に分ける。 _pv=true で 「パッシブ由来」 と印を付け、
+    // 次回の再計算時にまとめて作り直せるようにする (ユーザーの手入力行とは区別)。
+    head = parts.map(([name, v]) => ({
+      label: name,
+      value: Number.isInteger(v) ? String(v) : parseFloat(v.toFixed(4)).toString(),
+      count: '', fixed: false, _pv: true,
+    }));
+  } else {
+    // 内訳が無い場合のみ 「パッシブバフ」 行を使う。 値が 0 なら行自体を作らない。
+    const _v = parseFloat(vStr) || 0;
+    head = _v ? [{ label: 'パッシブバフ', value: vStr, fixed: true }] : [];
+  }
+
+  const rows = head.concat(keep);
+  while (rows.length < BUFF_DETAIL_ROWS) rows.push({ label: '', value: '', count: '', fixed: false });
+  _buffDetailStore[storeKey] = rows;
+}
+
+// パッシブバフの内訳 (fid → { スキル名: 値 })。 バフ詳細で 「パッシブバフ」 の中身を
+// 表示するために、 解析中に積み上げていく。
+let _pvBreakdown = null;
+let _pvCurrentSkillName = '';
+
 function applyClassPassive(d) {
   _passiveDebugLog = [];
   const dbg = (...args) => _passiveDebugLog.push(args.join(' '));
+  _pvBreakdown = {};
+  _pvCurrentSkillName = '';
 
   // 念のため内部でもリセット（多重呼び出し時の安全策）
   resetAllBuffFields();
@@ -4541,21 +4592,86 @@ function applyClassPassive(d) {
   if (mapEntry) {
     // ── マップヒット: スキャン済み確定値を直接適用 ──
     dbg(`[${cno}] PASSIVE_BUFF_MAP ヒット → 確定値を適用`);
+    // PASSIVE_BUFF_MAP は合計値しか持たないが、 バフ詳細では内訳 (どのスキルで何%か) を
+    // 見せたい。 そこでサーヴァントのパッシブスキルを走査し、 スキル単位の寄与を推定する。
+    // 推定の合計が確定値と一致した場合のみ内訳として採用し、 ずれる場合は
+    // 誤った内訳を見せないよう従来どおり 「パッシブバフ <合計>」 にフォールバックする。
+    try {
+      // classPassive だけでなく、 passive を含む各キー (classPassives 等) も拾う。
+      // サーヴァントによって格納先が違うため、 既存の収集関数を使う。
+      const _ps = (typeof collectPassiveSkillsFromServant === 'function')
+                  ? collectPassiveSkillsFromServant(d)
+                  : (Array.isArray(d?.classPassive) ? d.classPassive : []);
+      const _est = {};
+      for (const sk of _ps) {
+        const _nm = String(sk?.name || '').trim() || 'パッシブ';
+        for (const fn of (Array.isArray(sk?.functions) ? sk.functions : [])) {
+          // buffType → 入力欄 ID を判定する。
+          // カード性能 (upCommandall) とカード色別クリは ckSelfIndv/tvals で色を見る必要がある。
+          const _bf = fn?.buffs?.[0];
+          const _bt = _bf?.type || '';
+          let _fid = null;
+          if (_bt === 'upCommandall') {
+            _fid = getCardColorFid(_bf, 'card');
+          } else if (BUFF_FIELD[_bt] === '__card_specific_crit__') {
+            _fid = getCardColorFid(_bf, 'cri');
+          } else {
+            _fid = BUFF_FIELD[_bt] || null;
+          }
+          if (!_fid) continue;
+          const _sv = fn?.svals?.[0];
+          const _raw = (_sv && (_sv.Value ?? _sv.value)) || 0;
+          if (!_raw) continue;
+          const _scale = passiveScaleForField(_fid);
+          _est[_fid] = _est[_fid] || {};
+          _est[_fid][_nm] = (_est[_fid][_nm] || 0) + _raw * _scale;
+        }
+      }
+      _pvBreakdown = {};
+      // 色別クリ (criBufB/A/Q) は PASSIVE_BUFF_MAP 側で手動振り分けされていることがあり
+      // (例: 「元 criBuf:22 のうち 10 は B クリバフ」)、 推定側は汎用 criBuf に入るため
+      // 突き合わせられない。 そこで色別フィールドが推定できなかった場合は
+      // 汎用 criBuf の推定結果から候補を探す。
+      const _criAlias = { criBufB: 'criBuf', criBufA: 'criBuf', criBufQ: 'criBuf' };
+      // PASSIVE_BUFF_MAP に手書きした内訳 (_labels) があれば最優先で使う。
+      //   例) 248: { criBuf:12, criBufB:10, ...,
+      //             _labels: { criBuf:'単独行動 EX', criBufB:'憤怒の化身' } }
+      // Atlas 側の値と手動修正値が食い違う場合や、 汎用 criBuf を色別に振り分けた場合など、
+      // 自動推定では由来を特定できないケースをここで補う。 値は常に確定値を使う。
+      const _labels = mapEntry._labels || null;
+      for (const [fid, v] of Object.entries(mapEntry)) {
+        if (fid === '_labels') continue;          // ラベル定義そのものは対象外
+        if (_labels && _labels[fid]) {
+          _pvBreakdown[fid] = { [_labels[fid]]: v };
+          continue;
+        }
+        let parts = _est[fid];
+        if (!parts && _criAlias[fid] && _est[_criAlias[fid]]) parts = _est[_criAlias[fid]];
+        if (!parts) continue;
+        const names = Object.keys(parts);
+        const sum = Object.values(parts).reduce((s, x) => s + x, 0);
+        if (Math.abs(sum - v) < 0.01) {
+          // 推定合計が確定値と一致 → そのまま内訳として使う
+          _pvBreakdown[fid] = parts;
+        } else if (names.length === 1) {
+          // そのフィールドに寄与するパッシブが 1 つだけなら、 値がずれていても
+          // 由来は確実に分かる (ランク差や Atlas 側の表記ゆれで数値が食い違うことがある)。
+          // ラベルだけスキル名にし、 値は確定値 (PASSIVE_BUFF_MAP) を採用する。
+          _pvBreakdown[fid] = { [names[0]]: v };
+        }
+        // 複数スキルが絡んで合計が合わない場合は、 誤った内訳を見せないので何もしない
+        // (限定条件バフを除外して手動調整したケース等。 「パッシブバフ」 表記になる)
+      }
+    } catch (e) { _pvBreakdown = {}; }
     for (const [fid, v] of Object.entries(mapEntry)) {
+      if (fid === '_labels') continue;          // 内訳ラベルの定義なので値としては扱わない
       const el = _el(fid);
       if (!el) { dbg(`  ${fid}: 要素なし`); continue; }
       const vStr = Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
 
-      // バフ詳細ストアの先頭行（パッシブバフ）に値をセット
+      // バフ詳細ストアを更新。 内訳が推定できていればスキル名ごとの行に分ける。
       const _storeKey = fid + (_rowCtx || '');  // 行コンテキストを含むストアキー
-      if (!_buffDetailStore[_storeKey]) {
-        _buffDetailStore[_storeKey] = [
-          { label:'パッシブバフ', value: vStr, fixed:true },
-          ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
-        ];
-      } else {
-        _buffDetailStore[_storeKey][0] = { label:'パッシブバフ', value: vStr, fixed:true };
-      }
+      _expandPassiveRows(_storeKey, vStr, _pvBreakdown && _pvBreakdown[fid]);
       // 合計をフィールドに反映（row0=パッシブ + 残り行の合計）
       const total = _buffDetailStore[_storeKey].reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
       const totalStr = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(4)).toString();
@@ -4565,6 +4681,14 @@ function applyClassPassive(d) {
       APP._passiveValueMap = APP._passiveValueMap || {};
       const _pmKey = fid + (_rowCtx || '');
       APP._passiveValueMap[_pmKey] = parseFloat(vStr) || 0;
+      // 上でサーヴァントのパッシブスキルから推定した内訳 (_pvBreakdown) があればそれを使う。
+      // 推定できなかったフィールドのみ 「クラススキル等の合計」 とする。
+      APP.passiveBreakdownMap = APP.passiveBreakdownMap || {};
+      if (_pvBreakdown && _pvBreakdown[fid]) {
+        APP.passiveBreakdownMap[_pmKey] = Object.assign({}, _pvBreakdown[fid]);
+      } else {
+        APP.passiveBreakdownMap[_pmKey] = { 'クラススキル等の合計': parseFloat(vStr) || 0 };
+      }
       dbg(`  ${fid}: passive=${vStr} total=${totalStr}`);
     }
     // クラススコア加算
@@ -4593,6 +4717,13 @@ function applyClassPassive(d) {
       return;
     }
     accum[fid] = (accum[fid] || 0) + rawVal * scale;
+    // 内訳を記録 (バフ詳細で 「パッシブバフ」 の中身を見せるため)。
+    // 現在解析中のスキル名 (_pvCurrentSkillName) を見出しに使う。
+    if (typeof _pvBreakdown === 'object' && _pvBreakdown) {
+      const _nm = _pvCurrentSkillName || 'パッシブ';
+      _pvBreakdown[fid] = _pvBreakdown[fid] || {};
+      _pvBreakdown[fid][_nm] = (_pvBreakdown[fid][_nm] || 0) + rawVal * scale;
+    }
   };
 
   const addEffectsFromText = (text) => {
@@ -4603,6 +4734,7 @@ function applyClassPassive(d) {
 
   for (const skill of passives) {
     dbg(`\n━━ スキル: "${skill.name || '(名称なし)'}"  id=${skill.id ?? '-'}`);
+    _pvCurrentSkillName = String(skill.name || '').trim() || 'パッシブ';
 
     const fallbackFieldByName = passiveFieldFromSkillName(skill.name);
     const skillDetail = String(skill.detail || skill.unmodifiedDetail || '');
@@ -4692,19 +4824,20 @@ function applyClassPassive(d) {
     //   動的解析で入れたパッシブのクリ威力等が消える (例: ウルズ No.470 の単独行動 クリ12)。
     //   fixedDmg 等の非トグルフィールドは applyClassScoreBonus 対象外なので従来も残っていた。
     const _storeKey = fid + (_rowCtx || '');
-    if (!_buffDetailStore[_storeKey]) {
-      _buffDetailStore[_storeKey] = [
-        { label:'パッシブバフ', value: vStr, fixed:true },
-        ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
-      ];
-    } else {
-      _buffDetailStore[_storeKey][0] = { label:'パッシブバフ', value: vStr, fixed:true };
-    }
+    _expandPassiveRows(_storeKey, vStr, _pvBreakdown && _pvBreakdown[fid]);
     const total = _buffDetailStore[_storeKey].reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
     el.value = Number.isInteger(total) ? String(total) : parseFloat(total.toFixed(4)).toString();
     setAutoFilled(el, true);
     APP._passiveValueMap = APP._passiveValueMap || {};
     APP._passiveValueMap[_storeKey] = parseFloat(vStr) || 0;
+    // パッシブの内訳 (スキル名ごとの値) を行ごとに保存し、
+    // バフ詳細の 「パッシブバフ」 行にツールチップとして出せるようにする。
+    APP.passiveBreakdownMap = APP.passiveBreakdownMap || {};
+    if (_pvBreakdown && _pvBreakdown[fid]) {
+      APP.passiveBreakdownMap[_storeKey] = Object.assign({}, _pvBreakdown[fid]);
+    } else {
+      delete APP.passiveBreakdownMap[_storeKey];
+    }
   }
 
   dbg(`\n── accum ──`);
@@ -5607,31 +5740,34 @@ function getAllToggleBonusFields(){
 
 function getClassScoreAddMap(){
   const map = getAllToggleBonusFields();
+  // 由来別の内訳 (fid → { 名称: 値 })。 バフ詳細で 「どのトグルで何%か」 を出すために使う。
+  APP._toggleBreakdown = {};
+  const _tb = (fid, name, v) => {
+    if (!v) return;
+    APP._toggleBreakdown[fid] = APP._toggleBreakdown[fid] || {};
+    APP._toggleBreakdown[fid][name] = (APP._toggleBreakdown[fid][name] || 0) + v;
+  };
 
   // クラススコア
   if (document.getElementById('classScore')?.checked) {
-    Object.assign(map, {
-      ...map,
-      cardBufB: map.cardBufB + 20,
-      cardBufA: map.cardBufA + 20,
-      cardBufQ: map.cardBufQ + 20,
-      criBuf: map.criBuf + 10,
-      criBufB: map.criBufB + 20,
-      criBufA: map.criBufA + 40,
-      criBufQ: map.criBufQ + 60,
-      npBuf: map.npBuf + 10,
-      exBuf: map.exBuf + 50
-    });
+    const _cs = { cardBufB:20, cardBufA:20, cardBufQ:20, criBuf:10,
+                  criBufB:20, criBufA:40, criBufQ:60, npBuf:10, exBuf:50 };
+    for (const [fid, v] of Object.entries(_cs)) {
+      map[fid] = (map[fid] || 0) + v;
+      _tb(fid, 'クラススコア', v);
+    }
   }
 
   // アペンド1
   if (document.getElementById('append1')?.checked) {
     map.exBuf += 50;
+    _tb('exBuf', 'アペンド1', 50);
   }
 
   // アペンド4
   if (document.getElementById('append4')?.checked) {
     map.criBuf += 30;
+    _tb('criBuf', 'アペンド4', 30);
   }
 
   // 足跡MAX
@@ -5706,14 +5842,103 @@ function applyClassScoreBonus(){
     if (!_buffDetailStore[_skey]) {
       const _hasGrandItems = !!(_gInfo && _gInfo.items && _gInfo.items.length);
       if (row0Total !== 0 || _gVal !== 0 || _hasGrandItems) {
-        _buffDetailStore[_skey] = [
-          { label:'パッシブバフ', value: vStr, count:'', fixed:true },
-          ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', count:'', fixed:false }))
-        ];
+        // 由来別の行を作る:
+        //   ・クラススキル由来 (狂化 C など) … APP.passiveBreakdownMap
+        //   ・クラススコア / アペンド由来 … APP._toggleBreakdown
+        // どちらも無い分は 「パッシブバフ」 行が受け持つ。
+        const _rows = [];
+        const _pbd = (APP.passiveBreakdownMap && APP.passiveBreakdownMap[_skey]) || null;
+        let _pvUsed = 0;
+        if (_pbd) {
+          for (const [nm, v] of Object.entries(_pbd)) {
+            if (!v) continue;
+            _rows.push({ label: nm, value: normalizeNumberString(v), count: '', fixed: false, _pv: true });
+            _pvUsed += v;
+          }
+        }
+        // パッシブのうち内訳に出せなかった分。
+        // 0 の場合は行を作らない (カード威力や宝具威力は基本クラススコアのみで、
+        //  「パッシブバフ 0」 が並ぶと読みにくいため)。
+        // 内訳が取れずパッシブ実値がある場合だけ 「パッシブバフ」 行を使う。
+        const _pvRest = passive - _pvUsed;
+        if (Math.abs(_pvRest) > 1e-9) {
+          _rows.unshift({ label: 'パッシブバフ', value: normalizeNumberString(_pvRest), count: '', fixed: true });
+        }
+        // クラススコア / アペンド分
+        const _tbd = (!_skipToggles && APP._toggleBreakdown && APP._toggleBreakdown[fid]) || null;
+        if (_tbd) {
+          for (const [nm, v] of Object.entries(_tbd)) {
+            if (!v) continue;
+            _rows.push({ label: nm, value: normalizeNumberString(v), count: '', fixed: true, _pvBonus: true });
+          }
+        } else if (bonus) {
+          _rows.push({ label: 'クラススコア等', value: normalizeNumberString(bonus), count: '', fixed: true, _pvBonus: true });
+        }
+        while (_rows.length < BUFF_DETAIL_ROWS) _rows.push({ label: '', value: '', count: '', fixed: false });
+        _buffDetailStore[_skey] = _rows;
       }
     } else {
-      const _c0 = _buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].count || '';
-      _buffDetailStore[_skey][0] = { label:'パッシブバフ', value: vStr, count:_c0, fixed:true };
+      // パッシブが内訳行 (_pv) に展開されている場合、 先頭行を 「パッシブバフ」 で
+      // 上書きすると内訳が壊れる。 その場合は内訳行の合計が row0Total と一致するよう
+      // 差分だけを調整する (クラススコア等のボーナスは別枠なので内訳には混ぜない)。
+      const _pvRows = _buffDetailStore[_skey].filter(r => r && r._pv);
+      // パッシブの内訳が無くても、 クラススコア / アペンド由来の内訳があれば分けて出す。
+      // (その場合 パッシブ分は先頭の 「パッシブバフ」 行が受け持つ)
+      const _hasToggleBd = !!(APP._toggleBreakdown && APP._toggleBreakdown[fid]);
+      if (_pvRows.length || _hasToggleBd) {
+        // パッシブ内訳が無い場合は先頭の 「パッシブバフ」 行をパッシブ分として扱う
+        if (!_pvRows.length) {
+          const _pvOnly = (APP._passiveValueMap && APP._passiveValueMap[_skey]) || 0;
+          if (Math.abs(_pvOnly) > 1e-9) {
+            const _c0 = _buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].count || '';
+            _buffDetailStore[_skey][0] = {
+              label: 'パッシブバフ', value: normalizeNumberString(_pvOnly), count: _c0, fixed: true
+            };
+            _pvRows.push(_buffDetailStore[_skey][0]);
+          } else if (_buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].label === 'パッシブバフ') {
+            // 値 0 のパッシブ行は不要なので取り除く
+            _buffDetailStore[_skey].splice(0, 1);
+            _buffDetailStore[_skey].push({ label: '', value: '', count: '', fixed: false });
+          }
+        }
+        const _pvSum = _pvRows.reduce((s, r) => s + (parseFloat(r.value) || 0), 0);
+        const _diff = (parseFloat(vStr) || 0) - _pvSum;
+        // 差分 (クラススコア / アペンド等の加算分) は由来別の行で持つ。
+        // 既存のボーナス行を一旦すべて取り除いてから作り直す。
+        for (let i = _buffDetailStore[_skey].length - 1; i >= 0; i--) {
+          if (_buffDetailStore[_skey][i] && _buffDetailStore[_skey][i]._pvBonus) {
+            _buffDetailStore[_skey].splice(i, 1);
+            _buffDetailStore[_skey].push({ label: '', value: '', count: '', fixed: false });
+          }
+        }
+        if (Math.abs(_diff) > 1e-9) {
+          // getClassScoreAddMap が記録した内訳 (クラススコア / アペンド1 / アペンド4) を使う。
+          // 内訳の合計が差分と一致しない場合は 「クラススコア等」 1 行にまとめる。
+          const _tbd = (APP._toggleBreakdown && APP._toggleBreakdown[fid]) || null;
+          let _rows;
+          const _tsum = _tbd ? Object.values(_tbd).reduce((s, x) => s + x, 0) : NaN;
+          if (_tbd && Math.abs(_tsum - _diff) < 1e-9) {
+            _rows = Object.entries(_tbd).map(([nm, v]) => ({
+              label: nm, value: normalizeNumberString(v), count: '', fixed: true, _pvBonus: true
+            }));
+          } else {
+            _rows = [{ label: 'クラススコア等', value: normalizeNumberString(_diff), count: '', fixed: true, _pvBonus: true }];
+          }
+          _buffDetailStore[_skey].splice(_pvRows.length, 0, ..._rows);
+          // 行数を保つ (末尾の空行を挿入分だけ詰める)
+          for (let k = 0; k < _rows.length; k++) {
+            for (let i = _buffDetailStore[_skey].length - 1; i > _pvRows.length + _rows.length; i--) {
+              const r = _buffDetailStore[_skey][i];
+              if (r && !r.fixed && !String(r.label || '').trim() && !String(r.value || '').trim()) {
+                _buffDetailStore[_skey].splice(i, 1); break;
+              }
+            }
+          }
+        }
+      } else {
+        const _c0 = _buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].count || '';
+        _buffDetailStore[_skey][0] = { label:'パッシブバフ', value: vStr, count:_c0, fixed:true };
+      }
     }
     // グランドスコア内訳行を同期 (値 0 なら行ごと削除)
     if (_buffDetailStore[_skey]) {
@@ -7583,6 +7808,11 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.grandExPowerMap) delete APP.grandExPowerMap[sfx];
         if (APP.grandUncapMap) delete APP.grandUncapMap[sfx];
         if (APP.grandBraveSlotMap) delete APP.grandBraveSlotMap[sfx];
+        if (APP.passiveBreakdownMap) {
+          for (const k of Object.keys(APP.passiveBreakdownMap)) {
+            if ((k.match(/(_R\d+)$/) || ['', ''])[1] === sfx) delete APP.passiveBreakdownMap[k];
+          }
+        }
         if (APP.grandGazeMap) delete APP.grandGazeMap[sfx];
         if (APP.grandEx2Map) delete APP.grandEx2Map[sfx];
         if (APP.grandRowHiddenMap) {
@@ -8401,6 +8631,18 @@ function _applyGrandDefDebuffStacks(sfx, slots, out) {
 }
 
 function _buffDetailAddRow(label = '', value = '', fixedLabel = false, count = '') {
+  // 「パッシブバフ」 行には内訳 (どのスキルで何%か) をツールチップで出す。
+  // 合計値だけでは何が積まれているか分からず、 検証時に不便なため。
+  let _rowTitle = '';
+  if (label === 'パッシブバフ') {
+    const bd = APP.passiveBreakdownMap && APP.passiveBreakdownMap[_buffDetailTarget];
+    if (bd) {
+      const parts = Object.entries(bd)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${Number.isInteger(v) ? v : parseFloat(v.toFixed(2))}`);
+      if (parts.length) _rowTitle = '内訳 — ' + parts.join(' / ');
+    }
+  }
   const tbody = document.getElementById('buffDetailRows');
   const tr = document.createElement('tr');
   const labelStyle = fixedLabel
@@ -8426,6 +8668,7 @@ function _buffDetailAddRow(label = '', value = '', fixedLabel = false, count = '
     <td style="padding:3px 4px;">
       <input class="bd-lbl" type="text" placeholder="スキル・礼装など" value="${_escapeAttrSafe(label)}"
         ${fixedLabel ? 'readonly tabindex="-1"' : ''}
+        ${_rowTitle ? `title="${_escapeAttrSafe(_rowTitle)}"` : ''}
         style="${labelStyle}">
     </td>
     <td style="padding:3px 4px;text-align:right;">
@@ -8623,19 +8866,23 @@ function openBuffDetail(fieldId, label, event) {
   // ストアを初期化（未開封のフィールドは空行で初期化）
   // 特殊耐性 (_isNonBuff) はパッシブバフ概念がないので、 全行をユーザー自由入力 (fixed:false) に。
   if (!_buffDetailStore[fieldId]) {
-    _buffDetailStore[fieldId] = _isNonBuff
-      ? Array(BUFF_DETAIL_ROWS).fill(null).map(() => ({ label:'', value:'', fixed:false }))
-      : [
-          { label:'パッシブバフ', value:'', fixed:true },
-          ...Array(BUFF_DETAIL_ROWS - 1).fill(null).map(() => ({ label:'', value:'', fixed:false }))
-        ];
+    // パッシブも各種ボーナスも無いフィールドは、 空の 「パッシブバフ 0」 を置かず
+    // 全行を自由入力にする (カード威力 / 宝具威力など 0 行だけが並ぶのを避ける)。
+    _buffDetailStore[fieldId] = Array(BUFF_DETAIL_ROWS).fill(null).map(() => ({ label:'', value:'', fixed:false }));
   }
 
-  // 先頭行は必ず「パッシブバフ」固定 — ただし _isNonBuff (特殊耐性) はパッシブバフを持たない。
+  // 先頭行は原則「パッシブバフ」固定 — ただし _isNonBuff (特殊耐性) はパッシブバフを持たない。
   const store = _buffDetailStore[fieldId];
   if (!_isNonBuff) {
-    store[0].label = 'パッシブバフ';
-    store[0].fixed = true;
+    // パッシブを由来別 (狂化 C など) に展開した行 (_pv) や、
+    // クラススコア / アペンドの内訳行 (_pvBonus) は、 そのラベルが内訳そのものなので
+    // 「パッシブバフ」 で上書きしない。 上書きすると由来が失われてしまう。
+    // 空行を 「パッシブバフ 0」 に変えてしまわないよう、 既に値かラベルがある行だけ固定する。
+    const _hasContent = String(store[0].label || '').trim() || String(store[0].value || '').trim();
+    if (!store[0]._pv && !store[0]._pvBonus && _hasContent) {
+      store[0].label = 'パッシブバフ';
+      store[0].fixed = true;
+    }
   } else {
     // 特殊耐性は全行を自由入力に。 過去バージョン (modal を開く前の _buffDetailApply で
     // 先頭行に fixed:true が書き込まれていた壊れたデータ) を読み込み時に自動修復する。
@@ -8719,13 +8966,19 @@ function _buffDetailApply() {
     const _prevFromNp = !!(_prevRows[i] && _prevRows[i].fromNp);
     const _prevFromSecond = !!(_prevRows[i] && _prevRows[i].fromSecond);
     const _prevGs = !!(_prevRows[i] && _prevRows[i]._gs);
+    // パッシブ内訳 (_pv) / クラススコア等の内訳 (_pvBonus) も引き継ぐ。
+    // 失われると次回の再計算で行を作り直せず、 ラベルが 「パッシブバフ」 に戻ってしまう。
+    const _prevPv = !!(_prevRows[i] && _prevRows[i]._pv);
+    const _prevPvBonus = !!(_prevRows[i] && _prevRows[i]._pvBonus);
     return {
       label, value, count, critOnly: _prevCritOnly, fromNp: _prevFromNp,
       fromSecond: _prevFromSecond, _gs: _prevGs || isGrand,
+      _pv: _prevPv, _pvBonus: _prevPvBonus,
       // 先頭行は通常 fixed:true (パッシブバフ)、 _isNonBuff なら fixed:false。
       // グランドスコアの内訳行も自動計算行なので fixed を維持する
       // (false になるとラベルが編集可能になり、 次回同期時に行を見失う)。
-      fixed: (i === 0 && !_isNonBuff) || isGrand,
+      // ただしパッシブを由来別に展開した行 (_pv) は編集可能にする。
+      fixed: _prevPv ? false : ((i === 0 && !_isNonBuff) || isGrand),
       manual
     };
   });
@@ -10487,6 +10740,15 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     }
     if (APP.grandBraveSlotMap && APP.grandBraveSlotMap[_srcSfx]) {
       APP.grandBraveSlotMap[suffix] = Object.assign({}, APP.grandBraveSlotMap[_srcSfx]);
+    }
+    // パッシブバフの内訳も引き継ぐ (キーは fid + サフィックスなので全 fid 分をコピー)
+    if (APP.passiveBreakdownMap) {
+      for (const k of Object.keys(APP.passiveBreakdownMap)) {
+        const ks = (k.match(/(_R\d+)$/) || ['', ''])[1];
+        if (ks !== _srcSfx) continue;
+        const fid = _srcSfx ? k.slice(0, -_srcSfx.length) : k;
+        APP.passiveBreakdownMap[fid + suffix] = Object.assign({}, APP.passiveBreakdownMap[k]);
+      }
     }
     if (APP.grandGazeMap && APP.grandGazeMap[_srcSfx] !== undefined) {
       APP.grandGazeMap[suffix] = APP.grandGazeMap[_srcSfx];
