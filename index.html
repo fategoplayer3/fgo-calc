@@ -3952,6 +3952,16 @@ function resetAllBuffFields() {
     const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
     if (keySuffix === _pvmSuffix) delete APP._passiveValueMap[key];
   }
+  // パッシブの内訳 (どのスキルで何%か) も同じ行のものをクリアする。
+  // ここを残すと、 別サーヴァントを選び直した時に前のスキル名の行が復活し、
+  // その分だけ合計がずれて 「パッシブバフ -10」 のようなマイナス行が生まれる。
+  //   例) デメテル (単独行動 A で criBuf 10) の内訳が残ったまま
+  //       パッシブ値 0 のサーヴァントを選ぶと 0 - 10 = -10 になる
+  APP.passiveBreakdownMap = APP.passiveBreakdownMap || {};
+  for (const key of Object.keys(APP.passiveBreakdownMap)) {
+    const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
+    if (keySuffix === _pvmSuffix) delete APP.passiveBreakdownMap[key];
+  }
   // _buffDetailStore を現在の行コンテキストのエントリのみクリア
   for (const key of Object.keys(_buffDetailStore)) {
     const keySuffix = (key.match(/(_R\d+)$/) || ['',''])[1];
@@ -5358,7 +5368,13 @@ function applyClassScoreBonus(){
         //   ・クラススコア / アペンド由来 … APP._toggleBreakdown
         // どちらも無い分は 「パッシブバフ」 行が受け持つ。
         const _rows = [];
-        const _pbd = (APP.passiveBreakdownMap && APP.passiveBreakdownMap[_skey]) || null;
+        let _pbd = (APP.passiveBreakdownMap && APP.passiveBreakdownMap[_skey]) || null;
+        // 内訳の合計がパッシブ値と食い違う場合は、 別サーヴァントの内訳が残っている可能性が高い。
+        // そのまま使うと差分がマイナス行になるので、 内訳を捨てて 「パッシブバフ」 に寄せる。
+        if (_pbd) {
+          const _sum = Object.values(_pbd).reduce((s, x) => s + (x || 0), 0);
+          if (Math.abs(_sum - passive) > 0.01) _pbd = null;
+        }
         let _pvUsed = 0;
         if (_pbd) {
           for (const [nm, v] of Object.entries(_pbd)) {
