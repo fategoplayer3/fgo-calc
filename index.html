@@ -4020,6 +4020,34 @@ function applyClassPassive(d) {
   _pvBreakdown = {};
   _pvCurrentSkillName = '';
 
+  // サーヴァントを切り替えた時、 前のサーヴァントのパッシブ内訳行 (_pv) や
+  // クラススコア等の内訳行 (_pvBonus) が残っていると、
+  //   ・別サーヴァントのクラススキル名が残存する
+  //   ・辻褄合わせで 「パッシブバフ -12」 のようなマイナス行が入る
+  // という状態になる。 解析を始める前にこの行の行をすべて取り除く。
+  // (ユーザーが手入力した行は _pv/_pvBonus を持たないので影響しない)
+  {
+    const _sfx = _rowCtx || '';
+    for (const key of Object.keys(_buffDetailStore)) {
+      const _ks = (key.match(/(_R\d+)$/) || ['', ''])[1];
+      if (_ks !== _sfx) continue;
+      const arr = _buffDetailStore[key];
+      if (!Array.isArray(arr)) continue;
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i] && (arr[i]._pv || arr[i]._pvBonus)) {
+          arr.splice(i, 1);
+          arr.push({ label: '', value: '', count: '', fixed: false });
+        }
+      }
+      // 先頭の 「パッシブバフ」 行は前サーヴァントの値なので取り除く。
+      // (残すと値が混ざる。 次の解析で必要な分だけ作り直される)
+      if (arr[0] && arr[0].label === 'パッシブバフ') {
+        arr.splice(0, 1);
+        arr.push({ label: '', value: '', count: '', fixed: false });
+      }
+    }
+  }
+
   // 念のため内部でもリセット（多重呼び出し時の安全策）
   resetAllBuffFields();
 
