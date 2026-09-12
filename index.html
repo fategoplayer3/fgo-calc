@@ -5350,8 +5350,10 @@ function applyClassScoreBonus(){
             if (!v) continue;
             _rows.push({ label: nm, value: normalizeNumberString(v), count: '', fixed: true, _pvBonus: true });
           }
-        } else if (bonus) {
-          _rows.push({ label: 'クラススコア等', value: normalizeNumberString(bonus), count: '', fixed: true, _pvBonus: true });
+        } else if (bonus && Math.abs(bonus - (_gVal || 0)) > 1e-9) {
+          // グランドスコア分は専用行 (_gs) が別に出るので、
+          // bonus がグランド分と一致する場合はここで出さない (二重計上に見えるため)。
+          _rows.push({ label: 'クラススコア等', value: normalizeNumberString(bonus - (_gVal || 0)), count: '', fixed: true, _pvBonus: true });
         }
         while (_rows.length < BUFF_DETAIL_ROWS) _rows.push({ label: '', value: '', count: '', fixed: false });
         _buffDetailStore[_skey] = _rows;
@@ -5396,7 +5398,12 @@ function applyClassScoreBonus(){
           const _tbd = (APP._toggleBreakdown && APP._toggleBreakdown[fid]) || null;
           let _rows;
           const _tsum = _tbd ? Object.values(_tbd).reduce((s, x) => s + x, 0) : NaN;
-          if (_tbd && Math.abs(_tsum - _diff) < 1e-9) {
+          // 内訳が取れない差分は 「クラススコア等」 になるが、
+          // グランドスコア分は専用行 (_gs) が別に出るので、 ここで出すと二重計上に見える。
+          // トグル由来の内訳が無く、 差分がグランド分と一致する場合は行を作らない。
+          if (!_tbd && Math.abs(_diff - (_gVal || 0)) < 1e-9) {
+            _rows = [];
+          } else if (_tbd && Math.abs(_tsum - _diff) < 1e-9) {
             _rows = Object.entries(_tbd).map(([nm, v]) => ({
               label: nm, value: normalizeNumberString(v), count: '', fixed: true, _pvBonus: true
             }));
