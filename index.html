@@ -853,19 +853,19 @@ textarea{
               <td class="col-buster">
                 <div class="dual-stack">
                   <input type="number" id="bBuf" value="0" aria-label="Bバフ" oninput="recalc()" onclick="openBuffDetail('bBuf','Bバフ',event)" readonly style="cursor:pointer;" />
-                  <input type="number" id="bDebuf" value="0" aria-label="Bデバフ" oninput="recalc()" onclick="openBuffDetail('bDebuf','Bデバフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="bDebuf" value="0" aria-label="Bデバフ" oninput="recalc()" onclick="openBuffDetail('bDebuf','Bデバフ',event)" readonly style="cursor:pointer;"title="敵の該当色カード攻撃耐性ダウン。 グランドキャスターの色チェインで付与される分はフィールド効果のため、 一度張れば別の色に張り替えるまで永続します (ターン経過では消えません)。 前ターンに張った分が残っている場合は手動で入力してください。" />
                 </div>
               </td>
               <td class="col-arts">
                 <div class="dual-stack">
                   <input type="number" id="aBuf" value="0" aria-label="Aバフ" oninput="recalc()" onclick="openBuffDetail('aBuf','Aバフ',event)" readonly style="cursor:pointer;" />
-                  <input type="number" id="aDebuf" value="0" aria-label="Aデバフ" oninput="recalc()" onclick="openBuffDetail('aDebuf','Aデバフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="aDebuf" value="0" aria-label="Aデバフ" oninput="recalc()" onclick="openBuffDetail('aDebuf','Aデバフ',event)" readonly style="cursor:pointer;"title="敵の該当色カード攻撃耐性ダウン。 グランドキャスターの色チェインで付与される分はフィールド効果のため、 一度張れば別の色に張り替えるまで永続します (ターン経過では消えません)。 前ターンに張った分が残っている場合は手動で入力してください。" />
                 </div>
               </td>
               <td class="col-quick">
                 <div class="dual-stack">
                   <input type="number" id="qBuf" value="0" aria-label="Qバフ" oninput="recalc()" onclick="openBuffDetail('qBuf','Qバフ',event)" readonly style="cursor:pointer;" />
-                  <input type="number" id="qDebuf" value="0" aria-label="Qデバフ" oninput="recalc()" onclick="openBuffDetail('qDebuf','Qデバフ',event)" readonly style="cursor:pointer;" />
+                  <input type="number" id="qDebuf" value="0" aria-label="Qデバフ" oninput="recalc()" onclick="openBuffDetail('qDebuf','Qデバフ',event)" readonly style="cursor:pointer;"title="敵の該当色カード攻撃耐性ダウン。 グランドキャスターの色チェインで付与される分はフィールド効果のため、 一度張れば別の色に張り替えるまで永続します (ターン経過では消えません)。 前ターンに張った分が残っている場合は手動で入力してください。" />
                 </div>
               </td>
               <td class="def-disabled-cell">
@@ -1758,12 +1758,8 @@ textarea{
     <option value="0">失敗 (変換なし)</option>
   </select></label>
 </span>
-<label id="grandGazeWrap" style="margin-left:10px;display:none;" title="EX1 専用。 敵に [対敵注視] が付いているか。 マイティチェイン成立時に敵へ付与され 2 ターン持続します。 付与は攻撃対象に対して行われるため 1 ターン目は 2 枚目以降の攻撃から有効です。 ON にすると 【熾炎翻す(此方)】 の特攻と、 B チェイン成立時のクリ威力 +80% が乗ります。"><span style="font-size:11px;">対敵注視</span>
-  <select id="grandGaze" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;">
-    <option value="0" selected>なし</option>
-    <option value="1">1ターン目</option>
-    <option value="2">2ターン目</option>
-  </select></label>
+<label id="grandGazeWrap" style="margin-left:10px;display:none;" title="EX1 専用。 敵に [対敵注視] が付いてから何ターン目かを入力します (0 = 付いていない)。 マイティチェイン成立時に攻撃対象へ付与されます。 付与は攻撃対象に対して行われるため、 1 ターン目のみ 2 枚目以降の攻撃から有効です。 【熾炎翻す(此方)】 の特攻は 1 ターン目 20%、 以降毎ターン 5% ずつ上昇し最大 50% (7 ターン目) になります。 B チェイン成立時のクリ威力 +80% は、 対敵注視が付いている間は常に乗ります。"><span style="font-size:11px;">対敵注視</span>
+  <input type="number" id="grandGaze" value="0" min="0" max="20" step="1" style="width:42px;height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"><span style="font-size:11px;">ターン目</span></label>
 <label id="grandSureHitWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で、 攻撃するカードに必中が付与されている場合の追加効果。 ON にすると 宝具威力アップ (単体宝具 20% / 全体宝具 40%) が乗ります。 必中はマイティチェイン成立時に付与される (3回) ほか、 スキルや礼装でも付与されます。"><input type="checkbox" id="grandSureHit"> <span style="font-size:11px;">必中</span></label>
 <label id="grandInstaWrap" style="margin-left:10px;display:none;" title="アサシン専用。 自身に付与されている [即死付与率アップ] の効果量合計。 マイティチェイン成立時、 この量が 10%/30%/60%/100%/150% 以上の各段階を満たすごとにクリティカル威力が 30% ずつ追加でアップします (最大 +150%)。 各色チェインでも即死付与率アップが付与されるので、 それらの合計を選んでください。"><span style="font-size:11px;">即死付与率</span>
   <select id="grandInsta" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;">
@@ -4361,7 +4357,8 @@ function normalizeNumberString(v){
 //   ・[鈍の矢弾](弓) / [境域掌握](騎) / [気配遮断](殺) 等の状態系
 //   ・アサシンの色チェイン (クリティカル攻撃時のみ有効なため単純加算だと過大になる)
 //   ・弱体数 / 即死付与率 / 対敵注視 に依存する動的効果
-//   ・HP 割合で変動するものは 「最大値」 で固定 (ユーザー指定)
+//   ・HP 割合で変動するものは 初動 (HP 全快) の値で固定 (ユーザー指定)
+//     槍は HP が少ないほど効果アップなので下限値、 狂は HP が多いほど効果アップなので最大値。
 // EX1 (此方) はシールダー / ルーラー / アヴェンジャー / ムーンキャンサーが該当する。
 // EX2 (彼方) は残る EX 系クラス。 グランドグラフ上は別枠だがクラス名から判別できるため、
 // EX1 のクラスは 'ex1' として扱う (下の _grandCurrentClass で正規化)。
@@ -4387,7 +4384,8 @@ const GRAND_EX2_CLASSES = new Set([
 
 // クラス別チェイン効果。 キーは チェイン種別:
 //   B / A / Q = 各色チェイン成立時、 M = マイティチェイン成立時
-// 値は 「フィールド ID → 加算値」。 HP 割合依存のものは最大値を採用。
+// 値は 「フィールド ID → 加算値」。 HP 割合依存のものは初動 (HP 全快) の値を採用する。
+// HP 依存の効果は {v:値, hpDep:true} と書くと、 バフ詳細のラベルに 「初動値」 が付く。
 const GRAND_SCORE_CHAIN = {
   // 【魔力放出(剣)】 ブレイブ成立時 Q/A/B 威力 +50% (各 1 回) & EX 威力 +100%
   // 色バフは 「攻撃のたびに 1 個ずつ付与され、 その色で使われるまで蓄積する」 ため
@@ -4398,11 +4396,15 @@ const GRAND_SCORE_CHAIN = {
                Q:{_starRateBuf:100, footB:500, footA:500, footQ:500},
                M:{atkBuf:30}, Brave:{} },
   archer:    { B:{cardBufB:20}, A:{cardBufA:20}, Q:{cardBufQ:20},        M:{} },
-  // ランサーは HP 割合が少ないほど効果アップ。 ユーザー指定により最大値を採用。
-  //   A: NP獲得量 20〜50%  /  Q: スター発生率 50〜150% & 集中度 500%
-  lancer:    { B:{criBuf:80},                 A:{_npGainBuf:50},
-               Q:{_starRateBuf:150, footB:500, footA:500, footQ:500},
-               M:{atkBuf:50} },
+  // ランサーは HP 割合が 「少ない」 ほど効果アップ。
+  // 計算機は初動 (HP 全快) 前提のため、 下限値を採用する。
+  //   B: クリ威力 30〜80%  →  30
+  //   A: NP獲得量 20〜50%  →  20
+  //   Q: スター発生率 50〜150%  →  50 (集中度 500% は HP 非依存の固定値)
+  //   M: 攻撃力 20〜50%  →  20
+  lancer:    { B:{criBuf:{v:30, hpDep:true}},  A:{_npGainBuf:20},
+               Q:{_starRateBuf:50, footB:500, footA:500, footQ:500},
+               M:{atkBuf:{v:20, hpDep:true}} },
   // 【駿馬、 戦場を駆る(騎)】 ブレイブ成立時 Q/A/B 威力 +30% (各 2 回)
   // 各色チェインには [境域掌握] 状態時の追加効果
   //   「該当色による攻撃時、 味方全体の該当色宝具の威力 +20% (1回/3T)」 がある。
@@ -4431,7 +4433,11 @@ const GRAND_SCORE_CHAIN = {
                A:{cardBufA:{v:160, c:3, critOnly:true}},
                Q:{cardBufQ:{v:240, c:3, critOnly:true}},
                M:{criBuf:100, _criBufInsta:true} },
-  berserker: { B:{cardBufB:50}, A:{cardBufA:50}, Q:{cardBufQ:50},        M:{} },
+  // バーサーカーは HP 割合が 「多い」 ほど効果アップ (ランサーとは逆方向)。
+  // 計算機は初動 (HP 全快) 前提のため、 最大値を採用する。
+  //   B/A/Q: 各色の威力 20〜50%  →  50
+  berserker: { B:{cardBufB:{v:50, hpDep:true}}, A:{cardBufA:{v:50, hpDep:true}},
+               Q:{cardBufQ:{v:50, hpDep:true}}, M:{} },
   // EX1 (此方): シールダー / ルーラー / アヴェンジャー / ムーンキャンサー
   //   各色チェインで 「味方全体の対象カード威力 +20%」。
   //   攻略サイトが 「カード威力アップ」 と明記しているので、 性能欄 (bBuf 等) ではなく
@@ -4703,9 +4709,18 @@ function _grandGazeTurn() {
   return Number.isFinite(n) ? n : 0;
 }
 
-// 【熾炎翻す(此方)】 の [対敵注視] 特攻。 毎ターン徐々に効果アップ (20%〜50%)。
-// 1 ターン目 20% / 2 ターン目以降 50% を採用する。
-const GRAND_GAZE_SP_BUF = { 1: 20, 2: 50 };
+// 【熾炎翻す(此方)】 の [対敵注視] 特攻。
+// ゲーム内表記: 「[対敵注視] 特攻状態を 20% 付与 <毎ターン 5% 効果アップ・最大 50%>」。
+// → 1 ターン目 20% / 2 ターン目 25% / ... / 7 ターン目以降 50% で頭打ち。
+// (Atlas のデータは基準値 200 = 20% のみを持ち、 上昇分はエンジン側で処理される)
+const GRAND_GAZE_SP_BASE     = 20;   // 1 ターン目の特攻量 (%)
+const GRAND_GAZE_SP_PER_TURN = 5;    // 1 ターン経過ごとの上昇量 (%)
+const GRAND_GAZE_SP_MAX      = 50;   // 上限 (%)
+function _grandGazeSpBuf(turn) {
+  const t = parseInt(turn, 10);
+  if (!Number.isFinite(t) || t < 1) return 0;
+  return Math.min(GRAND_GAZE_SP_MAX, GRAND_GAZE_SP_BASE + (t - 1) * GRAND_GAZE_SP_PER_TURN);
+}
 // EX1 B チェイン成立時の [対敵注視] へのクリ威力アップ
 const GRAND_GAZE_CRI_BUF = 80;
 
@@ -4922,7 +4937,11 @@ function _syncGrandScoreRow(store, items, fid, gsOn, storeKey) {
     const _fn = it.fromNp ? ((_cn || _co) ? ' 宝具以降' : '宝具以降') : '';
     // 付与直後は自分の攻撃に間に合わないもの (1 ターン目の [対敵注視] 等)
     const _f2 = it.fromSecond ? ((_cn || _co || _fn) ? ' 2枚目以降' : '2枚目以降') : '';
-    const cl = (_cn || _co || _fn || _f2) ? '(' + _cn + _co + _fn + _f2 + ')' : '';
+    // HP 割合で効果量が変わるもの (槍・狂のチェイン効果)。
+    // 計算機は初動 (HP 全快) の値を入れているので、 削られた状態を再現したい場合は
+    // この行の値を手で書き換える必要がある。 その目印としてラベルに明記する。
+    const _hd = it.hpDep ? ((_cn || _co || _fn || _f2) ? ' 初動値' : '初動値') : '';
+    const cl = (_cn || _co || _fn || _f2 || _hd) ? '(' + _cn + _co + _fn + _f2 + _hd + ')' : '';
     const label = GRAND_ROW_PREFIX + cl;
     // 蓄積型 (剣のブレイブ) は 「1 個あたりの量 × 個数」 なので個数分の行に分ける。
     //   例) セイバー 50% / 3 個蓄積 → 「グランドスコア(ブレイブ) 50」 が 3 行
@@ -4976,7 +4995,7 @@ function _applyGrandScoreToMap(map) {
   // (例: 騎のブレイブ 「駿馬 30%/2回」 + 「境域掌握 20%/1回」)。
   // 回数や適用条件が効果ごとに違うので 1 つに合算せず、 items に個別に積んで
   // バフ詳細でも別行として表示・調整できるようにする。
-  const rec = (fid, v, chain, count, split, critOnly, fromNp, fromSecond) => {
+  const rec = (fid, v, chain, count, split, critOnly, fromNp, fromSecond, hpDep) => {
     if (!v) return;
     // グランドスコア由来のバフが 1 つでも含まれる種類は上限が撤廃される
     // (実際には 5000% 相当の非常に高い天井になる)。 どの種類に含まれたかを記録する。
@@ -4994,6 +5013,7 @@ function _applyGrandScoreToMap(map) {
       critOnly: !!critOnly,
       fromNp: !!fromNp,
       fromSecond: !!fromSecond,   // 2 枚目以降の攻撃にのみ乗る (対敵注視の付与直後など)
+      hpDep: !!hpDep,             // HP 割合で効果量が変わる (計算機は初動=HP全快の値を採用)
     });
     APP._grandDeltaMap[fid] = cur;
   };
@@ -5009,12 +5029,19 @@ function _applyGrandScoreToMap(map) {
   // バフ詳細でこの行の値を 0 にすれば手動扱い (manual) になり、 以降上書きされない。
   // 宝具のダメージ前に付与されるので、 宝具自身にも乗る。
   // 【一刺にて城を穿つ(槍)】
-  //   条文は 「自身の攻撃の威力を 50% アップ(5回)」。 攻略サイトの検証では
-  //   付与されるバフアイコンから 「特攻バフ」 カテゴリと見られるため spBuf に入れる
-  //   (攻撃力アップとは乗算枠が異なるので、 他バフとの組み合わせで結果が変わる)。
-  //   宝具の効果発動前に付与され 3 ターン持続するので、 宝具を撃つターンに限らず
-  //   チェックが ON の間は有効。 位置条件も付けない (前ターン付与分は 1 枚目から乗る)。
-  if (cls === 'lancer' && _grandHasPierce()) rec('spBuf', 50, 'NpPierce', '5');
+  //   条文は 「自身の攻撃の威力を 50% アップ(5回)」。
+  //   Atlas のデータ (skill 5048002) で確定済み:
+  //     addStateShort | upDamage | Value 500 | 回数 5 | ターン -1
+  //     vals: buffPositiveEffect, buffIncreaseDamage, buffPowerModStrUp
+  //   buffPowerModStrUp = 特攻 (パワーモッド) 枠なので spBuf が正しい。
+  //   マイティチェインの upAtk (攻撃力アップ) とは別枠で、 乗算のかかり方が違う。
+  //   ターン制限はなく純粋な回数制 5 回 (上位スキル 5048001 の 3 ターンは保持期間)。
+  //   宝具の効果発動前に付与されるので、 宝具スロット自身には乗るが、
+  //   宝具より前のカードには乗らない。 そのため fromNp を立てる
+  //   (例: 2nd で宝具 → 2nd / 3rd / EX に乗り、 1st には乗らない)。
+  //   ※前ターンに宝具を撃って回数が残っている状況を再現したい場合は、
+  //     バフ詳細で手動行を 1 行足す (手動行には fromNp が付かないので 1 枚目から乗る)。
+  if (cls === 'lancer' && _grandHasPierce()) rec('spBuf', 50, 'NpPierce', '5', null, false, true);
 
   // 【鷲の目(弓)】 の必中時追加効果: 宝具威力アップ (単体 20% / 全体 40%)。
   // 必中が付いているかはユーザー指定 (チェックボックス)。 宝具を撃つ構成でのみ意味がある。
@@ -5069,7 +5096,7 @@ function _applyGrandScoreToMap(map) {
   if (cls === 'ex1') {
     const _gz = _grandGazeTurn();
     if (_gz > 0) {
-      const _sp = GRAND_GAZE_SP_BUF[_gz] || 0;
+      const _sp = _grandGazeSpBuf(_gz);
       if (_sp) rec('spBuf', _sp, 'Gaze', '', null, false, false, _gz === 1);
     }
   }
@@ -5176,6 +5203,8 @@ function _applyGrandScoreToMap(map) {
       const c = (typeof raw === 'number') ? '' : String(raw.c ?? '');
       const split = (typeof raw === 'number') ? null : (raw.n ? { unit: raw.unit, n: raw.n } : null);
       const critOnly = (typeof raw === 'number') ? false : !!raw.critOnly;
+      // HP 割合依存の効果か。 ラベルに 「初動値」 を付けて、 実HPに合わせた手動調整を促す。
+      const hpDep = (typeof raw === 'number') ? false : !!raw.hpDep;
       // bySlot = 位置ごとに乗る量が違うため、 値はスロット別計算 (_applyGrandBraveStacks) が
       // 直接入れる。 ここで rec すると欄・バフ詳細に二重で出てしまうので、
       // 内訳を示す情報行だけを残して値の登録はスキップする。
@@ -5227,7 +5256,7 @@ function _applyGrandScoreToMap(map) {
         else APP._grandNpStar.nd += v;      // 被ダメ時 NP 獲得量
         continue;
       }
-      rec(fid, v, chain, c, split, critOnly);
+      rec(fid, v, chain, c, split, critOnly, false, false, hpDep);
     }
   }
 }
