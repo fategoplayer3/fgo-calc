@@ -2033,7 +2033,9 @@ const DEFAULT_NP_OVERRIDE = {
 // applyClassPassive でこのMapを優先使用し、動的解析をフォールバックにする。
 // ══════════════════════════════════════════════════════════════
 const PASSIVE_BUFF_MAP = {
-  1: { qBuf:6 }, // マシュ・キリエライト（シールダー版／パラディーン版 共通：クラススキル「対魔力」「サポート防御適性」相当でQuick+6）
+  1: { qBuf:6, _labels:{ qBuf:'騎乗 C' } }, // マシュ・キリエライト（シールダー版／パラディーン版 共通：クラススキル「対魔力」「サポート防御適性」相当でQuick+6）
+     // ↑ パラディーン版 (id 800150) は HARDCODED_SERVANT_DATA で classPassive:[] のため自動推定できない。
+     //   _labels を置くことでシールダー版と同じラベルになる。
   4: { qBuf:6 }, // アルトリア・ペンドラゴン〔リリィ〕
   8: { qBuf:10, fixedDmg:175 }, // アルテラ
   9: { qBuf:8, bBuf:12 }, // ジル・ド・レェ
@@ -2391,7 +2393,9 @@ const PASSIVE_BUFF_MAP = {
   410: { criBuf:10 }, // アレッサンドロ・ディ・カリオストロ
   411: { criBuf:10, qBuf:6, aBuf:6, bBuf:26 }, // Ｅ－フレアマリー
   412: { criBuf:10, qBuf:6, aBuf:6, bBuf:26 }, // Ｅ－アクアマリー
-  413: { aBuf:2 }, // 蒼崎青子
+  413: { aBuf:2, _labels:{ aBuf:'陣地作成 E' } }, // 蒼崎青子
+     // ↑ スーパー青子 (id 2501500) は HARDCODED_SERVANT_DATA で classPassive:[] のため自動推定できない。
+     //   _labels を置くことで通常版と同じラベルになる。
   415: { aBuf:10 }, // 久遠寺有珠
   416: { criBuf:13, fixedDmg:100 }, // ひびき＆千鍵
   417: { fixedDmg:140, criBuf:1.5,
@@ -5296,6 +5300,9 @@ function getClassScoreAddMap(){
     map.footB += 500;
     map.footA += 500;
     map.footQ += 500;
+    _tb('footB', '足跡MAX', 500);
+    _tb('footA', '足跡MAX', 500);
+    _tb('footQ', '足跡MAX', 500);
   }
 
   // グランドスコア
