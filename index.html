@@ -1761,6 +1761,9 @@ textarea{
 <label id="grandGazeWrap" style="margin-left:10px;display:none;" title="EX1 専用。 敵に [対敵注視] が付いてから何ターン目かを入力します (0 = 付いていない)。 マイティチェイン成立時に攻撃対象へ付与されます。 付与は攻撃対象に対して行われるため、 1 ターン目のみ 2 枚目以降の攻撃から有効です。 【熾炎翻す(此方)】 の特攻は 1 ターン目 20%、 以降毎ターン 5% ずつ上昇し最大 50% (7 ターン目) になります。 B チェイン成立時のクリ威力 +80% は、 対敵注視が付いている間は常に乗ります。"><span style="font-size:11px;">対敵注視</span>
   <input type="number" id="grandGaze" value="0" min="0" max="20" step="1" style="width:42px;height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"><span style="font-size:11px;">ターン目</span></label>
 <label id="grandSureHitWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で、 攻撃するカードに必中が付与されている場合の追加効果。 ON にすると 宝具威力アップ (単体宝具 20% / 全体宝具 40%) が乗ります。 必中はマイティチェイン成立時に付与される (3回) ほか、 スキルや礼装でも付与されます。"><input type="checkbox" id="grandSureHit"> <span style="font-size:11px;">必中</span></label>
+<label id="grandEx1DamagedWrap" style="margin-left:10px;display:none;" title="EX1 (盾/裁/讐/月) 専用。 マイティチェイン成立後に被弾すると攻撃力 20% アップ (3ターン) が付きます。 被弾するかどうかはクエスト状況次第で自動判定できないため、 すでに発動している場合に ON にしてください。 マイティチェインを組んだそのターンは 「成立 → 被弾」 の順になるので、 通常は次のターン以降に乗ります。"><input type="checkbox" id="grandEx1Damaged"> <span style="font-size:11px;">被弾済み</span></label>
+<label id="grandFieldWrap" style="margin-left:10px;display:none;" title="キャスター専用。 前のターンから残っているフィールド効果 (敵の該当色カード攻撃耐性 30% ダウン) の色を選びます。 フィールド効果は回数・ターン制限がなく、 別の色に張り替えるまで永続します。 このターンに色チェインが成立する場合はフィールドがその色に張り替わるため、 ここでの選択は自動的に無視されます (二重計上にはなりません)。 色チェインを組まないターンでのみ、 選んだ色の 30% が加算されます。"><span style="font-size:11px;">展開中フィールド</span><select id="grandField" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;margin-left:4px;"><option value="" selected>なし</option><option value="B">Buster</option><option value="A">Arts</option><option value="Q">Quick</option></select></label>
+<label id="grandDarkBladeWrap" style="margin-left:10px;display:none;" title="アサシン専用。 【暗剣(殺)】 でクリティカル攻撃耐性ダウン 100% (1回) が発動している状態か。 発動条件は 「クリティカルが発生 → 即死が失敗 → その時点で対象の [即死耐性ダウン] が 3 個以上」。 即死耐性ダウンは暗剣の非クリ通常攻撃 1 回につき 1 個ずつ付くため、 3 個以上にするには先に非クリ攻撃を 3 回当てておく必要があり、 1 ターン目では成立しません。 2 ターン目以降で条件を満たしている場合に ON にしてください。 効果はクリティカル攻撃 1 回限りで、 最初にクリティカルが出たカードで消費されます。"><input type="checkbox" id="grandDarkBlade"> <span style="font-size:11px;">暗剣</span></label>
 <label id="grandInstaWrap" style="margin-left:10px;display:none;" title="アサシン専用。 自身に付与されている [即死付与率アップ] の効果量合計。 マイティチェイン成立時、 この量が 10%/30%/60%/100%/150% 以上の各段階を満たすごとにクリティカル威力が 30% ずつ追加でアップします (最大 +150%)。 各色チェインでも即死付与率アップが付与されるので、 それらの合計を選んでください。"><span style="font-size:11px;">即死付与率</span>
   <select id="grandInsta" style="height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;">
     <option value="0" selected>なし</option>
@@ -1772,7 +1775,7 @@ textarea{
   </select></label>
 <label id="grandPierceWrap" style="margin-left:10px;display:none;" title="ランサー専用。 【一刺にて城を穿つ(槍)】 の状態。 宝具の効果発動前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば今ターンも ON のままです。 ON の間、 敵に解除可能な防御強化がなければ自身の攻撃の威力 +50% (5回) が乗ります。 敵の防御強化を解除した場合は威力アップが乗らないので OFF にしてください。"><input type="checkbox" id="grandPierce" checked> <span style="font-size:11px;">一刺にて城を穿つ</span></label>
 <label id="grandGraspWrap" style="margin-left:10px;display:none;" title="ライダー専用。 【境域掌握(騎)】 状態かどうか。 宝具使用時の効果前に付与され 3 ターン持続するため、 前のターンに宝具を撃っていれば今ターンも ON のままです。 ON の間、 色チェイン成立時の宝具威力 +20% と、 ブレイブ成立時の各色カード威力 +20% が有効になります。"><input type="checkbox" id="grandGrasp" checked> <span style="font-size:11px;">境域掌握</span></label>
-<label id="grandAmmoWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で攻撃のたびに 1 個消費し、 そのカードの色威力が +20% (色チェイン成立時は +30%)。 開始時 4 個、 ターン終了時 +1 個なので、 2 ターン目以降は残数を入れ直してください。"><span style="font-size:11px;">鈍の矢弾</span> <input type="number" id="grandAmmo" value="4" min="0" max="9" step="1" style="width:42px;height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"></label>
+<label id="grandAmmoWrap" style="margin-left:10px;display:none;" title="アーチャー専用。 【鷲の目(弓)】 で攻撃のたびに 1 個消費し、 そのカードの色威力が +20% (色チェイン成立時は +30%)。 補充は 【単独行動(弓)】 で開始時 4 個、 ターン終了時 +1 個、 マイティチェイン成立時 +2 個、 【射て晴らすは征箭の雨(弓)】 で +3 個。 2 ターン目以降は残数を入れ直してください。"><span style="font-size:11px;">鈍の矢弾</span> <input type="number" id="grandAmmo" value="4" min="0" max="9" step="1" style="width:42px;height:24px;font-size:11px;border:1px solid #aaa;border-radius:2px;padding:0 4px;vertical-align:middle;"></label>
           </div>
         </div>
         <!-- 適用前の確認フッター: 選択中サーヴァント名と「適用」ボタン。
@@ -3222,6 +3225,15 @@ function _updateGrandAmmoVisibility() {
   // [即死付与率] はアサシン専用
   const iw = document.getElementById('grandInstaWrap');
   if (iw) iw.style.display = (on && cls === 'assassin') ? '' : 'none';
+  // 【暗剣(殺)】 のクリ耐性ダウンもアサシン専用
+  const db = document.getElementById('grandDarkBladeWrap');
+  if (db) db.style.display = (on && cls === 'assassin') ? '' : 'none';
+  // マイティチェインの被ダメ時攻撃バフは EX1 専用
+  const dm = document.getElementById('grandEx1DamagedWrap');
+  if (dm) dm.style.display = (on && GRAND_EX1_CLASSES.has(cls)) ? '' : 'none';
+  // 展開中フィールド (色耐性ダウン) はキャスター専用
+  const fw = document.getElementById('grandFieldWrap');
+  if (fw) fw.style.display = (on && cls === 'caster') ? '' : 'none';
   // 【一刺にて城を穿つ(槍)】 はランサー専用
   const pw = document.getElementById('grandPierceWrap');
   if (pw) pw.style.display = (on && cls === 'lancer') ? '' : 'none';
@@ -4641,10 +4653,12 @@ function _grandArcherAmmoPreview() {
 // 攻撃するたびに標的破壊が 1 個ずつ溜まり、 「それまでに溜まった分」 が乗る。
 // 実際の計算は computeEffectiveBuffsByCardPos 側で行うが、
 // バフ詳細に 「効いていること」 を示す情報行を出すためにここでも同じ順序を再現する。
-// 戻り値: [{ label:'1枚目', v:0 }, ...] — どのスロットにいくら乗るかを返す。
+// 戻り値: [{ label:'1', v:0 }, ...] — どのスロットにいくら乗るかを返す。
 // クリ欄が '0' のスロット (= そのスロットでは自分が攻撃しない) は飛ばすので、
-// 「1枚目 / 3枚目 / EX」 のように歯抜けになることがある。
-// 値だけを並べると 「2枚目に 20 が乗る」 と誤読されるため、 スロット名を持たせる。
+// 「1 / 3 / EX」 のように歯抜けになることがある。
+// 値だけを並べると 「2 枚目に 20 が乗る」 と誤読されるため、 スロット名を持たせる。
+// ラベルは 「1:0 / 2:20 / 3:40 / EX:60」 の形に圧縮する。
+// 「枚目」 を付けると 1 行に収まらず、 バフ詳細で途中から読めなくなるため。
 function _grandDefDebuffPreview() {
   const vals = [];
   let stacks = 0;
@@ -4653,7 +4667,7 @@ function _grandDefDebuffPreview() {
     const isNp = (v === 'N' || v === 'NP');
     if (!isNp && v !== 'B' && v !== 'A' && v !== 'Q') continue;
     if (gs('crit' + i) === '0') continue;          // そのスロットでは攻撃しない
-    vals.push({ label: i + '枚目', v: GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX) });
+    vals.push({ label: String(i), v: GRAND_TARGET_BREAK_PER_STACK * Math.min(stacks, GRAND_TARGET_BREAK_MAX) });
     // 宝具でも [標的破壊] は付与される (実機確認済み)
     stacks += 1;
   }
@@ -4730,6 +4744,42 @@ const GRAND_GAZE_CRI_BUF = 80;
 // サーヴァント選択モーダルのチェックボックス (行ごとに保存) を正とする。 既定は OFF。
 const GRAND_SUREHIT_NP_SINGLE = 20;   // 単体宝具の宝具威力アップ (%)
 const GRAND_SUREHIT_NP_AOE    = 40;   // 全体宝具の宝具威力アップ (%)
+// 【暗剣(殺)】 のクリティカル攻撃耐性ダウン。
+// 条文: 「通常攻撃時にクリティカルが発生した場合、 対象に高確率で即死効果
+//        + このグランドサインの効果による即死失敗時、 対象に付与されている
+//        [即死耐性ダウン] 状態の数が 3 個以上の場合、
+//        対象のクリティカル攻撃耐性を 100% ダウン (1回)」。
+// 即死耐性ダウンは暗剣の 「非クリ通常攻撃」 1 回につき 1 個ずつしか増えないため、
+// 3 個以上を満たすには先に非クリ攻撃を 3 回当てる必要があり、 1 ターン目では成立しない。
+// 条件が多段でクエスト状況にも依存するので自動判定はせず、
+// サーヴァント選択モーダルのチェックボックス (行ごとに保存) を正とする。 既定は OFF。
+const GRAND_DARK_BLADE_CRI_RESIST = 100;   // クリティカル攻撃耐性ダウン (%)
+
+// EX1 のマイティチェイン成立時に付く 「被ダメージ時に攻撃力アップ」。
+// Atlas: マイティチェイン成立時発動効果 > 被ダメージ時発動 | upAtk | 200 | T3
+// 被弾するかはクエスト状況次第で自動判定できないため、 チェックボックスを正とする。 既定は OFF。
+const GRAND_EX1_DAMAGED_ATK = 20;          // 被ダメ時の攻撃力アップ (%)
+function _grandHasEx1Damaged() {
+  const sfx = _rowCtx || '';
+  return !!(APP.grandEx1DamagedMap && APP.grandEx1DamagedMap[sfx]);
+}
+
+// キャスターの色チェインで張られるフィールド効果 (敵の該当色攻撃耐性 30% ダウン)。
+// addStateShortToField で回数・ターン制限がなく、 別の色に張り替えるまで永続する
+// (subFieldBuff で前の色が剥がれるので、 同時に存在するのは常に 1 色だけ)。
+// 前ターンに張った分を再現するための選択。 '' = なし / 'B' / 'A' / 'Q'。
+const GRAND_FIELD_RESIST_DOWN = 30;        // フィールドの色耐性ダウン (%)
+const GRAND_FIELD_FID = { B: 'bDebuf', A: 'aDebuf', Q: 'qDebuf' };
+function _grandFieldColor() {
+  const sfx = _rowCtx || '';
+  const v = APP.grandFieldMap ? APP.grandFieldMap[sfx] : '';
+  return (v === 'B' || v === 'A' || v === 'Q') ? v : '';
+}
+function _grandHasDarkBlade() {
+  const sfx = _rowCtx || '';
+  return !!(APP.grandDarkBladeMap && APP.grandDarkBladeMap[sfx]);
+}
+
 function _grandHasSureHit() {
   const sfx = _rowCtx || '';
   return !!(APP.grandSureHitMap && APP.grandSureHitMap[sfx]);
@@ -4875,7 +4925,9 @@ const GRAND_ROW_PREFIX = 'グランドスコア';
 const GRAND_CHAIN_LABEL = { B: 'Bチェイン', A: 'Aチェイン', Q: 'Qチェイン', M: 'マイティ', Brave: 'ブレイブ',
                             NpPierce: '一刺にて城を穿つ', Grasp: '境域掌握', Gaze: '対敵注視',
                             Load: '増幅負荷', LoadOn: '増幅負荷 変換', LoadExp: '増幅負荷 変換期待値',
-                            Duality: '対極共生', Instakill: '即死付与率', SureHit: '必中' };
+                            Duality: '対極共生', Instakill: '即死付与率', SureHit: '必中',
+                            DarkBlade: '暗剣', Ex1Damaged: 'マイティ 被弾済み',
+                            Field: '展開中フィールド' };
 
 // バフ詳細ストアの 「グランドスコア」 行を現在値に同期する。
 // パッシブバフ行 (row0) と混ぜず独立した固定行にすることで、
@@ -4894,7 +4946,12 @@ function _syncGrandScoreRow(store, items, fid, gsOn, storeKey) {
   const idxs = [];
   store.forEach((r, i) => {
     if (!r) return;
-    if (r._gs || String(r.label || '').startsWith(GRAND_ROW_PREFIX)) idxs.push(i);
+    const _looksGrand = String(r.label || '').includes(GRAND_ROW_PREFIX);
+    if (_looksGrand) { idxs.push(i); return; }
+    // ラベルがグランド形式でないのに _gs だけ立っている行は、
+    // 過去の不具合で壊れたデータ。 グランド行として上書きすると
+    // 「クラススコア」 などの値が消えるので、 フラグを落として通常行に戻す。
+    if (r._gs) r._gs = false;
   });
 
   // ユーザーが手で値を編集した行 (manual) は自動計算で上書きしない。
@@ -4930,19 +4987,24 @@ function _syncGrandScoreRow(store, items, fid, gsOn, storeKey) {
       continue;
     }
     if (!it.v) continue;
-    // クリ限定バフ (アサシン) は 「クリ時」 と明示して、 通常攻撃に乗らないことを分かるようにする
-    const _cn = it.chain && GRAND_CHAIN_LABEL[it.chain] ? GRAND_CHAIN_LABEL[it.chain] : '';
-    const _co = it.critOnly ? (_cn ? ' クリ時' : 'クリ時') : '';
-    // 宝具発動時に付与される効果は、 宝具を撃つスロット以降にしか乗らないので明記する
-    const _fn = it.fromNp ? ((_cn || _co) ? ' 宝具以降' : '宝具以降') : '';
+    // 適用条件はラベルの 「先頭」 に 【】 で出す。
+    // 末尾に置くと 「グランドスコア(一刺にて城を穿つ 宝具以降)」 のように長くなり、
+    // 最後まで読まない人に 「宝具より前のカードには乗らない」 が伝わらないため。
+    //   例) 【宝具以降】グランドスコア(一刺にて城を穿つ)
+    const _conds = [];
+    // 宝具発動時に付与される効果は、 宝具を撃つスロット以降にしか乗らない
+    if (it.fromNp)     _conds.push('宝具以降');
     // 付与直後は自分の攻撃に間に合わないもの (1 ターン目の [対敵注視] 等)
-    const _f2 = it.fromSecond ? ((_cn || _co || _fn) ? ' 2枚目以降' : '2枚目以降') : '';
+    if (it.fromSecond) _conds.push('2枚目以降');
+    // クリ限定バフ (アサシン) は通常攻撃に乗らない
+    if (it.critOnly)   _conds.push('クリ時');
     // HP 割合で効果量が変わるもの (槍・狂のチェイン効果)。
     // 計算機は初動 (HP 全快) の値を入れているので、 削られた状態を再現したい場合は
     // この行の値を手で書き換える必要がある。 その目印としてラベルに明記する。
-    const _hd = it.hpDep ? ((_cn || _co || _fn || _f2) ? ' 初動値' : '初動値') : '';
-    const cl = (_cn || _co || _fn || _f2 || _hd) ? '(' + _cn + _co + _fn + _f2 + _hd + ')' : '';
-    const label = GRAND_ROW_PREFIX + cl;
+    if (it.hpDep)      _conds.push('初動値');
+    const _cn = it.chain && GRAND_CHAIN_LABEL[it.chain] ? GRAND_CHAIN_LABEL[it.chain] : '';
+    const _head = _conds.length ? '【' + _conds.join('・') + '】' : '';
+    const label = _head + GRAND_ROW_PREFIX + (_cn ? '(' + _cn + ')' : '');
     // 蓄積型 (剣のブレイブ) は 「1 個あたりの量 × 個数」 なので個数分の行に分ける。
     //   例) セイバー 50% / 3 個蓄積 → 「グランドスコア(ブレイブ) 50」 が 3 行
     const mk = (v) => ({
@@ -5089,6 +5151,33 @@ function _applyGrandScoreToMap(map) {
     }
   }
 
+  // ── 殺: 【暗剣(殺)】 のクリティカル攻撃耐性ダウン ──
+  // criResistDown は 「クリティカル攻撃時のみ適用・消費」 のフィールド (BUFF_APPLY_RULES 参照)。
+  // 回数 1 を渡すだけで 「最初にクリティカルが出たカードで 1 回だけ乗る」 が再現できる。
+  if (cls === 'assassin' && _grandHasDarkBlade()) {
+    rec('criResistDown', GRAND_DARK_BLADE_CRI_RESIST, 'DarkBlade', '1');
+  }
+
+  // ── 術: 前ターンから残っているフィールド効果 (色耐性ダウン) ──
+  // このターンのチェインで張る分は GRAND_SCORE_CHAIN 側で計上済み。
+  // ここで足すのは 「すでに張ってあった色」 の分だけ。
+  if (cls === 'caster') {
+    const _fc = _grandFieldColor();
+    const _ffid = _fc ? GRAND_FIELD_FID[_fc] : null;
+    // 色チェインが成立すると subFieldBuff で前の色が剥がれ、 新しい色に張り替わる。
+    // (フィールドは常に 1 色だけ。 同時に 2 色は存在しない)
+    // そのターンに張る分は GRAND_SCORE_CHAIN 側で計上されるので、
+    // 色チェインが成立している行では、 前ターンから残っていた分は加算しない。
+    // 同色を選んでいても二重計上にならないのはこのため。
+    const _hasColorChain = _grandChainTypes().some(c => c === 'B' || c === 'A' || c === 'Q');
+    if (_ffid && !_hasColorChain) rec(_ffid, GRAND_FIELD_RESIST_DOWN, 'Field', '');
+  }
+
+  // ── EX1: マイティチェイン成立後に被弾した場合の攻撃力アップ ──
+  if (GRAND_EX1_CLASSES.has(cls) && _grandHasEx1Damaged()) {
+    rec('atkBuf', GRAND_EX1_DAMAGED_ATK, 'Ex1Damaged', '');
+  }
+
   // ── EX1: [対敵注視] が付いている敵に対する効果 ──
   // 【熾炎翻す(此方)】 の特攻は敵に対敵注視が付いていれば常時乗る。
   // 1 ターン目は 「マイティチェインで付与した後」 = 2 枚目以降の攻撃から有効なので
@@ -5136,7 +5225,7 @@ function _applyGrandScoreToMap(map) {
       APP._grandDeltaMap.defDebuf = APP._grandDeltaMap.defDebuf || { v: 0, items: [] };
       APP._grandDeltaMap.defDebuf.items.push({
         v: 0, info: true,
-        infoLabel: '曇らせ侍る ' + _prev.map(p => p.label + ' ' + p.v).join(' / '),
+        infoLabel: '曇らせ侍る ' + _prev.map(p => p.label + ':' + p.v).join(' / '),
       });
       // 【曇らせ侍る(狂)】 もグランドスコア由来の防御デバフなので、 上限撤廃の対象に含める。
       // 実際の値はスロット別計算 (_applyGrandDefDebuffStacks) で加算され rec() を通らないため、
@@ -5361,6 +5450,13 @@ function getClassScoreAddMap(){
   return map;
 }
 
+// クラススコア / アペンド由来の内訳行に使う自動生成ラベル。
+// 古い CSV から復元した行は _pvBonus フラグを持たないため、
+// 行を作り直すときの掃除にはラベル一致も併用する (二重計上の防止)。
+const CLASS_SCORE_BONUS_LABELS = new Set([
+  'クラススコア', 'クラススコア等', 'アペンド1', 'アペンド4', '足跡MAX',
+]);
+
 function applyClassScoreBonus(){
   const addMap = getClassScoreAddMap();
   const passiveMap = APP._passiveValueMap || {};
@@ -5388,7 +5484,13 @@ function applyClassScoreBonus(){
     const passive = passiveMap[fid + _csRowCtx] ?? 0;  // 行ごとに厳密に参照 (他行へのフォールバックなし)
     // グランドスコア分は独立した内訳行に出すため row0 (パッシブバフ) からは除外する。
     const _gInfo = (APP._grandDeltaMap && APP._grandDeltaMap[fid]) || null;
-    const _gVal = (_skipToggles || !_gInfo) ? 0 : (_gInfo.v || 0);
+    // ユーザーがグランド行を × で消したフィールドでは、 _syncGrandScoreRow が行を作らない
+    // (grandRowHiddenMap で抑止される)。 それなのに row0 からグランド分を引くと、
+    // 引いた分を戻す行がどこにも無くなり、 クラススコア分まで打ち消されてしまう。
+    //   例) パッシブ0 + クラススコア20 - グランド50 = -30 → クラススコアの 20 が消える
+    // 非表示のときはグランド分を 0 として扱う。
+    const _gHidden = !!(APP.grandRowHiddenMap && APP.grandRowHiddenMap[fid + _csRowCtx]);
+    const _gVal = (_skipToggles || !_gInfo || _gHidden) ? 0 : (_gInfo.v || 0);
     // 手動編集済みのグランド行がある場合、 その行の値はストア側で保持されるため
     // row0 (パッシブバフ) からグランド分を差し引く必要がある点は同じ。
     const row0Total = passive + bonus - _gVal;  // passive + class score / append bonus (グランド分を除く)
@@ -5470,8 +5572,17 @@ function applyClassScoreBonus(){
         const _diff = (parseFloat(vStr) || 0) - _pvSum;
         // 差分 (クラススコア / アペンド等の加算分) は由来別の行で持つ。
         // 既存のボーナス行を一旦すべて取り除いてから作り直す。
+        // 判定は _pvBonus フラグが基本だが、 フラグが付く前の古い CSV から復元した行は
+        // フラグを持たない (2 要素形式 ["クラススコア","20"] など)。
+        // フラグだけで判定すると古い行が残り、 作り直した行と二重に並んでしまうため、
+        // ラベルが自動生成のボーナス名と一致する行も対象に含める。
+        // (_pv / _gs / manual が付く行はユーザー編集や別系統なので触らない)
         for (let i = _buffDetailStore[_skey].length - 1; i >= 0; i--) {
-          if (_buffDetailStore[_skey][i] && _buffDetailStore[_skey][i]._pvBonus) {
+          const _r = _buffDetailStore[_skey][i];
+          if (!_r) continue;
+          const _isLegacyBonus = !_r._pv && !_r._gs && !_r.manual
+            && CLASS_SCORE_BONUS_LABELS.has(String(_r.label || '').trim());
+          if (_r._pvBonus || _isLegacyBonus) {
             _buffDetailStore[_skey].splice(i, 1);
             _buffDetailStore[_skey].push({ label: '', value: '', count: '', fixed: false });
           }
@@ -7390,6 +7501,9 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.grandPierceMap) delete APP.grandPierceMap[sfx];
         if (APP.grandInstaMap) delete APP.grandInstaMap[sfx];
         if (APP.grandSureHitMap) delete APP.grandSureHitMap[sfx];
+        if (APP.grandDarkBladeMap) delete APP.grandDarkBladeMap[sfx];
+        if (APP.grandEx1DamagedMap) delete APP.grandEx1DamagedMap[sfx];
+        if (APP.grandFieldMap) delete APP.grandFieldMap[sfx];
         if (APP.grandGraspBraveMap) delete APP.grandGraspBraveMap[sfx];
         if (APP.grandExPowerMap) delete APP.grandExPowerMap[sfx];
         if (APP.grandUncapMap) delete APP.grandUncapMap[sfx];
@@ -7562,6 +7676,15 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
     }
     const _shBox = document.getElementById('grandSureHit');
     if (_shBox) _shBox.checked = !!(APP.grandSureHitMap && APP.grandSureHitMap[_gsSfx]);
+    const _dbBox = document.getElementById('grandDarkBlade');
+    if (_dbBox) _dbBox.checked = !!(APP.grandDarkBladeMap && APP.grandDarkBladeMap[_gsSfx]);
+    const _dmBox = document.getElementById('grandEx1Damaged');
+    if (_dmBox) _dmBox.checked = !!(APP.grandEx1DamagedMap && APP.grandEx1DamagedMap[_gsSfx]);
+    const _fldBox = document.getElementById('grandField');
+    if (_fldBox) {
+      const _fv = APP.grandFieldMap ? APP.grandFieldMap[_gsSfx] : '';
+      _fldBox.value = (_fv === 'B' || _fv === 'A' || _fv === 'Q') ? _fv : '';
+    }
     const _instaBox = document.getElementById('grandInsta');
     if (_instaBox) {
       const _iv = APP.grandInstaMap ? APP.grandInstaMap[_gsSfx] : undefined;
@@ -7637,6 +7760,24 @@ if (applyServantBtn) {
       if (_shEl) {
         APP.grandSureHitMap = APP.grandSureHitMap || {};
         APP.grandSureHitMap[_gsApplySfx] = !!_shEl.checked;
+      }
+      // 【暗剣(殺)】 の ON/OFF も行ごとに保持する
+      const _dbEl = document.getElementById('grandDarkBlade');
+      if (_dbEl) {
+        APP.grandDarkBladeMap = APP.grandDarkBladeMap || {};
+        APP.grandDarkBladeMap[_gsApplySfx] = !!_dbEl.checked;
+      }
+      // EX1 のマイティ被ダメ時攻撃バフの ON/OFF も行ごとに保持する
+      const _dmEl = document.getElementById('grandEx1Damaged');
+      if (_dmEl) {
+        APP.grandEx1DamagedMap = APP.grandEx1DamagedMap || {};
+        APP.grandEx1DamagedMap[_gsApplySfx] = !!_dmEl.checked;
+      }
+      // 展開中フィールド (術) の色も行ごとに保持する
+      const _fldEl = document.getElementById('grandField');
+      if (_fldEl) {
+        APP.grandFieldMap = APP.grandFieldMap || {};
+        APP.grandFieldMap[_gsApplySfx] = String(_fldEl.value || '');
       }
       // [即死付与率] (殺) も行ごとに保持する
       const _instaEl = document.getElementById('grandInsta');
@@ -8248,7 +8389,7 @@ function _buffDetailAddRow(label = '', value = '', fixedLabel = false, count = '
   // パッシブ行（fixedLabel）では「回」入力は出さず空セル。
   // ただしグランドスコア行は回数制バフ (魔力放出 = 各1回 / 駿馬 = 各2回) なので、
   // 実際の残回数に合わせてユーザーが調整できるよう入力欄を出す。
-  const _isGrandRow = String(label).startsWith(GRAND_ROW_PREFIX);
+  const _isGrandRow = String(label).includes(GRAND_ROW_PREFIX);
   const countCellInner = (fixedLabel && !_isGrandRow)
     ? '<span style="display:inline-block;width:40px;"></span>'
     : `<input class="bd-cnt" type="number" min="0" step="1" value="${_escapeAttrSafe(count)}" placeholder=""
@@ -8539,7 +8680,7 @@ function _buffDetailApply() {
   // 再表示したい場合はグランドスコアのチェックを入れ直せばリセットされる。
   {
     const _hadGrand = _prevRows.some(r => r && r._gs);
-    const _nowGrand = rows.some(tr => String(tr.querySelector('.bd-lbl')?.value || '').startsWith(GRAND_ROW_PREFIX));
+    const _nowGrand = rows.some(tr => String(tr.querySelector('.bd-lbl')?.value || '').includes(GRAND_ROW_PREFIX));
     if (_hadGrand && !_nowGrand) {
       APP.grandRowHiddenMap = APP.grandRowHiddenMap || {};
       APP.grandRowHiddenMap[_buffDetailTarget] = true;
@@ -8549,7 +8690,7 @@ function _buffDetailApply() {
     const label = tr.querySelector('.bd-lbl')?.value || '';
     const value = tr.querySelector('.bd-val')?.value || '';
     const count = tr.querySelector('.bd-cnt')?.value || '';  // 回数制バフの残使用回数（空欄=ターン制）
-    const isGrand = String(label).startsWith(GRAND_ROW_PREFIX);
+    const isGrand = String(label).includes(GRAND_ROW_PREFIX);
     // グランドスコア行はユーザーが値を編集できる。 編集された行は manual フラグを立て、
     // 以降 applyClassScoreBonus の自動計算で上書きしない
     // (グランドスコアは HP 割合等の条件で実際のバフ量が変わるため、 手で詰められるようにする)。
@@ -9902,7 +10043,7 @@ function applyBuffDetailsForRow(suffix, obj) {
       // グランドスコアの内訳行は自動計算行なので fixed を立てる
       // (ラベルを編集可能にすると次回同期時に行を見失う)。
       // 4 要素目は手動編集フラグ。
-      const isGrand = String(label).startsWith(GRAND_ROW_PREFIX);
+      const isGrand = String(label).includes(GRAND_ROW_PREFIX);
       const manual = isGrand && !!(entry && entry[3]);
       const critOnly = !!(entry && entry[4]);
       const fromNp = !!(entry && entry[5]);
@@ -10343,6 +10484,15 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     }
     if (APP.grandSureHitMap && APP.grandSureHitMap[_srcSfx] !== undefined) {
       APP.grandSureHitMap[suffix] = APP.grandSureHitMap[_srcSfx];
+    }
+    if (APP.grandDarkBladeMap && APP.grandDarkBladeMap[_srcSfx] !== undefined) {
+      APP.grandDarkBladeMap[suffix] = APP.grandDarkBladeMap[_srcSfx];
+    }
+    if (APP.grandEx1DamagedMap && APP.grandEx1DamagedMap[_srcSfx] !== undefined) {
+      APP.grandEx1DamagedMap[suffix] = APP.grandEx1DamagedMap[_srcSfx];
+    }
+    if (APP.grandFieldMap && APP.grandFieldMap[_srcSfx] !== undefined) {
+      APP.grandFieldMap[suffix] = APP.grandFieldMap[_srcSfx];
     }
     if (APP.grandGraspBraveMap && APP.grandGraspBraveMap[_srcSfx]) {
       APP.grandGraspBraveMap[suffix] = Object.assign({}, APP.grandGraspBraveMap[_srcSfx]);
