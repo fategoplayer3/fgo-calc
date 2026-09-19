@@ -8619,10 +8619,15 @@ function openBuffDetail(fieldId, label, event) {
     //    「パッシブバフ」 に書き換えられてしまう (bBuf / aBuf で発生していた)。
     // ラベルが既に入っている行は上書きしない (印が失われた古いデータでも表記を守る)。
     // 値だけあってラベルが空の行のみ 「パッシブバフ」 とみなす。
+    // ※ ただし 「ラベル無しで値だけ」 はユーザーが自分で入力した行でも起こりうる。
+    //    そのフィールドにパッシブ実値が無ければユーザー入力なので、
+    //    ラベルを付けず編集可能のままにする
+    //    (以前は 1 行目に 20 と入れただけで 「パッシブバフ」 固定にされてしまった)。
     const _hasLabel = !!String(store[0].label || '').trim();
     const _hasValue = !!String(store[0].value || '').trim();
     const _isAuto = store[0]._pv || store[0]._pvBonus || store[0]._gs;
-    if (!_isAuto && !_hasLabel && _hasValue) {
+    const _pv0 = (APP._passiveValueMap && APP._passiveValueMap[fieldId]) || 0;
+    if (!_isAuto && !_hasLabel && _hasValue && Math.abs(_pv0) > 1e-9) {
       store[0].label = 'パッシブバフ';
       store[0].fixed = true;
     }
