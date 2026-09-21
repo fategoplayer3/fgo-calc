@@ -5533,7 +5533,10 @@ function _syncGrandScoreRow(store, items, fid, gsOn, storeKey) {
     // 位置ごとに効果量が変わるバフを 「効いていること」 だけ伝えるために使う。
     if (it.info) {
       rows.push({
-        label: GRAND_ROW_PREFIX + '(' + (it.infoLabel || '') + ')',
+        // 情報行は中身 (「曇らせ侍る 1:0 / 2:20 / ...」 など) が長いので、
+        // 「グランドスコア」 を後ろに回して先頭で内容が読めるようにする。
+        // グランド行の判定は includes(GRAND_ROW_PREFIX) なので位置が変わっても認識される。
+        label: (it.infoLabel || '') + '(' + GRAND_ROW_PREFIX + ')',
         value: '', count: '', fixed: true, _gs: true, info: true
       });
       continue;
