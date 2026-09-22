@@ -398,6 +398,29 @@
 </style>
 
 <style>
+/* NP・スター計算 / 被ダメージNP計算 (PC): 縦に長く、 MacBook Air など縦幅の狭い画面で
+   下端が見切れていた (共通の .modal-overlay は上 40px 余白・高さ制限なし・スクロールなし)。
+   上下の余白を 12px に詰めて上寄せし、 それでも収まらない分は本体をスクロールさせる。 */
+#npStarModal.modal-overlay,
+#npDamageModal.modal-overlay{
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+#npStarModal .modal,
+#npDamageModal .modal{
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 24px);
+}
+#npStarModal .modal-head,
+#npDamageModal .modal-head{ flex: 0 0 auto; }
+#npStarModal .modal-body,
+#npDamageModal .modal-body{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* サーヴァント選択モーダル (PC): 一覧を画面の縦幅いっぱいまで伸ばす。
    以前は .modal-content (存在しない要素) に高さを指定しており効いていなかった。
    モーダル全体を最大 94vh の縦 flex にし、 検索・フィルタ・オプションは固定高、
