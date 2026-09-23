@@ -7053,20 +7053,31 @@ function recalc() {
   // (デバッグパネル表示用にだけ使われる)。
   const npCardLetter0 = getCurrentNpCardLetter();
   const npPos = (c1 === 'NP') ? 0 : (c2 === 'NP') ? 1 : (c3 === 'NP') ? 2 : 0;
-  const npDmgResult = calcNpDmg(npPos, npCardLetter0, _phase3EffectiveBuffs);
+  // 宝具ダメージは 「そのスロットの位置」 で計算する。
+  // 回数制バフ (effectiveBuffs) はカード位置ごとに残回数が変わるため、
+  // 宝具スロットが複数ある構成 (N/N/N など) で 1 か所の結果を使い回すと、
+  // 先頭スロットがクリ欄 0 (攻撃しない) のときに後続の宝具まで
+  // 「消費前の位置の値」 で計算され、 バフが乗らない不具合になっていた。
+  // calcNpDmg は副作用を持たないので位置ごとに呼んでよい (結果はキャッシュする)。
+  const _npDmgCache = {};
+  const _npDmgAt = (pos) => {
+    if (!(pos in _npDmgCache)) _npDmgCache[pos] = calcNpDmg(pos, npCardLetter0, _phase3EffectiveBuffs);
+    return _npDmgCache[pos];
+  };
+  const npDmgResult = _npDmgAt(npPos);   // デバッグパネル用 (最初の宝具スロット)
 
   // c1='NP' のとき d1 を NP 計算結果で置き換え。
   // ただし「NP スロットで 1st クリ select=0 (= ダメージを 0 として扱う)」 の場合は ZERO_SLOT を返す。
   // 旧実装では NP は zero フラグを無視していたため、 ユーザーが明示的に 0 を選んでも
   // 宝具ダメージが計算されてしまうバグがあった。
   const _d1raw = (c1 === 'NP')
-    ? (zero1 ? ZERO_SLOT : npDmgResult)
+    ? (zero1 ? ZERO_SLOT : _npDmgAt(0))
     : (zero1 ? ZERO_SLOT : calcOneDmg(0, c1, first, crit1, bChain, _phase3EffectiveBuffs));
   const _d2raw = (c2 === 'NP')
-    ? (zero2 ? ZERO_SLOT : npDmgResult)
+    ? (zero2 ? ZERO_SLOT : _npDmgAt(1))
     : (zero2 ? ZERO_SLOT : calcOneDmg(1, c2, first, crit2, bChain, _phase3EffectiveBuffs));
   const _d3raw = (c3 === 'NP')
-    ? (zero3 ? ZERO_SLOT : npDmgResult)
+    ? (zero3 ? ZERO_SLOT : _npDmgAt(2))
     : (zero3 ? ZERO_SLOT : calcOneDmg(2, c3, first, crit3, bChain, _phase3EffectiveBuffs));
   // 「全」/「半」 フラグが立っている場合はダメージを半減 (× 0.5)。
   // ただし NP (宝具) は全体攻撃クリ仕様の影響を受けないので、 半減しない。
