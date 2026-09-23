@@ -5420,6 +5420,42 @@ function _applyGrandScoreToMap(map) {
   }
 }
 
+// ── 行ごとに保持しているユーザー設定の一覧 ──
+// CSV / ブラウザ保存に rowState (JSON) としてまとめて書き出し、 読込時に復元する。
+// 列を個別に増やすと 10 以上になるため 1 列にまとめている。
+// ※ 再計算で毎回作り直される派生マップ (grandNpStarMap / grandExPowerMap /
+//   grandBraveSlotMap / grandGraspBraveMap / grandUncapMap / grandRowHiddenMap) は
+//   保存しない。 保存すると古い派生値が復元されて実際の計算とズレるため。
+const ROW_STATE_MAPS = [
+  'grandScoreMap', 'grandScoreEverMap', 'grandAmmoMap', 'grandGraspMap',
+  'grandPierceMap', 'grandInstaMap', 'grandSureHitMap', 'grandDarkBladeMap',
+  'grandEx1DamagedMap', 'grandFieldMap', 'grandGazeMap', 'grandEx2Map',
+  'classScoreMap', 'append1Map', 'append4Map', 'footprintMaxMap',
+  'svParamMap',   // サーヴァント選択モーダルの Lv / フォウATK / 礼装ATK / グランド(+1000)
+];
+
+// 指定行の設定をまとめて取り出す (値が無いマップは含めない)
+function collectRowState(sfx) {
+  const out = {};
+  for (const mp of ROW_STATE_MAPS) {
+    const m = APP[mp];
+    if (m && m[sfx] !== undefined) out[mp] = m[sfx];
+  }
+  return out;
+}
+
+// rowState を指定行へ復元する
+function applyRowState(sfx, obj) {
+  if (!obj || typeof obj !== 'object') return;
+  for (const mp of ROW_STATE_MAPS) {
+    if (obj[mp] === undefined) continue;
+    APP[mp] = APP[mp] || {};
+    APP[mp][sfx] = (obj[mp] && typeof obj[mp] === 'object')
+      ? Object.assign({}, obj[mp])   // grandEx2Map / svParamMap はオブジェクト
+      : obj[mp];
+  }
+}
+
 function getAllToggleBonusFields(){
   return {
     cardBufB: 0,
@@ -7607,6 +7643,7 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.append1Map) delete APP.append1Map[sfx];
         if (APP.append4Map) delete APP.append4Map[sfx];
         if (APP.footprintMaxMap) delete APP.footprintMaxMap[sfx];
+        if (APP.svParamMap) delete APP.svParamMap[sfx];
         if (APP.grandNpStarMap) delete APP.grandNpStarMap[sfx];
         if (APP.grandAmmoMap) delete APP.grandAmmoMap[sfx];
         if (APP.grandGraspMap) delete APP.grandGraspMap[sfx];
@@ -7775,6 +7812,14 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
   // 強化トグルは行ごとの状態をチェックボックスに戻す (行を切り替えても混ざらないように)
   {
     const _tsfx = targetTr.dataset.rowSuffix || '';
+    // Lv / フォウATK / 礼装ATK / グランド(+1000) も行ごとの値に戻す
+    const _sp = APP.svParamMap && APP.svParamMap[_tsfx];
+    if (_sp) {
+      const _setIf = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.value = v; };
+      _setIf('popLv', _sp.lv); _setIf('popFou', _sp.fou); _setIf('popCE', _sp.ce);
+      const _g = document.getElementById('popGrand');
+      if (_g && _sp.grand !== undefined) _g.checked = !!_sp.grand;
+    }
     [['classScore', 'classScoreMap'], ['append1', 'append1Map'],
      ['append4', 'append4Map'], ['footprintMax', 'footprintMaxMap']].forEach(([_id, _mp]) => {
       const _el2 = document.getElementById(_id);
@@ -7901,6 +7946,21 @@ if (applyServantBtn) {
           const _ks = (k.match(/(_R\d+)$/) || ['', ''])[1];
           if (_ks === _gsApplySfx) delete APP.grandRowHiddenMap[k];
         }
+      }
+      // サーヴァント選択モーダルの Lv / フォウATK / 礼装ATK / グランド(+1000) も行ごとに保存。
+      // これが無いと CSV 読込後にモーダルを開いた時、 既定値 (Lv90 / ±0 / 0) に戻ってしまう。
+      {
+        const _lvEl = document.getElementById('popLv');
+        const _fouEl = document.getElementById('popFou');
+        const _ceEl = document.getElementById('popCE');
+        const _grEl = document.getElementById('popGrand');
+        APP.svParamMap = APP.svParamMap || {};
+        APP.svParamMap[_gsApplySfx] = {
+          lv:   _lvEl ? _lvEl.value : undefined,
+          fou:  _fouEl ? _fouEl.value : undefined,
+          ce:   _ceEl ? _ceEl.value : undefined,
+          grand: _grEl ? !!_grEl.checked : undefined,
+        };
       }
       // 強化トグル (クラススコア / アペンド1・4 / 足跡MAX) を行ごとに保存する。
       // これが正となり、 以降の再計算はチェックボックスではなくこの値を見る。
@@ -9677,6 +9737,10 @@ function collectRowData(row) {
   if (APP.append1Map && APP.append1Map[sfx]) data.append1 = '1';
   if (APP.append4Map && APP.append4Map[sfx]) data.append4 = '1';
   if (APP.footprintMaxMap && APP.footprintMaxMap[sfx]) data.footprintMax = '1';
+  {
+    const _rs = collectRowState(sfx);
+    if (Object.keys(_rs).length) data.rowState = JSON.stringify(_rs);
+  }
   // グランドスコア ON/OFF (行ごとの状態)。 これが無いと CSV 復元後の
   // カード変更でチェック状態が復元できず、 グランドスコアが外れてしまう。
   if (APP.grandScoreMap && APP.grandScoreMap[sfx]) data.grandScore = '1';
@@ -9824,7 +9888,7 @@ function applyRowData(targetRow, rowData) {
     // classScore / grandScore はチェックボックス。 行ごとの状態は下の専用処理で
     // APP.classScoreMap / APP.grandScoreMap に復元するので、 ここで value を
     // 書き込むと 'on' 等が入って状態判定が壊れる。
-    if (id === 'classScore' || id === 'grandScore'
+    if (id === 'classScore' || id === 'grandScore' || id === 'rowState'
         || id === 'append1' || id === 'append4' || id === 'footprintMax') return;
     setVal(id, rowData[id] ?? '');
   });
@@ -9972,6 +10036,12 @@ function applyRowData(targetRow, rowData) {
   if (rowData.classScore !== undefined && rowData.classScore !== null) {
     APP.classScoreMap[_csSfx] = _isOnFlag(rowData.classScore);
   }
+  // 行ごとの設定 (グランドの各オプション / Lv・フォウ・礼装ATK) をまとめて復元。
+  // 個別列 (classScore 等) より先に流し込み、 後段の個別復元で上書きされてもよいようにする。
+  if (rowData.rowState) {
+    try { applyRowState(_csSfx, JSON.parse(rowData.rowState)); }
+    catch (e) { /* 壊れた JSON は無視して従来どおり読み込む */ }
+  }
   // アペンド1 / アペンド4 / 足跡MAX の復元 (クラススコアと同じ扱い)
   [['append1', 'append1Map'], ['append4', 'append4Map'],
    ['footprintMax', 'footprintMaxMap']].forEach(([_k, _mp]) => {
@@ -10112,6 +10182,9 @@ const CSV_INPUT_FIELDS = [
   // アペンド1 / アペンド4 / 足跡MAX の ON/OFF ('1' = ON / '' = OFF)。
   // 保存しないと CSV 復元後の再計算でこれらの加算が外れてしまう。
   'append1', 'append4', 'footprintMax',
+  // 行ごとの設定 (グランドの各オプション / Lv・フォウ・礼装ATK) を JSON でまとめた列。
+  // 列が無い古い CSV は従来どおり読み込める (復元をスキップするだけ)。
+  'rowState',
   // グランドスコア ON/OFF ('1' = ON / '' = OFF)。 行ごとの状態を CSV/LS に保存する。
   // カード変更時の再計算がこの値を見るため、 保存しないと復元後に効果が外れる。
   'grandScore',
@@ -10276,6 +10349,10 @@ function getRowCsvValues(row) {
     if (id === 'append1') return (APP.append1Map && APP.append1Map[sfx]) ? '1' : '';
     if (id === 'append4') return (APP.append4Map && APP.append4Map[sfx]) ? '1' : '';
     if (id === 'footprintMax') return (APP.footprintMaxMap && APP.footprintMaxMap[sfx]) ? '1' : '';
+    if (id === 'rowState') {
+      const _rs = collectRowState(sfx);
+      return Object.keys(_rs).length ? JSON.stringify(_rs) : '';
+    }
     if (id === 'grandScore') return (APP.grandScoreMap && APP.grandScoreMap[sfx]) ? '1' : '';
     const el = (sfx ? document.getElementById(id + sfx) : null) || document.getElementById(id);
     if (!el) return '';
@@ -10714,6 +10791,9 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     ['append1Map', 'append4Map', 'footprintMaxMap'].forEach(_mp => {
       if (APP[_mp] && APP[_mp][_srcSfx] !== undefined) APP[_mp][suffix] = !!APP[_mp][_srcSfx];
     });
+    if (APP.svParamMap && APP.svParamMap[_srcSfx] !== undefined) {
+      APP.svParamMap[suffix] = Object.assign({}, APP.svParamMap[_srcSfx]);
+    }
   }
 
   // サーヴァントオブジェクトのコピー (空行時はスキップ)
