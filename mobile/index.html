@@ -5960,6 +5960,85 @@ function applyRowState(sfx, obj) {
   }
 }
 
+// サーヴァント選択モーダルの入力を、 指定行に保存された状態へ戻す。
+// PC 版の行クリックと モバイル版のセルタップで別々のハンドラがあるため、
+// 片方だけ直すと 「モバイルでは Lv や設定が復元されない」 という不整合になる。
+// 復元処理はこの 1 か所に集約すること。
+// サーヴァント選択モーダルのグランドスコア関連の入力を、 指定行の保存値へ戻す。
+// PC 版の行クリックと モバイル版のセルタップで別ハンドラがあるため、 ここに集約する。
+function restoreGrandOptionsToModal(sfx) {
+  // グランドスコアのチェック状態を 「その行に保存された値」 に戻す。
+  // チェックボックスはモーダル内に 1 つしかないため、 別の行を開いた時に
+  // 前の行の状態が残っていると、 適用時に意図せず ON/OFF が入れ替わってしまう。
+  const _gsBox = document.getElementById('grandScore');
+  if (_gsBox) {
+    const _gsSfx = sfx;
+    _gsBox.checked = !!(APP.grandScoreMap && APP.grandScoreMap[_gsSfx]);
+    {
+      const _e2 = (APP.grandEx2Map && APP.grandEx2Map[_gsSfx]) || {};
+      const _set = (id, v) => { const el = document.getElementById(id); if (el) el.value = String(v); };
+      _set('grandLoad', _e2.load ?? 0);
+      _set('grandDebuffCount', _e2.debuffs ?? 0);
+      _set('grandEnemyDebuff', _e2.edebuffs ?? 0);
+      _set('grandDualityRate', _e2.rate ?? 100);
+      const _dl = document.getElementById('grandDuality');
+      if (_dl) _dl.checked = !!_e2.duality;
+    }
+    const _gazeBox = document.getElementById('grandGaze');
+    if (_gazeBox) {
+      const _gz = APP.grandGazeMap ? APP.grandGazeMap[_gsSfx] : undefined;
+      _gazeBox.value = String((_gz === undefined || _gz === null) ? 0 : _gz);
+    }
+    const _shBox = document.getElementById('grandSureHit');
+    if (_shBox) _shBox.checked = !!(APP.grandSureHitMap && APP.grandSureHitMap[_gsSfx]);
+    const _dbBox = document.getElementById('grandDarkBlade');
+    if (_dbBox) _dbBox.checked = !!(APP.grandDarkBladeMap && APP.grandDarkBladeMap[_gsSfx]);
+    const _dmBox = document.getElementById('grandEx1Damaged');
+    if (_dmBox) _dmBox.checked = !!(APP.grandEx1DamagedMap && APP.grandEx1DamagedMap[_gsSfx]);
+    const _fldBox = document.getElementById('grandField');
+    if (_fldBox) {
+      const _fv = APP.grandFieldMap ? APP.grandFieldMap[_gsSfx] : '';
+      _fldBox.value = (_fv === 'B' || _fv === 'A' || _fv === 'Q') ? _fv : '';
+    }
+    const _instaBox = document.getElementById('grandInsta');
+    if (_instaBox) {
+      const _iv = APP.grandInstaMap ? APP.grandInstaMap[_gsSfx] : undefined;
+      _instaBox.value = String((_iv === undefined || _iv === null) ? 0 : _iv);
+    }
+    const _pierceBox = document.getElementById('grandPierce');
+    if (_pierceBox) {
+      const _p = APP.grandPierceMap ? APP.grandPierceMap[_gsSfx] : undefined;
+      _pierceBox.checked = (_p === undefined || _p === null) ? true : !!_p;   // 既定は ON
+    }
+    const _graspBox = document.getElementById('grandGrasp');
+    if (_graspBox) {
+      const _g = APP.grandGraspMap ? APP.grandGraspMap[_gsSfx] : undefined;
+      _graspBox.checked = (_g === undefined || _g === null) ? true : !!_g;   // 既定は ON
+    }
+    const _ammoBox = document.getElementById('grandAmmo');
+    if (_ammoBox) {
+      const _a = APP.grandAmmoMap ? APP.grandAmmoMap[_gsSfx] : undefined;
+      _ammoBox.value = (_a === undefined || _a === null) ? 4 : _a;
+    }
+  }
+}
+
+function restoreRowTogglesToModal(sfx) {
+  const _sp = APP.svParamMap && APP.svParamMap[sfx];
+  if (_sp) {
+    const _setIf = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.value = v; };
+    _setIf('popLv', _sp.lv); _setIf('popFou', _sp.fou); _setIf('popCE', _sp.ce);
+    const _g = document.getElementById('popGrand');
+    if (_g && _sp.grand !== undefined) _g.checked = !!_sp.grand;
+  }
+  [['classScore', 'classScoreMap'], ['append1', 'append1Map'],
+   ['append4', 'append4Map'], ['footprintMax', 'footprintMaxMap']].forEach(([_id, _mp]) => {
+    const _el = document.getElementById(_id);
+    const _mv = APP[_mp] && APP[_mp][sfx];
+    if (_el && _mv !== undefined) _el.checked = !!_mv;
+  });
+}
+
 function getAllToggleBonusFields(){
   return {
     cardBufB: 0,
@@ -8306,24 +8385,8 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
   if (classScoreCb && targetTr.classList.contains('row-defense')) {
     classScoreCb.checked = false;
   }
-  // 強化トグルは行ごとの状態をチェックボックスに戻す (行を切り替えても混ざらないように)
-  {
-    const _tsfx = targetTr.dataset.rowSuffix || '';
-    // Lv / フォウATK / 礼装ATK / グランド(+1000) も行ごとの値に戻す
-    const _sp = APP.svParamMap && APP.svParamMap[_tsfx];
-    if (_sp) {
-      const _setIf = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.value = v; };
-      _setIf('popLv', _sp.lv); _setIf('popFou', _sp.fou); _setIf('popCE', _sp.ce);
-      const _g = document.getElementById('popGrand');
-      if (_g && _sp.grand !== undefined) _g.checked = !!_sp.grand;
-    }
-    [['classScore', 'classScoreMap'], ['append1', 'append1Map'],
-     ['append4', 'append4Map'], ['footprintMax', 'footprintMaxMap']].forEach(([_id, _mp]) => {
-      const _el2 = document.getElementById(_id);
-      const _mv = APP[_mp] && APP[_mp][_tsfx];
-      if (_el2 && _mv !== undefined) _el2.checked = !!_mv;
-    });
-  }
+  // 強化トグル・Lv・フォウ等を、 その行に保存された状態へ戻す
+  restoreRowTogglesToModal(targetTr.dataset.rowSuffix || '');
   // モーダル開く時の保留状態リセット & 現在行のサーヴァントをプリセット
   _pendingServantId = null;
   const applyBtn = document.getElementById('applyServantBtn');
@@ -8341,60 +8404,8 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
       if (applyBtn) applyBtn.disabled = false;
     }
   }
-  // グランドスコアのチェック状態を 「その行に保存された値」 に戻す。
-  // チェックボックスはモーダル内に 1 つしかないため、 別の行を開いた時に
-  // 前の行の状態が残っていると、 適用時に意図せず ON/OFF が入れ替わってしまう。
-  const _gsBox = document.getElementById('grandScore');
-  if (_gsBox) {
-    const _gsSfx = targetTr.dataset.rowSuffix || '';
-    _gsBox.checked = !!(APP.grandScoreMap && APP.grandScoreMap[_gsSfx]);
-    {
-      const _e2 = (APP.grandEx2Map && APP.grandEx2Map[_gsSfx]) || {};
-      const _set = (id, v) => { const el = document.getElementById(id); if (el) el.value = String(v); };
-      _set('grandLoad', _e2.load ?? 0);
-      _set('grandDebuffCount', _e2.debuffs ?? 0);
-      _set('grandEnemyDebuff', _e2.edebuffs ?? 0);
-      _set('grandDualityRate', _e2.rate ?? 100);
-      const _dl = document.getElementById('grandDuality');
-      if (_dl) _dl.checked = !!_e2.duality;
-    }
-    const _gazeBox = document.getElementById('grandGaze');
-    if (_gazeBox) {
-      const _gz = APP.grandGazeMap ? APP.grandGazeMap[_gsSfx] : undefined;
-      _gazeBox.value = String((_gz === undefined || _gz === null) ? 0 : _gz);
-    }
-    const _shBox = document.getElementById('grandSureHit');
-    if (_shBox) _shBox.checked = !!(APP.grandSureHitMap && APP.grandSureHitMap[_gsSfx]);
-    const _dbBox = document.getElementById('grandDarkBlade');
-    if (_dbBox) _dbBox.checked = !!(APP.grandDarkBladeMap && APP.grandDarkBladeMap[_gsSfx]);
-    const _dmBox = document.getElementById('grandEx1Damaged');
-    if (_dmBox) _dmBox.checked = !!(APP.grandEx1DamagedMap && APP.grandEx1DamagedMap[_gsSfx]);
-    const _fldBox = document.getElementById('grandField');
-    if (_fldBox) {
-      const _fv = APP.grandFieldMap ? APP.grandFieldMap[_gsSfx] : '';
-      _fldBox.value = (_fv === 'B' || _fv === 'A' || _fv === 'Q') ? _fv : '';
-    }
-    const _instaBox = document.getElementById('grandInsta');
-    if (_instaBox) {
-      const _iv = APP.grandInstaMap ? APP.grandInstaMap[_gsSfx] : undefined;
-      _instaBox.value = String((_iv === undefined || _iv === null) ? 0 : _iv);
-    }
-    const _pierceBox = document.getElementById('grandPierce');
-    if (_pierceBox) {
-      const _p = APP.grandPierceMap ? APP.grandPierceMap[_gsSfx] : undefined;
-      _pierceBox.checked = (_p === undefined || _p === null) ? true : !!_p;   // 既定は ON
-    }
-    const _graspBox = document.getElementById('grandGrasp');
-    if (_graspBox) {
-      const _g = APP.grandGraspMap ? APP.grandGraspMap[_gsSfx] : undefined;
-      _graspBox.checked = (_g === undefined || _g === null) ? true : !!_g;   // 既定は ON
-    }
-    const _ammoBox = document.getElementById('grandAmmo');
-    if (_ammoBox) {
-      const _a = APP.grandAmmoMap ? APP.grandAmmoMap[_gsSfx] : undefined;
-      _ammoBox.value = (_a === undefined || _a === null) ? 4 : _a;
-    }
-  }
+  // グランドスコア関連の各設定も、 その行に保存された状態へ戻す (共通関数)
+  restoreGrandOptionsToModal(targetTr.dataset.rowSuffix || '');
   _updateGrandAmmoVisibility();
   modal.classList.add('open');
   servantSearch.value = '';
@@ -13434,6 +13445,9 @@ function attachMobileButtonHandlers(cell, sfx) {
       if (classScoreCb && pcRow.classList.contains('row-defense')) {
         classScoreCb.checked = false;
       }
+      // 強化トグル・Lv・フォウ等を、 その行に保存された状態へ戻す (PC 版と同じ処理)
+      restoreRowTogglesToModal(currentSfx);
+      restoreGrandOptionsToModal(currentSfx);
       _pendingServantId = null;
       const applyBtn = document.getElementById('applyServantBtn');
       if (applyBtn) applyBtn.disabled = true;
