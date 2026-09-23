@@ -5965,8 +5965,19 @@ function getClassScoreAddMap(){
     APP._toggleBreakdown[fid][name] = (APP._toggleBreakdown[fid][name] || 0) + v;
   };
 
+  // 強化トグル (クラススコア / アペンド1・4 / 足跡MAX) の ON/OFF は行ごとのマップが正。
+  // チェックボックスはサーヴァント選択モーダル内に 1 つしかないため、 別の行を操作した後の
+  // 再計算でチェック状態に引きずられてしまう (CSV 読込後に効果が外れる原因にもなる)。
+  // マップに記録が無い行だけ、 従来どおりチェックボックスにフォールバックする。
+  const _tgCtx = _rowCtx || '';
+  const _tgOn = (id, mapName) => {
+    APP[mapName] = APP[mapName] || {};
+    if (_tgCtx in APP[mapName]) return !!APP[mapName][_tgCtx];
+    return !!document.getElementById(id)?.checked;
+  };
+
   // クラススコア
-  if (document.getElementById('classScore')?.checked) {
+  if (_tgOn('classScore', 'classScoreMap')) {
     const _cs = { cardBufB:20, cardBufA:20, cardBufQ:20, criBuf:10,
                   criBufB:20, criBufA:40, criBufQ:60, npBuf:10, exBuf:50 };
     for (const [fid, v] of Object.entries(_cs)) {
@@ -5976,19 +5987,19 @@ function getClassScoreAddMap(){
   }
 
   // アペンド1
-  if (document.getElementById('append1')?.checked) {
+  if (_tgOn('append1', 'append1Map')) {
     map.exBuf += 50;
     _tb('exBuf', 'アペンド1', 50);
   }
 
   // アペンド4
-  if (document.getElementById('append4')?.checked) {
+  if (_tgOn('append4', 'append4Map')) {
     map.criBuf += 30;
     _tb('criBuf', 'アペンド4', 30);
   }
 
   // 足跡MAX
-  if (document.getElementById('footprintMax')?.checked) {
+  if (_tgOn('footprintMax', 'footprintMaxMap')) {
     map.footB += 500;
     map.footA += 500;
     map.footQ += 500;
@@ -6041,7 +6052,11 @@ function applyClassScoreBonus(){
   const _skipToggles = _isCurrentRowEnemy() || _isCurrentRowDefenseMode();
   // クラススコア ON/OFF を行ごとに記録 (= NP・スター計算モーダルの スター発生率バフ +50 判定用)
   APP.classScoreMap = APP.classScoreMap || {};
-  APP.classScoreMap[_csRowCtx] = !_skipToggles && !!document.getElementById('classScore')?.checked;
+  // 行ごとの記録が無いときだけチェックボックスから初期化する。
+  // 毎回上書きすると、 別の行を開いた状態で再計算が走ったときに状態が入れ替わってしまう。
+  if (!(_csRowCtx in APP.classScoreMap)) {
+    APP.classScoreMap[_csRowCtx] = !_skipToggles && !!document.getElementById('classScore')?.checked;
+  }
 
   for (const [fid, bonus0] of Object.entries(addMap)) {
     const bonus = _skipToggles ? 0 : bonus0;  // 敵/被ダメ行は player強化トグル無効
@@ -6055,7 +6070,20 @@ function applyClassScoreBonus(){
       continue;
     }
 
-    const passive = passiveMap[fid + _csRowCtx] ?? 0;  // 行ごとに厳密に参照 (他行へのフォールバックなし)
+    // 行ごとに厳密に参照 (他行へのフォールバックなし)
+    let passive = passiveMap[fid + _csRowCtx] ?? 0;
+    // CSV 読込・ブラウザ保存の読込直後は、 ストアに _pv 行 (「狂化 C」 等) が復元されていても
+    // _passiveValueMap がまだ空のことがある。 その状態で再計算すると passive=0 として扱われ、
+    // 内訳の合計と食い違った分が 「クラススコア等」 のマイナス行になり、 値まで狂う。
+    //   例) パッシブ 10 が 0 扱い → クラススコア等 -10 が作られ、 欄の合計が 10 少なくなる
+    // マップに登録が無いときに限り、 ストアの _pv 行の合計をパッシブ値とみなす。
+    if (!((fid + _csRowCtx) in passiveMap)) {
+      const _pvStore = _buffDetailStore[fid + _csRowCtx];
+      if (Array.isArray(_pvStore)) {
+        const _pvSumStore = _pvStore.reduce((a, r) => a + ((r && r._pv) ? (parseFloat(r.value) || 0) : 0), 0);
+        if (Math.abs(_pvSumStore) > 1e-9) passive = _pvSumStore;
+      }
+    }
     // グランドスコア分は独立した内訳行に出すため row0 (パッシブバフ) からは除外する。
     const _gInfo = (APP._grandDeltaMap && APP._grandDeltaMap[fid]) || null;
     // ユーザーがグランド行を × で消したフィールドでは、 _syncGrandScoreRow が行を作らない
@@ -7535,20 +7563,31 @@ function recalc() {
   // (デバッグパネル表示用にだけ使われる)。
   const npCardLetter0 = getCurrentNpCardLetter();
   const npPos = (c1 === 'NP') ? 0 : (c2 === 'NP') ? 1 : (c3 === 'NP') ? 2 : 0;
-  const npDmgResult = calcNpDmg(npPos, npCardLetter0, _phase3EffectiveBuffs);
+  // 宝具ダメージは 「そのスロットの位置」 で計算する。
+  // 回数制バフ (effectiveBuffs) はカード位置ごとに残回数が変わるため、
+  // 宝具スロットが複数ある構成 (N/N/N など) で 1 か所の結果を使い回すと、
+  // 先頭スロットがクリ欄 0 (攻撃しない) のときに後続の宝具まで
+  // 「消費前の位置の値」 で計算され、 バフが乗らない不具合になっていた。
+  // calcNpDmg は副作用を持たないので位置ごとに呼んでよい (結果はキャッシュする)。
+  const _npDmgCache = {};
+  const _npDmgAt = (pos) => {
+    if (!(pos in _npDmgCache)) _npDmgCache[pos] = calcNpDmg(pos, npCardLetter0, _phase3EffectiveBuffs);
+    return _npDmgCache[pos];
+  };
+  const npDmgResult = _npDmgAt(npPos);   // デバッグパネル用 (最初の宝具スロット)
 
   // c1='NP' のとき d1 を NP 計算結果で置き換え。
   // ただし「NP スロットで 1st クリ select=0 (= ダメージを 0 として扱う)」 の場合は ZERO_SLOT を返す。
   // 旧実装では NP は zero フラグを無視していたため、 ユーザーが明示的に 0 を選んでも
   // 宝具ダメージが計算されてしまうバグがあった。
   const _d1raw = (c1 === 'NP')
-    ? (zero1 ? ZERO_SLOT : npDmgResult)
+    ? (zero1 ? ZERO_SLOT : _npDmgAt(0))
     : (zero1 ? ZERO_SLOT : calcOneDmg(0, c1, first, crit1, bChain, _phase3EffectiveBuffs));
   const _d2raw = (c2 === 'NP')
-    ? (zero2 ? ZERO_SLOT : npDmgResult)
+    ? (zero2 ? ZERO_SLOT : _npDmgAt(1))
     : (zero2 ? ZERO_SLOT : calcOneDmg(1, c2, first, crit2, bChain, _phase3EffectiveBuffs));
   const _d3raw = (c3 === 'NP')
-    ? (zero3 ? ZERO_SLOT : npDmgResult)
+    ? (zero3 ? ZERO_SLOT : _npDmgAt(2))
     : (zero3 ? ZERO_SLOT : calcOneDmg(2, c3, first, crit3, bChain, _phase3EffectiveBuffs));
   // 「全」/「半」 フラグが立っている場合はダメージを半減 (× 0.5)。
   // ただし NP (宝具) は全体攻撃クリ仕様の影響を受けないので、 半減しない。
@@ -8065,6 +8104,9 @@ rowActionMenu.querySelectorAll('.action-item').forEach(item => {
         if (APP.grandScoreMap) delete APP.grandScoreMap[sfx];
         if (APP.grandScoreEverMap) delete APP.grandScoreEverMap[sfx];
         if (APP.classScoreMap) delete APP.classScoreMap[sfx];
+        if (APP.append1Map) delete APP.append1Map[sfx];
+        if (APP.append4Map) delete APP.append4Map[sfx];
+        if (APP.footprintMaxMap) delete APP.footprintMaxMap[sfx];
         if (APP.grandNpStarMap) delete APP.grandNpStarMap[sfx];
         if (APP.grandAmmoMap) delete APP.grandAmmoMap[sfx];
         if (APP.grandGraspMap) delete APP.grandGraspMap[sfx];
@@ -8227,6 +8269,16 @@ document.querySelector('#calcTable tbody').addEventListener('click', e => {
   if (classScoreCb && targetTr.classList.contains('row-defense')) {
     classScoreCb.checked = false;
   }
+  // 強化トグルは行ごとの状態をチェックボックスに戻す (行を切り替えても混ざらないように)
+  {
+    const _tsfx = targetTr.dataset.rowSuffix || '';
+    [['classScore', 'classScoreMap'], ['append1', 'append1Map'],
+     ['append4', 'append4Map'], ['footprintMax', 'footprintMaxMap']].forEach(([_id, _mp]) => {
+      const _el2 = document.getElementById(_id);
+      const _mv = APP[_mp] && APP[_mp][_tsfx];
+      if (_el2 && _mv !== undefined) _el2.checked = !!_mv;
+    });
+  }
   // モーダル開く時の保留状態リセット & 現在行のサーヴァントをプリセット
   _pendingServantId = null;
   const applyBtn = document.getElementById('applyServantBtn');
@@ -8347,6 +8399,15 @@ if (applyServantBtn) {
           if (_ks === _gsApplySfx) delete APP.grandRowHiddenMap[k];
         }
       }
+      // 強化トグル (クラススコア / アペンド1・4 / 足跡MAX) を行ごとに保存する。
+      // これが正となり、 以降の再計算はチェックボックスではなくこの値を見る。
+      [['classScore', 'classScoreMap'], ['append1', 'append1Map'],
+       ['append4', 'append4Map'], ['footprintMax', 'footprintMaxMap']].forEach(([_id, _mp]) => {
+        const _el2 = document.getElementById(_id);
+        if (!_el2) return;
+        APP[_mp] = APP[_mp] || {};
+        APP[_mp][_gsApplySfx] = !!_el2.checked;
+      });
       // 必中 (弓) の ON/OFF も行ごとに保持する
       const _shEl = document.getElementById('grandSureHit');
       if (_shEl) {
@@ -10110,6 +10171,9 @@ function collectRowData(row) {
   if (row.classList.contains('row-defense')) data.defenseMode = '1';
   // クラススコア ON/OFF (行ごと、 NP・スター計算モーダルの sr_buff +50 判定用)
   if (APP.classScoreMap && APP.classScoreMap[sfx]) data.classScore = '1';
+  if (APP.append1Map && APP.append1Map[sfx]) data.append1 = '1';
+  if (APP.append4Map && APP.append4Map[sfx]) data.append4 = '1';
+  if (APP.footprintMaxMap && APP.footprintMaxMap[sfx]) data.footprintMax = '1';
   // グランドスコア ON/OFF (行ごとの状態)。 これが無いと CSV 復元後の
   // カード変更でチェック状態が復元できず、 グランドスコアが外れてしまう。
   if (APP.grandScoreMap && APP.grandScoreMap[sfx]) data.grandScore = '1';
@@ -10257,7 +10321,8 @@ function applyRowData(targetRow, rowData) {
     // classScore / grandScore はチェックボックス。 行ごとの状態は下の専用処理で
     // APP.classScoreMap / APP.grandScoreMap に復元するので、 ここで value を
     // 書き込むと 'on' 等が入って状態判定が壊れる。
-    if (id === 'classScore' || id === 'grandScore') return;
+    if (id === 'classScore' || id === 'grandScore'
+        || id === 'append1' || id === 'append4' || id === 'footprintMax') return;
     setVal(id, rowData[id] ?? '');
   });
   // バフ詳細ストアを復元（CSV / localStorage 共通）
@@ -10402,6 +10467,12 @@ function applyRowData(targetRow, rowData) {
   if (rowData.classScore !== undefined && rowData.classScore !== null) {
     APP.classScoreMap[_csSfx] = _isOnFlag(rowData.classScore);
   }
+  // アペンド1 / アペンド4 / 足跡MAX の復元 (クラススコアと同じ扱い)
+  [['append1', 'append1Map'], ['append4', 'append4Map'],
+   ['footprintMax', 'footprintMaxMap']].forEach(([_k, _mp]) => {
+    APP[_mp] = APP[_mp] || {};
+    if (rowData[_k] !== undefined && rowData[_k] !== null) APP[_mp][_csSfx] = _isOnFlag(rowData[_k]);
+  });
   // グランドスコア ON/OFF の復元。 カード変更時の再計算がこの値を参照する。
   APP.grandScoreMap = APP.grandScoreMap || {};
   if (rowData.grandScore !== undefined && rowData.grandScore !== null) {
@@ -10536,6 +10607,9 @@ const CSV_INPUT_FIELDS = [
   // クラススコア ON/OFF ('1' = ON / '' = OFF)。 NP・スター計算モーダルの
   // スター発生率バフ +50 判定に使用。 行ごとの状態を CSV/LS に保存する。
   'classScore',
+  // アペンド1 / アペンド4 / 足跡MAX の ON/OFF ('1' = ON / '' = OFF)。
+  // 保存しないと CSV 復元後の再計算でこれらの加算が外れてしまう。
+  'append1', 'append4', 'footprintMax',
   // グランドスコア ON/OFF ('1' = ON / '' = OFF)。 行ごとの状態を CSV/LS に保存する。
   // カード変更時の再計算がこの値を見るため、 保存しないと復元後に効果が外れる。
   'grandScore',
@@ -10697,6 +10771,9 @@ function getRowCsvValues(row) {
     // チェックボックスは行に 1 つずつ存在するわけではない (モーダル内に 1 つ) ため、
     // el.value を読むと常に 'on' が返り ON/OFF を判別できない。
     if (id === 'classScore') return (APP.classScoreMap && APP.classScoreMap[sfx]) ? '1' : '';
+    if (id === 'append1') return (APP.append1Map && APP.append1Map[sfx]) ? '1' : '';
+    if (id === 'append4') return (APP.append4Map && APP.append4Map[sfx]) ? '1' : '';
+    if (id === 'footprintMax') return (APP.footprintMaxMap && APP.footprintMaxMap[sfx]) ? '1' : '';
     if (id === 'grandScore') return (APP.grandScoreMap && APP.grandScoreMap[sfx]) ? '1' : '';
     const el = (sfx ? document.getElementById(id + sfx) : null) || document.getElementById(id);
     if (!el) return '';
@@ -11126,6 +11203,9 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     if (APP.classScoreMap && APP.classScoreMap[_srcSfx] !== undefined) {
       APP.classScoreMap[suffix] = !!APP.classScoreMap[_srcSfx];
     }
+    ['append1Map', 'append4Map', 'footprintMaxMap'].forEach(_mp => {
+      if (APP[_mp] && APP[_mp][_srcSfx] !== undefined) APP[_mp][suffix] = !!APP[_mp][_srcSfx];
+    });
   }
 
   // サーヴァントオブジェクトのコピー (空行モード時はスキップ)
