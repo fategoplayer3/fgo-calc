@@ -6172,6 +6172,16 @@ function applyClassScoreBonus(){
   if (!(_csRowCtx in APP.classScoreMap)) {
     APP.classScoreMap[_csRowCtx] = !_skipToggles && !!document.getElementById('classScore')?.checked;
   }
+  // アペンド1 / アペンド4 / 足跡MAX も同様に、 行ごとの記録が無ければチェックボックスの状態で確定させる。
+  // 計算側 (getClassScoreAddMap の _tgOn) は記録が無いとチェックボックスを見て効果を乗せるが、
+  // ここで記録しないと 「効果は乗っているのに CSV には OFF で出る」 状態になる。
+  [['append1', 'append1Map'], ['append4', 'append4Map'],
+   ['footprintMax', 'footprintMaxMap']].forEach(([_id, _mp]) => {
+    APP[_mp] = APP[_mp] || {};
+    if (!(_csRowCtx in APP[_mp])) {
+      APP[_mp][_csRowCtx] = !_skipToggles && !!document.getElementById(_id)?.checked;
+    }
+  });
 
   for (const [fid, bonus0] of Object.entries(addMap)) {
     const bonus = _skipToggles ? 0 : bonus0;  // 敵/被ダメ行は player強化トグル無効
@@ -10554,6 +10564,24 @@ function applyRowData(targetRow, rowData) {
     APP[_mp] = APP[_mp] || {};
     if (rowData[_k] !== undefined && rowData[_k] !== null) APP[_mp][_csSfx] = _isOnFlag(rowData[_k]);
   });
+  // 修復: 記録漏れのある CSV (アペンドの効果行はあるのに append1/append4 列が空) を読み込んだ場合、
+  // バフ詳細のアペンド行を根拠に ON とみなす。 rowState に記録がある場合はそちらを優先する。
+  {
+    let _rsObj = null, _bdObj = null;
+    try { _rsObj = rowData.rowState ? JSON.parse(rowData.rowState) : null; } catch (e) {}
+    try { _bdObj = rowData.buffDetails ? JSON.parse(rowData.buffDetails) : null; } catch (e) {}
+    if (_bdObj && typeof _bdObj === 'object') {
+      [['append1', 'append1Map', 'exBuf', 'アペンド1'],
+       ['append4', 'append4Map', 'criBuf', 'アペンド4']].forEach(([_k, _mp, _fid, _lab]) => {
+        if (_isOnFlag(rowData[_k])) return;
+        if (_rsObj && _rsObj[_mp] !== undefined) return;
+        const _rows = _bdObj[_fid];
+        if (Array.isArray(_rows) && _rows.some(r => Array.isArray(r) && r[0] === _lab)) {
+          APP[_mp][_csSfx] = true;
+        }
+      });
+    }
+  }
   // グランドスコア ON/OFF の復元。 カード変更時の再計算がこの値を参照する。
   APP.grandScoreMap = APP.grandScoreMap || {};
   if (rowData.grandScore !== undefined && rowData.grandScore !== null) {
