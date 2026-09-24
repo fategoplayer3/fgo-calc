@@ -3245,6 +3245,20 @@ function setPendingServantText(text) {
 }
 
 let _pendingServantId = null;
+// Lv / フォウATK / 礼装ATK / グランド(+1000) が行に記録されていない (旧 CSV 等) かどうかと、
+// モーダルでそれらが操作されたかどうか。 記録が無い行でモーダルの既定値のまま「適用」 すると
+// ATK が既定値で計算し直されてしまうため、 未操作なら ATK を維持する判定に使う。
+let _svParamUnknown = false;
+let _svParamTouched = false;
+(function _bindSvParamTouch() {
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', _bindSvParamTouch); return; }
+  ['popLv', 'popFou', 'popCE', 'popGrand'].forEach(id => {
+    const e = document.getElementById(id);
+    if (!e) return;
+    e.addEventListener('change', () => { _svParamTouched = true; });
+    e.addEventListener('input', () => { _svParamTouched = true; });
+  });
+})();
 
 // サーヴァント選択モーダルのモード:
 //   'row'                 → 通常の行へのサーヴァント適用 (= 既存動作)
@@ -5521,6 +5535,14 @@ function restoreGrandOptionsToModal(sfx) {
 
 function restoreRowTogglesToModal(sfx) {
   const _sp = APP.svParamMap && APP.svParamMap[sfx];
+  _svParamUnknown = !_sp;
+  _svParamTouched = false;
+  if (!_sp) {
+    // 記録が無い行では、 直前に開いた別の行の値が残らないよう既定値に戻す
+    const _d = { popLv: '90', popFou: '0', popCE: '0' };
+    for (const [id, v] of Object.entries(_d)) { const e = document.getElementById(id); if (e) e.value = v; }
+    const _g0 = document.getElementById('popGrand'); if (_g0) _g0.checked = false;
+  }
   if (_sp) {
     const _setIf = (id, v) => { const e = document.getElementById(id); if (e && v !== undefined) e.value = v; };
     _setIf('popLv', _sp.lv); _setIf('popFou', _sp.fou); _setIf('popCE', _sp.ce);
@@ -7970,7 +7992,11 @@ if (applyServantBtn) {
       }
       // サーヴァント選択モーダルの Lv / フォウATK / 礼装ATK / グランド(+1000) も行ごとに保存。
       // これが無いと CSV 読込後にモーダルを開いた時、 既定値 (Lv90 / ±0 / 0) に戻ってしまう。
-      {
+      // ただし記録の無い行 (旧 CSV 等) で同じサーヴァントのまま未操作なら、 既定値を記録しない
+      // (記録すると次回以降も既定値で ATK が計算し直される)。
+      const _gsRow = document.querySelector(`#calcTable tbody tr[data-row-suffix="${_gsApplySfx}"]`);
+      const _gsCurId = _gsRow?.dataset?.servantId ? parseInt(_gsRow.dataset.servantId, 10) : null;
+      if (!(_svParamUnknown && !_svParamTouched && _gsCurId === _pendingServantId)) {
         const _lvEl = document.getElementById('popLv');
         const _fouEl = document.getElementById('popFou');
         const _ceEl = document.getElementById('popCE');
@@ -8132,7 +8158,12 @@ if (applyServantBtn) {
         //       これは バフ詳細ストアの row 0 (パッシブ行) のみ更新するので、
         //       ユーザー入力バフは維持されたまま、 クラススコア/アペンド/足跡MAX の変更だけが反映される。
         applyClassScoreBonus();
+        // 記録の無い行 (旧 CSV 等) で Lv / フォウ / 礼装 / グランドを触っていなければ、 ATK は読込値を維持する
+        const _keepAtk = _svParamUnknown && !_svParamTouched;
+        const _atkEl0 = _el('atk');
+        const _atkPrev = _atkEl0 ? _atkEl0.value : null;
         applyServantStats({ skipClsAffReset: true });
+        if (_keepAtk && _atkEl0 && _atkPrev !== null) _atkEl0.value = _atkPrev;
         recalcRow(sfx);
       } finally {
         _rowCtx = prevCtx;
