@@ -7527,6 +7527,14 @@ function applyPositionBuffColumnVisibility(visible) {
     if (typeof fixTableWidth === 'function') fixTableWidth();
   } catch (e) { /* 起動時 TDZ エラーを無視 */ }
 }
+// テンプレート (_originalRowHtml) は起動時に保存したものなので、 位置別追加バフ列の表示状態 (.show) を持たない。
+// テンプレートから作った行は、 見出しの表示状態に合わせないと列がずれる (セルが左に詰まる)。
+function syncPosBuffCells(root) {
+  if (!root) return;
+  const th = document.querySelector('#calcTable thead th.col-pos-buff');
+  const visible = th ? th.classList.contains('show') : _isPosBuffVisible();
+  root.querySelectorAll('.col-pos-buff').forEach(el => el.classList.toggle('show', visible));
+}
 function togglePositionBuffColumns() {
   const cur = _isPosBuffVisible();
   const next = !cur;
@@ -10169,6 +10177,7 @@ function _loadFromLocalImpl() {
   // 元行がなければ復元
   if (!tbody.querySelector('tr[data-row-suffix=""]') && _originalRowHtml) {
     tbody.insertAdjacentHTML('afterbegin', _originalRowHtml);
+    syncPosBuffCells(tbody.querySelector('tr[data-row-suffix=""]'));
   }
   // 元行リセット
   const originalRow = tbody.querySelector('tr[data-row-suffix=""]') || tbody.querySelector('tr');
@@ -10552,6 +10561,7 @@ async function importCsv(file) {
   // 元行がなければテンプレートから復元
   if (!tbody.querySelector('tr[data-row-suffix=""]') && _originalRowHtml) {
     tbody.insertAdjacentHTML('afterbegin', _originalRowHtml);
+    syncPosBuffCells(tbody.querySelector('tr[data-row-suffix=""]'));
     // 復元した行のイベントを再接続（oninput等はHTML属性なので自動的に有効）
   }
 
@@ -10642,6 +10652,8 @@ function cloneRow(sourceRow, direction = 'down', opts) {
   // 末尾の _R\d+ サフィックスをクリーン化してから 後段の suffix 付与に渡す。
   // (= "memo_R2_R5" のような二重サフィックスを防ぐ)
   newRow.querySelectorAll('[id]').forEach(el => { el.id = el.id.replace(/_R\d+$/, ''); });
+  // テンプレートから作った場合に備え、 位置別追加バフ列の表示状態を現在の設定に合わせる
+  syncPosBuffCells(newRow);
 
   // ソース行の現在値をコピー (opts.empty=true の場合はスキップ → テンプレートの既定値のまま)
   if (!opts.empty) {
