@@ -9460,6 +9460,41 @@ function _buffDetailApply() {
       APP.grandRowHiddenMap[_buffDetailTarget] = true;
     }
   }
+  // グランドスコア行の 「手で書き換えたか」 判定用の対応付け。
+  // 以前は同じ位置 (何行目か) の旧値と比べていたため、 上の行を × で消すと行が繰り上がり、
+  // 別の行の値と比べて 「変更あり」 と誤判定していた (値を触っていないのに手動扱いになる)。
+  // グランド行どうしで対応付ける: まず ラベル+値+回数 が一致する旧行 (= 変更なし) を割り当て、
+  // 残りを同じラベルの旧行に割り当てる (= 値を変更した)。 対応する旧行が無ければ新しい行扱い。
+  const _grandMatch = (() => {
+    const norm = v => String(parseFloat(v) || 0);
+    const prevG = [];
+    _prevRows.forEach(r => {
+      if (r && String(r.label || '').includes(GRAND_ROW_PREFIX)) {
+        prevG.push({ label: String(r.label), value: norm(r.value), count: String(r.count || ''),
+                     manual: !!r.manual, used: false });
+      }
+    });
+    const cur = rows.map(tr => {
+      const label = tr.querySelector('.bd-lbl')?.value || '';
+      if (!String(label).includes(GRAND_ROW_PREFIX)) return null;
+      return { label: String(label), value: norm(tr.querySelector('.bd-val')?.value),
+               count: String(tr.querySelector('.bd-cnt')?.value || '') };
+    });
+    const res = cur.map(() => null);   // { prev, changed }
+    // 1) 変更なしの行
+    cur.forEach((c, i) => {
+      if (!c) return;
+      const p = prevG.find(p => !p.used && p.label === c.label && p.value === c.value && p.count === c.count);
+      if (p) { p.used = true; res[i] = { prev: p, changed: false }; }
+    });
+    // 2) 値・回数を変更した行
+    cur.forEach((c, i) => {
+      if (!c || res[i]) return;
+      const p = prevG.find(p => !p.used && p.label === c.label);
+      if (p) { p.used = true; res[i] = { prev: p, changed: true }; }
+    });
+    return res;
+  })();
   _buffDetailStore[_buffDetailTarget] = rows.map((tr, i) => {
     const label = tr.querySelector('.bd-lbl')?.value || '';
     const value = tr.querySelector('.bd-val')?.value || '';
@@ -9471,12 +9506,8 @@ function _buffDetailApply() {
     // 自動値に戻したい場合はグランドスコアのチェックを外して入れ直せばよい。
     let manual = false;
     if (isGrand) {
-      const prev = _prevRows[i];
-      const changed = prev
-        ? (parseFloat(value) || 0) !== (parseFloat(prev.value) || 0)
-             || String(count) !== String(prev.count || '')
-        : false;
-      manual = !!(prev && prev.manual) || changed;
+      const m = _grandMatch[i];
+      manual = !!(m && (m.prev.manual || m.changed));
     }
     // critOnly (クリ限定) はモーダル上に表現がないので既存ストアの同位置から引き継ぐ
     const _prevCritOnly = !!(_prevRows[i] && _prevRows[i].critOnly);
