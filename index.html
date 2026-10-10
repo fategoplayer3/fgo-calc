@@ -12865,6 +12865,65 @@ async function _captureCalcTable() {
           // onclone で失敗してもキャプチャ自体は続行 (= 改行は失われるが画像は得られる)
           console.warn('onclone textarea replacement failed:', e);
         }
+
+        // 入力欄 (input) とプルダウン (select) も、 同じ見た目の div に差し替える。
+        // html2canvas は input / select の文字を 「枠の上端 + フォントのベースライン位置」 に描き、
+        // ブラウザのように枠の中で上下中央に揃えない (はみ出した分は枠で切り取る)。
+        // そのため Windows の日本語フォント (游ゴシック / メイリオ等) では文字が下にずれ、
+        // 欄ごとにずれ方も違うので画像が歪む。 カード選択の 「Q」 は尾が切れて 「O」 に見えていた。
+        // div にすれば通常のテキストとしてブラウザ自身が配置するので、 画面表示と同じ位置になる。
+        try {
+          const win = clonedDoc.defaultView;
+          const fields = clonedDoc.querySelectorAll(
+            'input:not([type]), input[type="text"], input[type="number"], input[type="search"], input[type="tel"], select');
+          fields.forEach(el => {
+            if (!el.offsetWidth || !el.offsetHeight) return;   // 非表示の欄はそのまま
+            const cs = win.getComputedStyle(el);
+            const isSel = el.tagName === 'SELECT';
+            const text = isSel ? ((el.options[el.selectedIndex] || {}).text || '') : (el.value || '');
+            const div = clonedDoc.createElement('div');
+            const span = clonedDoc.createElement('span');
+            span.textContent = text;
+            span.style.whiteSpace = 'pre';
+            div.appendChild(span);
+            const ta = cs.textAlign;
+            const st = div.style;
+            st.boxSizing = 'border-box';
+            st.width = el.offsetWidth + 'px';
+            st.height = el.offsetHeight + 'px';
+            // 上下中央揃えは line-height で行う (html2canvas は inline-flex の中の文字を描かないため flex は使わない)
+            st.display = cs.display.startsWith('inline') ? 'inline-block' : 'block';
+            st.textAlign = (ta === 'right' || ta === 'end') ? 'right'
+                         : (ta === 'center' || ta === '-webkit-center') ? 'center' : 'left';
+            st.overflow = 'hidden';
+            st.whiteSpace = 'nowrap';
+            st.fontFamily = cs.fontFamily;
+            st.fontSize = cs.fontSize;
+            st.fontWeight = cs.fontWeight;
+            st.fontStyle = cs.fontStyle;
+            st.letterSpacing = cs.letterSpacing;
+            const _innerH = el.offsetHeight - (parseFloat(cs.borderTopWidth) || 0) - (parseFloat(cs.borderBottomWidth) || 0);
+            st.lineHeight = Math.max(0, _innerH) + 'px';
+            st.color = cs.color;
+            st.backgroundColor = cs.backgroundColor;
+            st.backgroundImage = cs.backgroundImage;
+            st.padding = '0 ' + cs.paddingRight + ' 0 ' + cs.paddingLeft;
+            st.borderTop = cs.borderTop;
+            st.borderRight = cs.borderRight;
+            st.borderBottom = cs.borderBottom;
+            st.borderLeft = cs.borderLeft;
+            st.borderRadius = cs.borderRadius;
+            st.margin = cs.margin;
+            st.verticalAlign = cs.verticalAlign;
+            st.boxShadow = cs.boxShadow;
+            st.flex = cs.flex;
+            st.float = cs.float;
+            el.parentNode.replaceChild(div, el);
+          });
+        } catch (e) {
+          // 失敗してもキャプチャ自体は続行 (= 従来どおりの描画になる)
+          console.warn('onclone input replacement failed:', e);
+        }
       },
     });
 
