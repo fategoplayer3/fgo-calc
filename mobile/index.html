@@ -13008,6 +13008,35 @@ const AUTOSAVE_SS_KEY = 'fgoMobileAutoSession_v1';
 // その場合 sessionStorage は失われるが localStorage は永続なので復元できる。
 // 使い切ったら削除する (= 残しっぱなしにしない)。
 const AUTOSAVE_LS_BACKUP_KEY = 'fgoMobileAutoSessionBackup_v1';
+// ページの読み込み直し (FGO 等へ切り替えた間に iOS がタブを破棄 → 戻ると再読み込み) からの
+// 自動復元に使う自動保存の有効期限。 これより古い自動保存は使わない
+// (翌日に開き直した時などは、 これまでどおり空の状態で始まる)。
+const AUTOSAVE_RESTORE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+// このタブで計算データを自動保存したことがあるか (空の状態を書いてよいかの判定に使う)
+var _autosaveTabHadData = false;
+
+// 自動保存を localStorage に書く。 画面を離れるたびに上書きされる (= 常に最新)。
+// 形式: { v:2, t:保存時刻(ms), rows:[行データ...] }。 rows が空 = 何も入力していない状態。
+function _writeAutosaveBackup(payload) {
+  try {
+    localStorage.setItem(AUTOSAVE_LS_BACKUP_KEY,
+      JSON.stringify({ v: 2, t: Date.now(), rows: Array.isArray(payload) ? payload : [] }));
+  } catch (e) { /* 容量不足・プライベートモード等 → 諦める */ }
+}
+// 自動保存を読む。 有効期限切れ・壊れている場合は null。
+// 旧形式 (行データの配列そのもの、 画像保存時のバックアップ) は時刻が無いのでそのまま使う。
+function _readAutosaveBackup() {
+  let raw;
+  try { raw = localStorage.getItem(AUTOSAVE_LS_BACKUP_KEY); } catch (e) { return null; }
+  if (!raw) return null;
+  let obj;
+  try { obj = JSON.parse(raw); } catch (e) { return null; }
+  if (Array.isArray(obj)) return obj;
+  if (!obj || !Array.isArray(obj.rows)) return null;
+  if (!obj.t || Date.now() - obj.t > AUTOSAVE_RESTORE_MAX_AGE_MS) return null;
+  return obj.rows;
+}
 
 function _collectFilteredPayload() {
   const rows = [...document.querySelectorAll('#calcTable tbody tr')];
@@ -13029,6 +13058,13 @@ function autoSaveSessionImpl() {
       // sessionStorage が使えない (プライベートモード等) → 何もしない
       console.warn('sessionStorage write failed:', e);
     }
+    // iOS はアプリ切替中にメモリ不足でタブを破棄することがあり、 その場合は
+    // sessionStorage も消えて戻った時にページが読み込み直される。
+    // 復元できるよう localStorage にも同じ内容を書いておく。
+    // 空の状態は、 このタブで一度計算していた (= 利用者がリセットした) 場合だけ書く。
+    // 何も入力していない別のタブを開いて閉じただけで、 復元したい計算が消えないようにするため。
+    if (payload.length || _autosaveTabHadData) _writeAutosaveBackup(payload);
+    if (payload.length) _autosaveTabHadData = true;
   } catch (e) {
     console.warn('autoSaveSession failed:', e);
   } finally {
@@ -13037,7 +13073,7 @@ function autoSaveSessionImpl() {
   }
 }
 
-function autoRestoreSessionImpl() {
+function autoRestoreSessionImpl(opts) {
   try {
     let raw;
     let usedBackup = false;
@@ -13048,16 +13084,13 @@ function autoRestoreSessionImpl() {
     }
     // sessionStorage に無い場合は localStorage のバックアップを確認
     // (iOS のタブ破棄で sessionStorage が消えたケースのリカバリ)
-    if (!raw) {
-      try {
-        raw = localStorage.getItem(AUTOSAVE_LS_BACKUP_KEY);
-        if (raw) usedBackup = true;
-      } catch (e) {
-        // localStorage も不可 → 復元不能
-        return;
-      }
+    // localStorage の自動保存は、 ページが読み込み直された時 (startup) だけ使う。
+    // 画面に戻っただけの時に使うと、 別のタブが書いた内容でこのタブを上書きしかねない。
+    if (!raw && opts && opts.startup) {
+      const _bk = _readAutosaveBackup();
+      if (_bk) { raw = JSON.stringify(_bk); usedBackup = true; }
     }
-    if (!raw) return;  // 保存データなし
+    if (!raw) return false;  // 保存データなし
 
     // ブラウザ復帰時の自動復元で textarea にメモを書き戻す可能性があるので
     // 自動クリアを停止 (ただし保存データに何も入っていない場合はクリアしてよい)
@@ -13065,8 +13098,10 @@ function autoRestoreSessionImpl() {
 
     let savedPayload;
     try { savedPayload = JSON.parse(raw); }
-    catch { return; }
-    if (!Array.isArray(savedPayload)) return;
+    catch { return false; }
+    if (!Array.isArray(savedPayload)) return false;
+    // 起動時の復元は、 保存データに中身があって、 今の画面が空のときだけ行う
+    if (opts && opts.startup && !savedPayload.length) return false;
 
     // 現在の表示状態と比較
     restoreInputsToPcTable();
@@ -13076,7 +13111,12 @@ function autoRestoreSessionImpl() {
     if (currentStr === savedStr) {
       // 変化なし、 mobile-view を再構築するだけ
       try { rebuildMobileView(); } catch (e) {}
-      return;
+      return false;
+    }
+    if (opts && opts.startup && currentPayload.length) {
+      // 起動時にすでに何か入っている (= 利用者が操作を始めた) 場合は上書きしない
+      try { rebuildMobileView(); } catch (e) {}
+      return false;
     }
 
     // 不一致 → 復元処理 (_loadFromLocalImpl をそのまま流用)。
@@ -13090,7 +13130,7 @@ function autoRestoreSessionImpl() {
     } catch (e) {
       // localStorage 書き込み失敗 → 復元不可。 mobile-view 再構築のみ。
       try { rebuildMobileView(); } catch (e) {}
-      return;
+      return false;
     }
     const origAlert = window.alert;
     window.alert = () => {};  // 復元処理中の alert を抑制
@@ -13113,15 +13153,63 @@ function autoRestoreSessionImpl() {
     // mobile-view を再構築 (PC tr が更新されたので)
     try { rebuildMobileView(); } catch (e) {}
 
-    // localStorage バックアップを使った場合は使い切り (= 削除)。
-    // 残しっぱなしにすると、 後で sessionStorage が新しい状態になっても
-    // 「タブ復元時に古い localStorage バックアップを使ってしまう」 リスクがある。
-    if (usedBackup) {
-      try { localStorage.removeItem(AUTOSAVE_LS_BACKUP_KEY); } catch (e) {}
-    }
+    // localStorage バックアップは画面を離れるたびに最新の状態で上書きされるので、
+    // 使った後も消さない (以前は画像保存時にしか書かれず古くなるため使い切りで消していた)。
+    return true;
   } catch (e) {
     console.warn('autoRestoreSession failed:', e);
+    return false;
   }
+}
+
+// 復元したことを短く知らせる (数秒で消える)
+function _showRestoreNotice(msg) {
+  try {
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;'
+      + 'background:rgba(40,40,40,.88);color:#fff;font-size:13px;padding:8px 14px;border-radius:16px;'
+      + 'box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none;transition:opacity .4s;';
+    document.body.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; }, 2600);
+    setTimeout(() => { el.remove(); }, 3100);
+  } catch (e) { /* swallow */ }
+}
+
+// ページが読み込み直された時 (iOS がアプリ切替中にタブを破棄した場合など) の自動復元。
+// 起動直後の form recovery 対策 (0/120/350ms のクリア) が終わってから実行する。
+// 復元の条件:
+//  - 同じタブの自動保存 (sessionStorage) が残っている、 または
+//    localStorage の自動保存が AUTOSAVE_RESTORE_MAX_AGE_MS 以内
+//  - 自動保存に計算データがある
+//  - 今の画面が空で、 利用者がまだ何も操作していない
+var _startupUserTouched = false;
+function installStartupAutoRestore() {
+  // buildMobileTransposedView (= 再構築のたびに呼ばれる) から呼ばれるので、 登録は起動時の 1 回だけ
+  if (installStartupAutoRestore._installed) return;
+  installStartupAutoRestore._installed = true;
+  const mark = (e) => {
+    if (e && e.isTrusted) _startupUserTouched = true;
+  };
+  document.addEventListener('input', mark, { capture: true });
+  document.addEventListener('change', mark, { capture: true });
+  const run = () => {
+    document.removeEventListener('input', mark, { capture: true });
+    document.removeEventListener('change', mark, { capture: true });
+    if (_startupUserTouched) return;
+    let restored = false;
+    try { restored = autoRestoreSessionImpl({ startup: true }); } catch (e) { restored = false; }
+    if (!restored) return;
+    _autosaveTabHadData = true;
+    try { ensureFormAutocompleteOff(); } catch (e) {}
+    try { ensureSelectsHaveDefaultSelection(); } catch (e) {}
+    try { ensureServantImages(); } catch (e) {}
+    _showRestoreNotice('前回の計算を復元しました');
+  };
+  const schedule = () => setTimeout(run, 450);
+  if (document.readyState === 'complete') schedule();
+  else window.addEventListener('load', schedule, { once: true });
 }
 
 function installVisibilityRecovery() {
@@ -13143,6 +13231,11 @@ function installVisibilityRecovery() {
         ensureServantImages();
       }, 80);
     }
+  });
+
+  // ページを閉じる・破棄される直前 (visibilitychange が来なかった場合の保険)
+  window.addEventListener('pagehide', () => {
+    if (document.visibilityState !== 'hidden') autoSaveSessionImpl();
   });
 
   // bfcache からの復帰 (event.persisted === true) もカバー
@@ -13400,6 +13493,8 @@ function buildMobileTransposedView() {
   // iOS Safari でブラウザを最小化中に OS のメモリ管理で input value が壊れ、
   // 復帰時に「謎の数値が複数フィールドに表示される」 現象が観測されたため対応。
   installVisibilityRecovery();
+  // ページが読み込み直された時 (タブ破棄など) は、 直前の自動保存から復元する
+  installStartupAutoRestore();
 
   // 操作メニューの文言を「上下」 → 「左右」 に書き換え (Mobile では行=列に転置されているため)。
   // 内部の data-action は同じ (PC 版 swap-up/copy-up = Mobile 版の左方向 = 内部的には「前の tr と入れ替え」)。
@@ -13782,7 +13877,8 @@ async function _captureCalcTable() {
   try {
     const sessionData = sessionStorage.getItem(AUTOSAVE_SS_KEY);
     if (sessionData) {
-      localStorage.setItem(AUTOSAVE_LS_BACKUP_KEY, sessionData);
+      const _rows = JSON.parse(sessionData);
+      if (Array.isArray(_rows)) _writeAutosaveBackup(_rows);
     }
   } catch (e) {
     console.warn('Pre-screenshot localStorage backup failed:', e);
@@ -13877,6 +13973,65 @@ async function _captureCalcTable() {
           });
         } catch (e) {
           console.warn('onclone textarea replacement failed:', e);
+        }
+
+        // 入力欄 (input) とプルダウン (select) も、 同じ見た目の div に差し替える。
+        // html2canvas は input / select の文字を 「枠の上端 + フォントのベースライン位置」 に描き、
+        // ブラウザのように枠の中で上下中央に揃えない (はみ出した分は枠で切り取る)。
+        // そのため Windows の日本語フォント (游ゴシック / メイリオ等) では文字が下にずれ、
+        // 欄ごとにずれ方も違うので画像が歪む。 カード選択の 「Q」 は尾が切れて 「O」 に見えていた。
+        // div にすれば通常のテキストとしてブラウザ自身が配置するので、 画面表示と同じ位置になる。
+        try {
+          const win = clonedDoc.defaultView;
+          const fields = clonedDoc.querySelectorAll(
+            'input:not([type]), input[type="text"], input[type="number"], input[type="search"], input[type="tel"], select');
+          fields.forEach(el => {
+            if (!el.offsetWidth || !el.offsetHeight) return;   // 非表示の欄はそのまま
+            const cs = win.getComputedStyle(el);
+            const isSel = el.tagName === 'SELECT';
+            const text = isSel ? ((el.options[el.selectedIndex] || {}).text || '') : (el.value || '');
+            const div = clonedDoc.createElement('div');
+            const span = clonedDoc.createElement('span');
+            span.textContent = text;
+            span.style.whiteSpace = 'pre';
+            div.appendChild(span);
+            const ta = cs.textAlign;
+            const st = div.style;
+            st.boxSizing = 'border-box';
+            st.width = el.offsetWidth + 'px';
+            st.height = el.offsetHeight + 'px';
+            // 上下中央揃えは line-height で行う (html2canvas は inline-flex の中の文字を描かないため flex は使わない)
+            st.display = cs.display.startsWith('inline') ? 'inline-block' : 'block';
+            st.textAlign = (ta === 'right' || ta === 'end') ? 'right'
+                         : (ta === 'center' || ta === '-webkit-center') ? 'center' : 'left';
+            st.overflow = 'hidden';
+            st.whiteSpace = 'nowrap';
+            st.fontFamily = cs.fontFamily;
+            st.fontSize = cs.fontSize;
+            st.fontWeight = cs.fontWeight;
+            st.fontStyle = cs.fontStyle;
+            st.letterSpacing = cs.letterSpacing;
+            const _innerH = el.offsetHeight - (parseFloat(cs.borderTopWidth) || 0) - (parseFloat(cs.borderBottomWidth) || 0);
+            st.lineHeight = Math.max(0, _innerH) + 'px';
+            st.color = cs.color;
+            st.backgroundColor = cs.backgroundColor;
+            st.backgroundImage = cs.backgroundImage;
+            st.padding = '0 ' + cs.paddingRight + ' 0 ' + cs.paddingLeft;
+            st.borderTop = cs.borderTop;
+            st.borderRight = cs.borderRight;
+            st.borderBottom = cs.borderBottom;
+            st.borderLeft = cs.borderLeft;
+            st.borderRadius = cs.borderRadius;
+            st.margin = cs.margin;
+            st.verticalAlign = cs.verticalAlign;
+            st.boxShadow = cs.boxShadow;
+            st.flex = cs.flex;
+            st.float = cs.float;
+            el.parentNode.replaceChild(div, el);
+          });
+        } catch (e) {
+          // 失敗してもキャプチャ自体は続行 (= 従来どおりの描画になる)
+          console.warn('onclone input replacement failed:', e);
         }
       },
     });
