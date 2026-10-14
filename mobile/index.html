@@ -13241,10 +13241,13 @@ function installStartupAutoRestore() {
     try { ensureFormAutocompleteOff(); } catch (e) {}
     try { ensureSelectsHaveDefaultSelection(); } catch (e) {}
     try { ensureServantImages(); } catch (e) {}
-    // 使い方を読まない人にも、 やり直し方 (初期化) が伝わるように案内する
+    // 使い方を読まない人にも、 やり直し方 (初期化) が伝わるように案内する。
+    // モバイル版は幅が狭いので 3 行に分け、 操作手順 (「データ管理」→「計算機を初期化」) を 1 行にまとめる。
+    // (PC 版は幅があるので 2 行。 この改行の違いは意図的なもの)
     _showRestoreNotice([
       '前回の計算を復元しました',
-      ['最初からやり直す場合は', '「データ管理」→', '「計算機を初期化」'],
+      '最初からやり直す場合は',
+      ['「データ管理」→', '「計算機を初期化」'],
     ]);
   };
   const schedule = () => setTimeout(run, 450);
