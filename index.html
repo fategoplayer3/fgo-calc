@@ -13047,17 +13047,31 @@ function _restoreAutosavePayload(payload) {
   }
 }
 // 復元したことを短く知らせる (数秒で消える)
-function _showRestoreNotice(msg) {
+// lines: 行の配列。 各行は文字列、 または 「途中で折り返さないかたまり」 の配列。
+//   かたまりの間だけで折り返すので、 スマホの幅でも 「計算機を初期化」 などが途中で切れない。
+// 表示は 4 秒 (その後 0.4 秒でフェードアウト)。
+function _showRestoreNotice(lines) {
   try {
     const el = document.createElement('div');
-    el.textContent = msg;
     el.setAttribute('role', 'status');
+    (Array.isArray(lines) ? lines : [lines]).forEach(line => {
+      const row = document.createElement('div');
+      (Array.isArray(line) ? line : [line]).forEach(seg => {
+        const sp = document.createElement('span');
+        sp.textContent = seg;
+        sp.style.display = 'inline-block';
+        sp.style.whiteSpace = 'nowrap';
+        row.appendChild(sp);
+      });
+      el.appendChild(row);
+    });
     el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;'
-      + 'background:rgba(40,40,40,.88);color:#fff;font-size:13px;padding:8px 14px;border-radius:16px;'
+      + 'width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;text-align:center;'
+      + 'background:rgba(40,40,40,.88);color:#fff;font-size:13px;line-height:1.5;padding:8px 16px;border-radius:12px;'
       + 'box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:none;transition:opacity .4s;';
     document.body.appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; }, 2600);
-    setTimeout(() => { el.remove(); }, 3100);
+    setTimeout(() => { el.style.opacity = '0'; }, 4000);
+    setTimeout(() => { el.remove(); }, 4400);
   } catch (e) { /* swallow */ }
 }
 var _startupUserTouched = false;
@@ -13086,7 +13100,11 @@ function installStartupAutoRestore() {
     if (!Array.isArray(rows) || !rows.length) return;
     if (!_restoreAutosavePayload(rows)) return;
     _autosaveTabHadData = true;
-    _showRestoreNotice('前回の計算を復元しました');
+    // 使い方を読まない人にも、 やり直し方 (初期化) が伝わるように案内する
+    _showRestoreNotice([
+      '前回の計算を復元しました',
+      ['最初からやり直す場合は', '「データ管理」→', '「計算機を初期化」'],
+    ]);
   };
   const schedule = () => setTimeout(run, 300);
   if (document.readyState === 'complete') schedule();
