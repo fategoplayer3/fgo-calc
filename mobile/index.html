@@ -395,6 +395,11 @@
     .bd-quick-btn:hover{background:#dde8f8}
     .bd-quick-btn:focus-visible{outline:2px solid #4a7fd4;outline-offset:1px}
     #buffDetailRows tr.bd-quick-flash td{background:#fff6cc;transition:background .6s}
+    /* モバイル版: 簡易入力ボタンを 5 個 × 2 段の格子に揃える (10 の真下に 35 が来る)。
+       「簡易入力」 の文字は左端で 2 段分の高さを使う。 ボタンは同じ幅にそろえる。 */
+    #buffDetailQuick.bd-quick{display:grid;grid-template-columns:auto repeat(5,minmax(0,1fr));gap:6px;align-items:stretch}
+    #buffDetailQuick .bd-quick-label{grid-row:1 / span 2;align-self:center;margin-right:2px}
+    #buffDetailQuick .bd-quick-btn{padding:3px 0;text-align:center;min-width:0}
 </style>
 
 <style>
