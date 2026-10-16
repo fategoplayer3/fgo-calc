@@ -5542,6 +5542,21 @@ function _grandRecalcOnCardChange(sel) {
   } catch (e) { /* 計算本体を止めない */ }
 }
 
+// 読込 (CSV インポート / ブラウザ保存の読込 / オートセーブ復元) 直後に、
+// 指定行のグランドスコア由来の派生マップ (grandUncapMap など) を作り直す。
+// 派生マップは保存しない設計 (ROW_STATE_MAPS のコメント参照) なので、
+// 作り直さないと 「上限撤廃が効かない (防御デバフが 100% で頭打ち)」 状態のまま
+// カードを変更するまで過小なダメージが表示されてしまう。
+function _grandRebuildAfterLoad(sfx) {
+  try {
+    if (!document.getElementById('grandScore')) return;
+    if (!APP.grandScoreEverMap || !APP.grandScoreEverMap[sfx || '']) return;
+    const prev = _rowCtx;
+    _rowCtx = sfx || '';
+    try { applyClassScoreBonus(); } finally { _rowCtx = prev; }
+  } catch (e) { /* 読込本体を止めない */ }
+}
+
 // バフ詳細モーダルに出す 「グランドスコア」 内訳行のラベル。
 // この接頭辞で行を識別するので、 変更する場合は _syncGrandScoreRow も合わせること。
 const GRAND_ROW_PREFIX = 'グランドスコア';
@@ -10912,6 +10927,7 @@ function _loadFromLocalImpl() {
     }
     if (!targetRow) continue;
     applyRowData(targetRow, rowData);
+    _grandRebuildAfterLoad(targetRow.dataset.rowSuffix || '');
     recalcRow(targetRow.dataset.rowSuffix || '');
     prevTargetRow = targetRow;
   }
@@ -11312,6 +11328,7 @@ async function importCsv(file) {
     // 行適用は applyRowData に一本化（localStorage 経路と同じロジックを通す）
     // この一本化により、フィールド追加・バフ詳細復元などの修正が両経路に自動反映される
     applyRowData(targetRow, rowData);
+    _grandRebuildAfterLoad(targetRow.dataset.rowSuffix || '');
     recalcRow(targetRow.dataset.rowSuffix || '');
     prevTargetRow = targetRow;
   }
