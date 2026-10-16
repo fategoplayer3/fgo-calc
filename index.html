@@ -404,6 +404,16 @@
     .bd-quick-btn:hover{background:#dde8f8}
     .bd-quick-btn:focus-visible{outline:2px solid #4a7fd4;outline-offset:1px}
     #buffDetailRows tr.bd-quick-flash td{background:#fff6cc;transition:background .6s}
+
+    /* バフ詳細モーダル: 中身 (説明・簡易入力・入力行) だけをスクロールさせ、
+       合計と 「適用」 などのボタン列は常にモーダルの下端に表示する。
+       (スマホでは簡易入力ボタンの分だけ縦に長くなり、 適用ボタンが画面外に出ていた。
+        モーダルは画面に固定表示なので、 はみ出した部分はスクロールしても見えなかった) */
+    #buffDetailModal .modal{display:flex;flex-direction:column;max-height:calc(100vh - 80px);max-height:calc(100dvh - 80px)}
+    #buffDetailModal .modal-head{flex:none}
+    #buffDetailModal .modal-body{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+    #buffDetailModal .bd-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+    #buffDetailModal .bd-foot{flex:none}
 </style>
 
 <style>
@@ -1644,6 +1654,7 @@ textarea{
         <button class="modal-close" type="button" id="buffDetailCloseBtn">閉じる</button>
       </div>
       <div class="modal-body" style="padding:12px;">
+        <div class="bd-scroll">
         <div id="buffDetailIntro" style="font-size:11px;color:#666;margin-bottom:10px;">各欄に個別のバフ値(%)を入力。合計が元フィールドに反映されます。<br><span class="bd-count-help">「回」列は回数制バフ（次のN回攻撃にのみ効果）の使用回数。<br>空欄＝ターン制（無制限）。</span></div>
         <div id="buffDetailQuick" class="bd-quick" role="group" aria-label="簡易入力">
           <span class="bd-quick-label">簡易入力</span>
@@ -1677,6 +1688,8 @@ textarea{
           </thead>
           <tbody id="buffDetailRows"></tbody>
         </table>
+        </div>
+        <div class="bd-foot">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:2px solid #4a7fd4;">
           <span style="font-size:12px;font-weight:600;color:#333;">合計</span>
           <span id="buffDetailTotal" style="font-size:16px;font-weight:700;color:#4a7fd4;">0 %</span>
@@ -1698,6 +1711,7 @@ textarea{
           <button id="buffDetailClearBtn" class="tool-btn" style="font-size:11px;">クリア</button>
           <button id="buffDetailBoostBtn" class="tool-btn" style="font-size:11px;" title="宝具バフを2倍にするサーヴァント効果">ブースト ×1</button>
           <button id="buffDetailOkBtn" class="tool-btn" style="font-size:11px;background:#4a7fd4;color:#fff;border-color:#3a6fc4;">適用</button>
+        </div>
         </div>
       </div>
     </div>
