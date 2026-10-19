@@ -410,6 +410,9 @@
     #buffDetailModal .modal-body{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
     #buffDetailModal .bd-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
     #buffDetailModal .bd-foot{flex:none}
+    /* 簡易入力ボタンはスクロールしても上端に残す (行を増やすと見切れるため)。
+       背景を塗らないと下を流れる入力表が透けて見える */
+    #buffDetailModal .bd-quick{position:sticky;top:0;z-index:3;background:#fff;padding:4px 0 6px;margin-bottom:4px;box-shadow:0 1px 0 #e3e3e3}
 </style>
 
 <style>
@@ -9293,6 +9296,18 @@ function _buffDetailQuickAdd(v) {
   if (!val) return;
   val.value = String(v);
   _buffDetailUpdateTotal();
+  // 入った行が画面外 (または上端に固定した簡易入力ボタンの裏) にあれば見える位置まで送る。
+  // 下までスクロールした状態で押すと、 上の空き行に入って何が起きたか分からないため。
+  try {
+    const sc = tr.closest('.bd-scroll');
+    const qb = document.getElementById('buffDetailQuick');
+    if (sc) {
+      const r = tr.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+      const topEdge = qb ? qb.getBoundingClientRect().bottom : sr.top;
+      if (r.top < topEdge) sc.scrollTop -= (topEdge - r.top);
+      else if (r.bottom > sr.bottom) sc.scrollTop += (r.bottom - sr.bottom);
+    }
+  } catch (e) { /* 表示調整のみ */ }
   // どの行に入ったか分かるよう、 一瞬だけ色を付ける
   tr.classList.add('bd-quick-flash');
   setTimeout(() => tr.classList.remove('bd-quick-flash'), 700);
