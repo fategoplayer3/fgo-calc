@@ -13155,8 +13155,17 @@ function _readAutosaveBackup() {
   if (!obj || !Array.isArray(obj.rows)) return null;
   return obj.rows;
 }
+// 起動時の自動復元が済むまでは自動保存しない。
+// 復元前 (= 画面がまだ空) に再読み込みや画面切替が起きると、 空の状態で自動保存が上書きされ、
+// 次の起動で 「前回は空だった」 と判断されて計算が消えていた
+// (更新後に 「2回リロード」 を素早く行うと再現)。
+// 利用者が起動直後に入力を始めた場合は、 その入力を守るため保存してよい。
+var _startupRestoreSettled = false;
+// 保険: 何らかの理由で起動時の復元処理が動かなかった場合でも、 自動保存が止まったままにならないようにする
+window.addEventListener('load', () => { setTimeout(() => { _startupRestoreSettled = true; }, 3000); }, { once: true });
 function autoSaveSessionImpl() {
   if (_autosaveSuspended) return;
+  if (!_startupRestoreSettled && !_startupUserTouched) return;
   try {
     const payload = _collectFilteredPayload();
     try { sessionStorage.setItem(AUTOSAVE_SS_KEY, JSON.stringify(payload)); } catch (e) { /* swallow */ }
@@ -13231,6 +13240,8 @@ function installStartupAutoRestore() {
   const run = () => {
     document.removeEventListener('input', mark, { capture: true });
     document.removeEventListener('change', mark, { capture: true });
+    // ここで復元するかどうかが決まる (復元はこの関数内で同期的に終わる) ので、 以後は自動保存してよい
+    _startupRestoreSettled = true;
     if (_startupUserTouched) return;
     let rows = null;
     let ss = null;
