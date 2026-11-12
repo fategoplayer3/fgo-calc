@@ -6020,6 +6020,20 @@ function applyClassScoreBonus(){
         // ここでさらに _gVal を引くと二重に引かれてマイナス値になる。
         //   例) パッシブ0 + グランド50 → vStr='' (0) から 50 を引いて -50 になっていた
         // グランドスコアは _syncGrandScoreRow が専用行で出すため、 ここでは vStr をそのまま使う。
+        // この分岐に来るのは 「クラススコア等のトグルがすべて OFF」 のとき。
+        // 以前 ON だった頃のボーナス行 (クラススコア / アペンド1 等) が残っていれば取り除く。
+        // (パッシブの内訳行が無いフィールド = カード威力 / B・A・Q クリ威力 / EX 等で
+        //  トグルを OFF にしても行が消えず、 効果が乗ったままになっていた)
+        for (let i = _buffDetailStore[_skey].length - 1; i >= 0; i--) {
+          const _r = _buffDetailStore[_skey][i];
+          if (!_r) continue;
+          const _isLegacyBonus = !_r._pv && !_r._gs && !_r.manual
+            && CLASS_SCORE_BONUS_LABELS.has(String(_r.label || '').trim());
+          if (_r._pvBonus || _isLegacyBonus) {
+            _buffDetailStore[_skey].splice(i, 1);
+            _buffDetailStore[_skey].push({ label: '', value: '', count: '', fixed: false });
+          }
+        }
         const _pvOnly2 = parseFloat(vStr) || 0;
         if (Math.abs(_pvOnly2) > 1e-9) {
           const _c0 = _buffDetailStore[_skey][0] && _buffDetailStore[_skey][0].count || '';
