@@ -14702,8 +14702,21 @@ if ('serviceWorker' in navigator) {
      PC 版と同一サイトコードで OK (パスが / と /mobile/ で分かれるため
      ダッシュボード上で PC / Mobile のアクセスは自動的に区別できる)。
      ════════════════════════════════════════════════════════════ -->
-<script data-goatcounter="https://fategoplayer3.goatcounter.com/count"
-        async src="https://gc.zgo.at/count.js"></script>
+<!-- 解析スクリプトはページの読み込み完了 (load) 後に追加する。
+     async でも、 HTML に直接書いた外部スクリプトは load イベントを待たせる。
+     電波が悪く gc.zgo.at の応答が返らないと load がいつまでも来ず、
+     load 後に走る前回の計算の自動復元や Service Worker の登録が止まっていた。 -->
+<script>
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://gc.zgo.at/count.js';
+    s.setAttribute('data-goatcounter', 'https://fategoplayer3.goatcounter.com/count');
+    document.body.appendChild(s);
+  }, 0);
+}, { once: true });
+</script>
 
 </body>
 </html>
