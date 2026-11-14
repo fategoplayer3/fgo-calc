@@ -1753,6 +1753,66 @@ textarea{
 
 
 
+  <!-- ════════════════════════════════════════════════════════════
+       HP 依存宝具の倍率計算モーダル
+       対象は宝具に damageNpHpratioLow (自身のHPが少ないほど威力アップ) を持つサーヴァント。
+       宝具倍率欄 (npRateSelect) をクリックすると開く。 JS は openNpHpModal 参照。
+       ════════════════════════════════════════════════════════════ -->
+  <style>
+    input.np-hp-click{cursor:pointer;background:#fff7e6 !important;border-color:#e0a030 !important;}
+    #npHpModal .nphp-name{font-weight:700;font-size:14px;margin-bottom:4px;}
+    #npHpModal .nphp-note{font-size:11px;color:#666;margin-bottom:10px;line-height:1.5;}
+    #npHpModal .nphp-grid{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center;font-size:12px;}
+    /* 共通 CSS の height:var(--input-h) (細い入力欄用) だと 13px の文字が上下で見切れるので、 このモーダルだけ高さを確保する */
+    #npHpModal select,#npHpModal input{height:30px;line-height:1.3;font-size:13px;padding:2px 6px;box-sizing:border-box;}
+    #npHpModal .nphp-grid input[type=number]{width:90px;text-align:right;}
+    #npHpModal .nphp-quick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
+    #npHpModal .nphp-quick button{min-width:52px;padding:4px 8px;font-size:12px;border:1px solid #9bb7e3;background:#eef4fd;color:#1f4f99;border-radius:4px;cursor:pointer;}
+    #npHpModal .nphp-real{margin-top:6px;font-size:12px;}
+    #npHpModal .nphp-real summary{cursor:pointer;color:#1f5fbf;}
+    #npHpModal .nphp-real-row{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;}
+    #npHpModal .nphp-real-row input{width:90px;text-align:right;}
+    #npHpModal .nphp-calc{margin-top:10px;padding:8px;background:#f6f8fb;border:1px solid #dde4ee;border-radius:4px;font-size:12px;line-height:1.7;}
+    #npHpModal .nphp-total{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:2px solid #4a7fd4;font-size:12px;font-weight:600;}
+    #npHpModal .nphp-total b{font-size:18px;color:#4a7fd4;}
+    #npHpModal .nphp-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
+  </style>
+  <div class="modal-overlay" id="npHpModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="npHpTitle" style="width:420px;max-width:95vw;">
+      <div class="modal-head">
+        <div class="modal-title" id="npHpTitle">宝具倍率計算（残りHP）</div>
+        <button class="modal-close" type="button" id="npHpCloseBtn">閉じる</button>
+      </div>
+      <div class="modal-body" style="padding:12px;">
+        <div class="nphp-name" id="npHpNpName"></div>
+        <div class="nphp-note">自身のHPが少ないほど威力が上がる宝具です。残りHPを入力すると宝具倍率を計算します（残りHP 100% で通常の倍率）。</div>
+        <div class="nphp-grid">
+          <label for="npHpLv">宝具レベル</label>
+          <select id="npHpLv"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select>
+          <label for="npHpOc">オーバーチャージ</label>
+          <select id="npHpOc"><option value="1">100%</option><option value="2">200%</option><option value="3">300%</option><option value="4">400%</option><option value="5">500%</option></select>
+          <label for="npHpPct">残りHP</label>
+          <div><input type="number" id="npHpPct" min="0" max="100" step="any" value="100" inputmode="decimal"> %</div>
+        </div>
+        <div class="nphp-quick" id="npHpQuick">
+          <button type="button" data-hp="100">100%</button><button type="button" data-hp="75">75%</button><button type="button" data-hp="50">50%</button><button type="button" data-hp="25">25%</button><button type="button" data-hp="10">10%</button><button type="button" data-hp="0" title="HP1 (残りHP ≒ 0%)">HP1</button>
+        </div>
+        <details class="nphp-real">
+          <summary>HPの実数で入力する</summary>
+          <div class="nphp-real-row">
+            <span>現在HP</span><input type="number" id="npHpCur" min="1" step="1" inputmode="numeric">
+            <span>/ 最大HP</span><input type="number" id="npHpMax" min="1" step="1" inputmode="numeric">
+          </div>
+        </details>
+        <div class="nphp-calc" id="npHpCalc"></div>
+        <div class="nphp-total"><span>宝具倍率</span><span><b id="npHpTotal">0</b> %</span></div>
+        <div class="nphp-foot">
+          <button type="button" id="npHpApplyBtn" class="tool-btn" style="font-size:12px;background:#4a7fd4;color:#fff;border-color:#3a6fc4;">適用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="koModal">
     <div class="modal ko-modal" role="dialog" aria-modal="true" aria-labelledby="koModalTitle">
       <div class="modal-head">
@@ -4459,6 +4519,7 @@ function refreshNpRateOptionsFromSelection() {
       npRateSel.value = toDisplayNpMultiplier(rate, selected.cardKey);
       npRateSel.dataset.autoFilled = '1';
       npRateSel.title = selected.actualMults.map((v, i) => `Lv${i + 1}: ${toDisplayNpMultiplier(v, selected.cardKey).toFixed(0)}%`).join(' / ');
+      _npHpReapplyOnRefresh(lvIdx);
       updateNpCardDisplay();
       return;
     }
@@ -6103,6 +6164,7 @@ const ROW_STATE_MAPS = [
   'grandEx1DamagedMap', 'grandFieldMap', 'grandGazeMap', 'grandEx2Map',
   'classScoreMap', 'append1Map', 'append4Map', 'footprintMaxMap',
   'svParamMap',   // サーヴァント選択モーダルの Lv / フォウATK / 礼装ATK / グランド(+1000)
+  'npHpMap',      // HP 依存宝具の倍率計算モーダルの設定 { npId, lv, oc, hp }
 ];
 
 // 指定行の設定をまとめて取り出す (値が無いマップは含めない)
@@ -7771,6 +7833,7 @@ function updateDebugOutput(d1, d2, d3, exRes) {
 }
 
 function recalc() {
+  try { _syncNpHpUi(_rowCtx); } catch (e) { /* 表示のみ */ }
   // 注意: 旧コードはここで updateNpCardDisplay() を呼んでいたが、 これが原因で
   // ユーザーが card1/card2/card3 を変更するたびに updateNpCardDisplay が走り、
   // 内部の APP.npOptions/APP.servant がグローバル単一であるため別行のサーヴァント情報を
@@ -10981,6 +11044,7 @@ function _loadFromLocalImpl() {
     if (!targetRow) continue;
     applyRowData(targetRow, rowData);
     _grandRebuildAfterLoad(targetRow.dataset.rowSuffix || '');
+    _npHpEnsureRow(targetRow.dataset.rowSuffix || '');   // 非同期 (見た目と宝具倍率モーダル用)
     recalcRow(targetRow.dataset.rowSuffix || '');
     prevTargetRow = targetRow;
   }
@@ -11382,6 +11446,7 @@ async function importCsv(file) {
     // この一本化により、フィールド追加・バフ詳細復元などの修正が両経路に自動反映される
     applyRowData(targetRow, rowData);
     _grandRebuildAfterLoad(targetRow.dataset.rowSuffix || '');
+    _npHpEnsureRow(targetRow.dataset.rowSuffix || '');   // 非同期 (見た目と宝具倍率モーダル用)
     recalcRow(targetRow.dataset.rowSuffix || '');
     prevTargetRow = targetRow;
   }
@@ -11583,6 +11648,9 @@ function cloneRow(sourceRow, direction = 'down', opts) {
     // グランドスコア ON/OFF 状態のコピー。
     // カード変更時の再計算は APP.grandScoreMap[行] を参照するため、 これが未定義だと
     // 「OFF」 と判定され、 コピー先でカードを変えた瞬間にグランドスコアが外れてしまう。
+    if (APP.npHpMap && APP.npHpMap[_srcSfx]) {
+      APP.npHpMap[suffix] = Object.assign({}, APP.npHpMap[_srcSfx]);
+    }
     if (APP.grandScoreMap) {
       APP.grandScoreMap[suffix] = !!APP.grandScoreMap[_srcSfx];
     }
@@ -11854,6 +11922,230 @@ function legacyCopyToClipboard(text) {
 // r = 0.900〜1.099 (0.001刻み、200通り)
 // 撃破率 = count(damage(r) ≥ target) / 200
 // ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// HP 依存宝具 (自身のHPが少ないほど威力アップ) の倍率計算
+// 対象: 宝具の関数に damageNpHpratioLow を持つもの
+//   (アン・ボニー＆メアリー・リード〔弓・騎〕、 土方歳三、 アシュヴァッターマン)。
+// 計算式 (atwiki): 宝具倍率 = 基本倍率(宝具Lv) + 追加倍率(OC) × (1 − 残りHP / 最大HP)
+// データ: svals[Lv].Value = 基本倍率×10、 svals{OC}[Lv].Target = 追加倍率×10
+//   (OC1 は svals、 OC2〜5 は svals2〜svals5)。
+// 計算機の設計前提は 「初動 (HP 全快)」 なので、 既定は残りHP 100% = 通常の倍率。
+// 行ごとの設定は APP.npHpMap[行] = { npId, lv, oc, hp } に保持し、 rowState で保存する。
+// 宝具倍率欄はこの宝具のときだけ readonly + 色付きにして、 クリックでモーダルを開く。
+// ════════════════════════════════════════════════════════════
+let _npHpSfx = '';
+let _npHpCur = null;
+
+// 行のサーヴァントデータ。 CSV 読込やオートセーブ復元の直後は APP.servantMap が空のことがあるため、
+// 行に保存されたサーヴァント ID から埋め込みデータを引く (APP.servant は別の行のこともあるので最後の手段)。
+function _npHpRowServant(sfx) {
+  sfx = sfx || '';
+  const row = document.querySelector(`#calcTable tbody tr[data-row-suffix="${sfx}"]`);
+  const sid = row && row.dataset.servantId;
+  if (sid && typeof EMBEDDED_SERVANT_DATA !== 'undefined' && EMBEDDED_SERVANT_DATA && EMBEDDED_SERVANT_DATA[sid]) {
+    return EMBEDDED_SERVANT_DATA[sid];
+  }
+  const sidNum = parseInt(sid, 10);
+  if (Number.isFinite(sidNum) && typeof _servantCache !== 'undefined' && _servantCache.has(sidNum)) {
+    return _servantCache.get(sidNum);
+  }
+  const mapSv = APP.servantMap && APP.servantMap[sfx];
+  if (mapSv && (!sid || String(mapSv.id) === String(sid))) return mapSv;
+  if (!sfx && APP.servant && (!sid || String(APP.servant.id) === String(sid))) return APP.servant;
+  return null;
+}
+
+// 行のサーヴァントデータが手元に無いとき (埋め込みデータの無い版で、 CSV 読込・オートセーブ復元した直後など)
+// に取得して APP.servantMap に入れる。 NP・スター計算と同じく _fetchServantData (埋め込み → キャッシュ → API) を使う。
+// 戻り値: この行が HP 依存宝具なら true
+async function _npHpEnsureRow(sfx) {
+  sfx = sfx || '';
+  if (_npHpInfo(sfx)) return true;
+  const row = document.querySelector(`#calcTable tbody tr[data-row-suffix="${sfx}"]`);
+  const sid = parseInt(row && row.dataset.servantId, 10);
+  if (!Number.isFinite(sid)) return false;
+  const sel = document.getElementById('npTypeSelect' + sfx);
+  if (!sel || !/^np_\d+$/.test(sel.value || '')) return false;
+  let sv = null;
+  try { sv = await _fetchServantData(sid); } catch (e) { sv = null; }
+  if (!sv) return false;
+  APP.servantMap = APP.servantMap || {};
+  const cur = APP.servantMap[sfx];
+  if (!cur || String(cur.id) !== String(sv.id)) APP.servantMap[sfx] = sv;
+  _syncNpHpUi(sfx);
+  return !!_npHpInfo(sfx);
+}
+
+function _npHpInfo(sfx) {
+  {
+    const sv = _npHpRowServant(sfx);
+    const sel = document.getElementById('npTypeSelect' + (sfx || ''));
+    if (!sv || !sel) return null;
+    const m = String(sel.value || '').match(/^np_(\d+)$/);
+    if (!m) return null;
+    const np = (sv.noblePhantasms || []).find(n => n && String(n.id) === m[1]);
+    if (!np) return null;
+    const fn = (np.functions || []).find(f => String(f.funcType || '') === 'damageNpHpratioLow');
+    if (!fn || !Array.isArray(fn.svals) || !fn.svals.length) return null;
+    const pick = (arr, i) => (Array.isArray(arr) && arr.length) ? (arr[Math.min(i, arr.length - 1)] || {}) : {};
+    const L = [0, 1, 2, 3, 4];
+    const base = L.map(i => (+pick(fn.svals, i).Value || 0) / 10);
+    const ocLists = [fn.svals, fn.svals2, fn.svals3, fn.svals4, fn.svals5]
+      .map(lst => (Array.isArray(lst) && lst.length) ? lst : fn.svals);
+    const target = ocLists.map(lst => L.map(i => (+pick(lst, i).Target || 0) / 10));
+    return { npId: String(np.id), name: np.name || '宝具', base, target };
+  }
+}
+
+function _npHpRate(info, lv, oc, hpPct) {
+  const li = Math.max(1, Math.min(5, +lv || 1)) - 1;
+  const oi = Math.max(1, Math.min(5, +oc || 1)) - 1;
+  const hp = Math.max(0, Math.min(100, isFinite(+hpPct) ? +hpPct : 100));
+  const v = (info.base[li] || 0) + (info.target[oi][li] || 0) * (1 - hp / 100);
+  return Math.round(v * 10) / 10;
+}
+
+// 宝具倍率欄の見た目 (クリック可能 / readonly) をこの行の宝具に合わせる。 recalc の度に呼ばれる。
+function _syncNpHpUi(sfx) {
+  const el = document.getElementById('npRateSelect' + (sfx || ''));
+  if (!el) return;
+  // 行コピー等で別の宝具の HP 設定が残っていたら捨てる (保存データに古い設定を残さない)
+  const st = APP.npHpMap && APP.npHpMap[sfx || ''];
+  if (st) {
+    const sel = document.getElementById('npTypeSelect' + (sfx || ''));
+    if (sel && sel.value !== 'np_' + st.npId) delete APP.npHpMap[sfx || ''];
+  }
+  const on = !!_npHpInfo(sfx);
+  el.classList.toggle('np-hp-click', on);
+  el.readOnly = on;
+  if (on) el.title = 'クリックすると自身の残りHPに応じた宝具倍率を計算できます';
+  else if (el.title === 'クリックすると自身の残りHPに応じた宝具倍率を計算できます') el.title = '';
+}
+
+// サーヴァント選択モーダルの適用などで宝具倍率が基本倍率に戻されたとき、
+// 同じ宝具の HP 設定が残っていれば掛け直す (宝具レベルは今回の選択に合わせる)。
+function _npHpReapplyOnRefresh(lvIdx) {
+  const sfx = _rowCtx || '';
+  const st = APP.npHpMap && APP.npHpMap[sfx];
+  if (!st) return;
+  const info = _npHpInfo(sfx);
+  if (!info || info.npId !== st.npId) { delete APP.npHpMap[sfx]; return; }
+  st.lv = (lvIdx || 0) + 1;
+  const el = _el('npRateSelect');
+  if (el) el.value = _npHpRate(info, st.lv, st.oc, st.hp);
+}
+
+function _npHpGuessLv(info, curVal) {
+  const v = +curVal || 0;
+  const i = info.base.findIndex(b => Math.abs(b - v) < 0.05);
+  if (i >= 0) return i + 1;
+  return Math.max(1, Math.min(5, APP.selectedNpLevel || 1));
+}
+
+function _npHpFmt(n) { return (Math.round((+n || 0) * 10) / 10).toLocaleString('ja-JP'); }
+
+function _npHpRender() {
+  const info = _npHpCur;
+  if (!info) return;
+  const lv = +document.getElementById('npHpLv').value || 1;
+  const oc = +document.getElementById('npHpOc').value || 1;
+  let hp = parseFloat(document.getElementById('npHpPct').value);
+  if (!isFinite(hp)) hp = 100;
+  hp = Math.max(0, Math.min(100, hp));
+  const b = info.base[lv - 1] || 0;
+  const t = info.target[oc - 1][lv - 1] || 0;
+  const total = _npHpRate(info, lv, oc, hp);
+  document.getElementById('npHpCalc').innerHTML =
+    `基本倍率 <b>${_npHpFmt(b)}%</b>（宝具Lv${lv}）<br>` +
+    `追加倍率 <b>${_npHpFmt(t)}%</b>（OC ${oc * 100}%）× (1 − 残りHP ${_npHpFmt(hp)}%)` +
+    ` = <b>${_npHpFmt(t * (1 - hp / 100))}%</b>`;
+  document.getElementById('npHpTotal').textContent = _npHpFmt(total);
+}
+
+function openNpHpModal(sfx) {
+  const info = _npHpInfo(sfx);
+  if (!info) return;
+  _npHpSfx = sfx || '';
+  _npHpCur = info;
+  APP.npHpMap = APP.npHpMap || {};
+  const st = APP.npHpMap[_npHpSfx];
+  const rateEl = document.getElementById('npRateSelect' + _npHpSfx);
+  const useSt = st && st.npId === info.npId;
+  document.getElementById('npHpNpName').textContent = info.name;
+  document.getElementById('npHpLv').value = String(useSt ? st.lv : _npHpGuessLv(info, rateEl && rateEl.value));
+  document.getElementById('npHpOc').value = String(useSt ? (st.oc || 1) : 1);
+  document.getElementById('npHpPct').value = String(useSt ? st.hp : 100);
+  document.getElementById('npHpCur').value = '';
+  document.getElementById('npHpMax').value = '';
+  _npHpRender();
+  document.getElementById('npHpModal').classList.add('open');
+}
+
+function _npHpApply() {
+  const info = _npHpCur;
+  if (!info) return;
+  const sfx = _npHpSfx;
+  const lv = +document.getElementById('npHpLv').value || 1;
+  const oc = +document.getElementById('npHpOc').value || 1;
+  let hp = parseFloat(document.getElementById('npHpPct').value);
+  if (!isFinite(hp)) hp = 100;
+  hp = Math.max(0, Math.min(100, hp));
+  APP.npHpMap = APP.npHpMap || {};
+  APP.npHpMap[sfx] = { npId: info.npId, lv, oc, hp };
+  const el = document.getElementById('npRateSelect' + sfx);
+  if (el) el.value = _npHpRate(info, lv, oc, hp);
+  document.getElementById('npHpModal').classList.remove('open');
+  recalcRow(sfx);
+}
+
+(function _initNpHpModal() {
+  const modal = document.getElementById('npHpModal');
+  if (!modal) return;
+  document.getElementById('npHpCloseBtn').addEventListener('click', () => modal.classList.remove('open'));
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+  ['npHpLv', 'npHpOc'].forEach(id => document.getElementById(id).addEventListener('change', _npHpRender));
+  document.getElementById('npHpPct').addEventListener('input', () => {
+    document.getElementById('npHpCur').value = '';
+    document.getElementById('npHpMax').value = '';
+    _npHpRender();
+  });
+  document.getElementById('npHpQuick').addEventListener('click', e => {
+    const b = e.target.closest('button[data-hp]');
+    if (!b) return;
+    document.getElementById('npHpPct').value = b.dataset.hp;
+    document.getElementById('npHpCur').value = '';
+    document.getElementById('npHpMax').value = '';
+    _npHpRender();
+  });
+  const onReal = () => {
+    const cur = parseFloat(document.getElementById('npHpCur').value);
+    const max = parseFloat(document.getElementById('npHpMax').value);
+    if (!(cur > 0) || !(max > 0)) return;
+    const pct = Math.max(0, Math.min(100, cur / max * 100));
+    document.getElementById('npHpPct').value = String(Math.round(pct * 100) / 100);
+    _npHpRender();
+  };
+  document.getElementById('npHpCur').addEventListener('input', onReal);
+  document.getElementById('npHpMax').addEventListener('input', onReal);
+  document.getElementById('npHpApplyBtn').addEventListener('click', _npHpApply);
+  // 宝具倍率欄のクリック (PC / モバイルとも同じ input 要素)。 対象の宝具のときだけモーダルを開く。
+  document.addEventListener('click', e => {
+    const el = e.target && e.target.closest ? e.target.closest('input[id^="npRateSelect"]') : null;
+    if (!el) return;
+    const m = el.id.match(/^npRateSelect(_R\d+)?$/);
+    if (!m) return;
+    const sfx = m[1] || '';
+    if (!_npHpInfo(sfx)) {
+      // データ未取得の可能性 → 取得できて HP 依存宝具だった場合だけ開く (それ以外は通常の手入力のまま)
+      _npHpEnsureRow(sfx).then(ok => { if (ok) { el.blur(); openNpHpModal(sfx); } });
+      return;
+    }
+    e.preventDefault();
+    el.blur();
+    openNpHpModal(sfx);
+  }, true);
+})();
+
 function openKoModalForRow(suffix) {
   _koModalRowSuffix = suffix || '';
   const sfx = _koModalRowSuffix;
