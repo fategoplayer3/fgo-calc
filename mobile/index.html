@@ -14713,6 +14713,10 @@ window.addEventListener('load', function () {
     s.async = true;
     s.src = 'https://gc.zgo.at/count.js';
     s.setAttribute('data-goatcounter', 'https://fategoplayer3.goatcounter.com/count');
+    // 記録するパスを実際の URL に固定する。 GoatCounter は既定で <link rel="canonical"> の URL を
+    // パスに使うため、 モバイル版 (canonical = PC版) のアクセスが /fgo-calc として記録されていた。
+    // location.pathname + location.search は canonical が無い場合の既定値と同じなので、 過去の記録と連続する。
+    s.setAttribute('data-goatcounter-settings', JSON.stringify({ path: location.pathname + location.search }));
     document.body.appendChild(s);
   }, 0);
 }, { once: true });
